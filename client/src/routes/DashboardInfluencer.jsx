@@ -43,6 +43,7 @@ import {
   Wallet,
   ArrowUpRight,
   History,
+  Landmark,
 } from "lucide-react";
 
 
