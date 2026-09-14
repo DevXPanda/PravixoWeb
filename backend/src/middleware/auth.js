@@ -40,6 +40,7 @@ export const protect = async (req, res, next) => {
 
     req.user = {
       _id: profile._id,
+      profileId: profile._id,
       userId: profile.userId,
       email: profile.email,
       role: profile.role,
@@ -67,6 +68,7 @@ export const optionalAuth = async (req, res, next) => {
       if (profile) {
         req.user = {
           _id: profile._id,
+          profileId: profile._id,
           userId: profile.userId,
           email: profile.email,
           role: profile.role,

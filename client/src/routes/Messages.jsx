@@ -986,27 +986,29 @@ export default function Messages() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-64px)] w-full max-w-7xl flex-col p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex h-[calc(100vh-64px)] w-full max-w-[1700px] flex-col px-3 sm:px-6 py-2 sm:py-3">
 
       {/* PAGE HEADER */}
-      <div className="mb-6 flex flex-col gap-2">
-        <h1 className="font-display text-3xl font-bold">
-          Messages
-        </h1>
+      <div className="mb-2 sm:mb-3 flex items-center justify-between shrink-0">
+        <div>
+          <h1 className="font-display text-xl sm:text-2xl font-bold">
+            Messages
+          </h1>
 
-        <p className="text-sm text-muted-foreground">
-          Manage your collaborations and inquiries.
-        </p>
+          <p className="text-xs text-muted-foreground">
+            Manage your collaborations and inquiries.
+          </p>
+        </div>
       </div>
 
       {/* MAIN CHAT CONTAINER */}
-      <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-[350px_1fr]">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[330px_1fr] xl:grid-cols-[360px_1fr]">
 
         {/* ==================================================
             LEFT SIDEBAR
         ================================================== */}
         <div
-          className={`flex flex-col overflow-hidden rounded-3xl border border-border bg-card ${
+          className={`flex flex-col min-h-0 h-full overflow-hidden rounded-3xl border border-border bg-card shadow-sm ${
             activeConversation
               ? "hidden lg:flex"
               : "flex"
@@ -1081,7 +1083,7 @@ export default function Messages() {
           </div>
 
           {/* CONVERSATIONS */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto">
 
             {loading ? (
               <div className="flex h-full items-center justify-center">
@@ -1243,7 +1245,7 @@ export default function Messages() {
             RIGHT CHAT AREA
         ================================================== */}
         <div
-          className={`flex flex-col overflow-hidden rounded-3xl border border-border bg-card ${
+          className={`flex flex-col min-h-0 h-full overflow-hidden rounded-3xl border border-border bg-card shadow-sm ${
             activeConversation
               ? "flex"
               : "hidden lg:flex"
@@ -1254,7 +1256,7 @@ export default function Messages() {
             <>
 
               {/* CHAT HEADER */}
-              <div className="flex items-center gap-3 border-b border-border p-4">
+              <div className="flex items-center gap-3 border-b border-border px-4 py-3 shrink-0">
 
                 {/* MOBILE BACK */}
                 <button
@@ -1323,7 +1325,7 @@ export default function Messages() {
 
               {/* COLLABORATION & PAYMENT NEGOTIATION BAR (CLEAN & COLLAPSIBLE) */}
               {activeConversation.connection && (
-                <div className="border-b border-border bg-card/70 backdrop-blur-md transition-all duration-300">
+                <div className="border-b border-border bg-card/70 backdrop-blur-md shrink-0 transition-all duration-300">
                   {(() => {
                     const conn = activeConversation.connection;
                     const camp = activeConversation.campaign;
@@ -1339,7 +1341,7 @@ export default function Messages() {
                     return (
                       <div>
                         {/* COMPACT TOP BAR */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                               <Sparkles className="h-3.5 w-3.5" />
@@ -1363,6 +1365,19 @@ export default function Messages() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
+                            {/* Propose / Counter Quick Button */}
+                            {!isAgreed && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setIsNegotiationExpanded(!isNegotiationExpanded)}
+                                className="h-7 rounded-full border-primary/30 text-primary hover:bg-primary/10 text-[11px] font-semibold px-2.5 flex items-center gap-1 cursor-pointer"
+                              >
+                                <IndianRupee className="h-3 w-3" />
+                                <span>{hasPendingProposal ? (isProposedByMe ? "Counter Offer" : "Review Offer") : "Propose Rate"}</span>
+                              </Button>
+                            )}
+
                             {/* Payment Status / Action */}
                             {isAgreed && (
                               <>
@@ -1375,7 +1390,7 @@ export default function Messages() {
                                     size="sm"
                                     onClick={handlePayCollaboration}
                                     disabled={isPayingCollaboration}
-                                    className="h-7 rounded-full gradient-sunset text-white font-bold text-[11px] px-3 shadow-glow flex items-center gap-1"
+                                    className="h-7 rounded-full gradient-sunset text-white font-bold text-[11px] px-3 shadow-glow flex items-center gap-1 cursor-pointer"
                                   >
                                     <IndianRupee className="h-3 w-3" />
                                     {isPayingCollaboration ? "Paying..." : `Pay ₹${conn.brandTotal?.toLocaleString()}`}
@@ -1419,7 +1434,7 @@ export default function Messages() {
                               size="sm"
                               variant="ghost"
                               onClick={() => setIsNegotiationExpanded(!isNegotiationExpanded)}
-                              className="h-7 rounded-full text-muted-foreground hover:text-foreground text-[11px] px-2 flex items-center gap-0.5"
+                              className="h-7 rounded-full text-muted-foreground hover:text-foreground text-[11px] px-2 flex items-center gap-0.5 cursor-pointer"
                             >
                               <span>{isNegotiationExpanded ? "Hide" : "Details"}</span>
                               {isNegotiationExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -1428,7 +1443,7 @@ export default function Messages() {
                         </div>
 
                         {/* EXPANDABLE DETAILS DRAWER */}
-                        {(isNegotiationExpanded || (!isAgreed && !hasPendingProposal && activeConversation)) && (
+                        {isNegotiationExpanded && (
                           <div className="border-t border-border/50 bg-background/95 p-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                             {camp && (
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground pb-2 border-b border-border/40">
@@ -1631,7 +1646,7 @@ export default function Messages() {
               )}
 
               {/* MESSAGES FEED */}
-              <div className="flex-1 space-y-3.5 overflow-y-auto p-4 sm:p-5">
+              <div className="flex-1 min-h-0 space-y-3.5 overflow-y-auto p-4 sm:p-6">
                 {messagesLoading ? (
                   <div className="flex h-full items-center justify-center">
                     <p className="text-sm text-muted-foreground">Loading messages...</p>
@@ -1906,7 +1921,7 @@ export default function Messages() {
               </div>
 
               {/* MESSAGE INPUT BAR WITH ATTACH / SHARE WORK BUTTON */}
-              <form onSubmit={sendMessage} className="border-t border-border p-3 bg-card/60 backdrop-blur-md space-y-2">
+              <form onSubmit={sendMessage} className="border-t border-border p-3 bg-card/60 backdrop-blur-md space-y-2 shrink-0">
                 {/* Media Attachment Preview before sending */}
                 {attachedMediaPreview && (
                   <div className="flex items-center gap-3 p-2 rounded-2xl bg-secondary/70 border border-border/80 max-w-sm">

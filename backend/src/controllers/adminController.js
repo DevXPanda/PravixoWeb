@@ -1629,7 +1629,7 @@ export const updateAdminCredentials = async (req, res) => {
     const { email, password } = req.body;
     
     // req.user is populated by adminProtect
-    const adminId = req.user?.profileId;
+    const adminId = req.user?._id || req.user?.profileId || req.profile?._id;
     
     if (!adminId) {
       return res.status(401).json({ success: false, message: "Unauthorized." });
@@ -1640,21 +1640,68 @@ export const updateAdminCredentials = async (req, res) => {
     }
 
     const updates = {};
-    if (email) updates.email = email.trim().toLowerCase();
+    if (email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      // Check if email is already used by another account
+      const existing = await Profile.findOne({
+        email: normalizedEmail,
+        _id: { $ne: adminId },
+      });
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: "This email is already in use by another account.",
+        });
+      }
+      updates.email = normalizedEmail;
+    }
     
     if (password) {
       if (password.length < 6) {
         return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
       }
-      const bcrypt = await import("bcryptjs");
-      updates.password = await bcrypt.default.hash(password, 10);
+      const bcrypt = (await import("bcryptjs")).default;
+      updates.password = await bcrypt.hash(password, 10);
     }
 
-    await Profile.findByIdAndUpdate(adminId, updates);
+    const updatedProfile = await Profile.findByIdAndUpdate(
+      adminId,
+      updates,
+      { new: true }
+    );
+
+    if (!updatedProfile) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin profile not found.",
+      });
+    }
+
+    const jwt = (await import("jsonwebtoken")).default;
+    const token = jwt.sign(
+      {
+        userId: updatedProfile.userId,
+        email: updatedProfile.email,
+        role: updatedProfile.role,
+        profileId: updatedProfile._id.toString(),
+      },
+      process.env.JWT_SECRET || "default_jwt_secret",
+      {
+        expiresIn: "7d",
+      }
+    );
 
     return res.status(200).json({
       success: true,
       message: "Admin credentials updated successfully.",
+      token,
+      user: {
+        _id: updatedProfile._id,
+        userId: updatedProfile.userId,
+        email: updatedProfile.email,
+        role: updatedProfile.role,
+        fullName: updatedProfile.fullName,
+      },
     });
   } catch (error) {
     console.error("Admin updateAdminCredentials error:", error);
