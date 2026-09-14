@@ -141,6 +141,8 @@ export function OffersPage() {
     }
   };
 
+  const pendingCount = offers.filter((o) => o.status === "pending_approval").length;
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
