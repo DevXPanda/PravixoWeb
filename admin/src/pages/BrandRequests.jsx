@@ -31,8 +31,31 @@ import {
   Building2,
   Search,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
+
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
 
 /* ──────────────────────────────────────────────
    BRAND REVIEW MODAL
@@ -426,6 +449,23 @@ export default function BrandRequests() {
     return list;
   }, [allBrands, activeTab, search, sortBy]);
 
+  // Pagination (10 per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, search, sortBy]);
+
+  const totalItems = filteredBrands.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedBrands = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredBrands.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBrands, safeCurrentPage, itemsPerPage]);
+
   return (
     <div className="w-full min-w-0 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
       {/* Header */}
@@ -527,7 +567,7 @@ export default function BrandRequests() {
             </p>
           </div>
         ) : (
-          filteredBrands.map((b) => (
+          paginatedBrands.map((b) => (
             <div
               key={b._id}
               className="rounded-2xl border border-border bg-card p-4 space-y-3 shadow-xs hover:border-border/80 transition-all"
@@ -582,7 +622,7 @@ export default function BrandRequests() {
               <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-border/60">
                 <Button
                   size="sm"
-                  className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3.5 gap-1 font-semibold"
+                  className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3.5 gap-1 font-semibold cursor-pointer"
                   onClick={() => setReviewTarget(b)}
                 >
                   <Eye className="h-3.5 w-3.5" /> Review Details
@@ -592,7 +632,7 @@ export default function BrandRequests() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="rounded-full text-xs h-8 px-3 border-border hover:bg-destructive/10 hover:text-destructive gap-1 font-semibold"
+                    className="rounded-full text-xs h-8 px-3 border-border hover:bg-destructive/10 hover:text-destructive gap-1 font-semibold cursor-pointer"
                     onClick={() => setRejectTarget({ id: b._id, name: b.fullName })}
                   >
                     <X className="h-3.5 w-3.5" /> Reject
@@ -603,7 +643,7 @@ export default function BrandRequests() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="rounded-full text-xs h-8 px-3 text-muted-foreground hover:text-foreground gap-1"
+                    className="rounded-full text-xs h-8 px-3 text-muted-foreground hover:text-foreground gap-1 cursor-pointer"
                     onClick={() => handleAction(b._id, "pending", b.fullName)}
                   >
                     <RotateCcw className="h-3.5 w-3.5" /> Reset
@@ -612,6 +652,35 @@ export default function BrandRequests() {
               </div>
             </div>
           ))
+        )}
+
+        {/* Mobile Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-2 pt-2 px-1 text-xs text-muted-foreground">
+            <span>
+              Page {safeCurrentPage} of {totalPages} ({totalItems} total)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage === 1}
+                className="h-8 rounded-full px-3 text-xs gap-1 border-border cursor-pointer disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="h-8 rounded-full px-3 text-xs gap-1 border-border cursor-pointer disabled:opacity-40"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -624,7 +693,7 @@ export default function BrandRequests() {
                 <TableHead className="pl-6 font-semibold">Brand</TableHead>
                 <TableHead className="font-semibold">Handle</TableHead>
                 <TableHead className="font-semibold">GST Number</TableHead>
-                <TableHead className="font-semibold">GST Certificate</TableHead>
+                <TableHead className="font-semibold">Certificate</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="text-right pr-6 font-semibold">Actions</TableHead>
               </TableRow>
@@ -659,7 +728,7 @@ export default function BrandRequests() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredBrands.map((b) => (
+                paginatedBrands.map((b) => (
                   <TableRow key={b._id} className="group">
                     <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
@@ -720,7 +789,7 @@ export default function BrandRequests() {
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           size="sm"
-                          className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-8 px-3.5 text-xs gap-1"
+                          className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold h-8 px-3.5 text-xs gap-1 cursor-pointer"
                           onClick={() => setReviewTarget(b)}
                         >
                           <Eye className="h-3.5 w-3.5" /> Review
@@ -730,7 +799,7 @@ export default function BrandRequests() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="rounded-full border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 font-semibold h-8 px-3 text-xs gap-1"
+                            className="rounded-full border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 font-semibold h-8 px-3 text-xs gap-1 cursor-pointer"
                             onClick={() => setRejectTarget({ id: b._id, name: b.fullName })}
                           >
                             <X className="h-3.5 w-3.5" /> Reject
@@ -739,7 +808,7 @@ export default function BrandRequests() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="rounded-full text-xs text-muted-foreground hover:text-foreground h-8 px-2.5 gap-1"
+                            className="rounded-full text-xs text-muted-foreground hover:text-foreground h-8 px-2.5 gap-1 cursor-pointer"
                             title="Reset to Pending"
                             onClick={() => handleAction(b._id, "pending", b.fullName)}
                           >
@@ -756,11 +825,60 @@ export default function BrandRequests() {
         </div>
 
         {filteredBrands.length > 0 && (
-          <div className="border-t border-border px-6 py-3 text-xs text-muted-foreground flex items-center justify-between">
-            <span>
-              Showing {filteredBrands.length} of {counts.all} total brands
-            </span>
-            <span className="capitalize">Tab: {activeTab}</span>
+          <div className="border-t border-border px-6 py-3.5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3 bg-secondary/10">
+            <div>
+              Showing <strong className="text-foreground font-semibold">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+              <strong className="text-foreground font-semibold">{Math.min(safeCurrentPage * itemsPerPage, totalItems)}</strong> of{" "}
+              <strong className="text-foreground font-semibold">{totalItems}</strong> brands
+              {totalItems !== counts.all && ` (filtered from ${counts.all})`}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`dots-${idx}`} className="px-1.5 text-muted-foreground">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${p}`}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={`h-8 min-w-[32px] px-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          safeCurrentPage === p
+                            ? "bg-primary text-white shadow-xs"
+                            : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

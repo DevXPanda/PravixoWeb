@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { resolveImageUrl } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
-import { Search, Trash2, MoreHorizontal, ArrowUpDown, UserX, UserMinus, Clock, Calendar, Users, ChevronDown, RotateCcw, MessageSquare } from "lucide-react";
+import { Search, Trash2, MoreHorizontal, ArrowUpDown, UserX, UserMinus, Clock, Calendar, Users, ChevronDown, RotateCcw, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,27 @@ function filterByTime(profiles, period) {
   };
   const cutoff = now - cutoffMap[period];
   return profiles.filter((p) => new Date(p.createdAt).getTime() >= cutoff);
+}
+
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
 }
 
 export function UsersPage() {
@@ -169,6 +190,23 @@ export function UsersPage() {
 
     return base;
   }, [active, suspended, deleted, activeTab, roleFilter, timeFilter, search, sortOrder]);
+
+  // Pagination (10 users per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, search, roleFilter, timeFilter, sortOrder]);
+
+  const totalItems = filteredProfiles.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedProfiles = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredProfiles.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProfiles, safeCurrentPage, itemsPerPage]);
 
   const handleDelete = async (e) => {
     if (e) e.preventDefault();
@@ -459,7 +497,7 @@ export function UsersPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProfiles.map((u) => {
+              paginatedProfiles.map((u) => {
                 const totalFollowers =
                   (u.instagramFollowers || 0) +
                   (u.facebookFollowers || 0) +
@@ -672,18 +710,75 @@ export function UsersPage() {
         </Table>
 
         {allProfiles && (
-          <div className="border-t border-border px-6 py-3 text-xs text-muted-foreground flex items-center justify-between">
-            <span>
-              Showing {filteredProfiles.length} {activeTab} user{filteredProfiles.length !== 1 && "s"}
-              {timeFilter !== "all" && ` from ${TIME_FILTERS.find((t) => t.value === timeFilter)?.label.toLowerCase()}`}
-            </span>
-            {timeFilter !== "all" && (
-              <button
-                className="text-primary hover:underline text-xs"
-                onClick={() => setTimeFilter("all")}
-              >
-                Clear time filter
-              </button>
+          <div className="border-t border-border px-6 py-3.5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3 bg-secondary/10">
+            <div className="flex items-center gap-2">
+              <span>
+                Showing{" "}
+                <strong className="text-foreground font-semibold">
+                  {totalItems === 0 ? 0 : (safeCurrentPage - 1) * itemsPerPage + 1}
+                </strong>{" "}
+                to{" "}
+                <strong className="text-foreground font-semibold">
+                  {Math.min(safeCurrentPage * itemsPerPage, totalItems)}
+                </strong>{" "}
+                of <strong className="text-foreground font-semibold">{totalItems}</strong> {activeTab} user{totalItems !== 1 && "s"}
+                {timeFilter !== "all" && ` from ${TIME_FILTERS.find((t) => t.value === timeFilter)?.label.toLowerCase()}`}
+              </span>
+              {timeFilter !== "all" && (
+                <button
+                  className="text-primary hover:underline text-xs ml-1"
+                  onClick={() => setTimeFilter("all")}
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`dots-${idx}`} className="px-1.5 text-muted-foreground">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${p}`}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={`h-8 min-w-[32px] px-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          safeCurrentPage === p
+                            ? "bg-primary text-white shadow-xs"
+                            : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             )}
           </div>
         )}
