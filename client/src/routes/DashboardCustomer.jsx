@@ -245,6 +245,7 @@ export function DashboardCustomer() {
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [reviewingSubmissionId, setReviewingSubmissionId] = useState(null);
   const [rejectingSubmission, setRejectingSubmission] = useState(null);
+  const [submissionRejectionReason, setSubmissionRejectionReason] = useState("");
   const [hiredCreatorsModalOpen, setHiredCreatorsModalOpen] = useState(false);
   const [campaignFilterStatus, setCampaignFilterStatus] = useState("ALL");
 
