@@ -245,7 +245,8 @@ export function DashboardCustomer() {
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [reviewingSubmissionId, setReviewingSubmissionId] = useState(null);
   const [rejectingSubmission, setRejectingSubmission] = useState(null);
-  const [submissionRejectionReason, setSubmissionRejectionReason] = useState("");
+  const [hiredCreatorsModalOpen, setHiredCreatorsModalOpen] = useState(false);
+  const [campaignFilterStatus, setCampaignFilterStatus] = useState("ALL");
 
   // Tab State
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -1719,19 +1720,61 @@ const [submittingVerification, setSubmittingVerification] =
             {/* STATS PREVIEW CARDS */}
             {(brandSubSection === "all" || brandSubSection === "profile") && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {stats.map((s) => (
-                  <div
-                    key={s.label}
-                    className="stat-card-3d flex h-28 flex-col items-center justify-center rounded-3xl border border-border/60 bg-gradient-to-b from-card to-card/70 p-4 text-center shadow-soft"
-                  >
-                    <div className="font-outfit text-2xl font-black tracking-tight text-foreground">
-                      {s.value}
+                {stats.map((s) => {
+                  const isClickable =
+                    s.label === "Creators Hired" ||
+                    s.label === "Campaigns Posted" ||
+                    s.label === "Active Campaigns";
+
+                  const handleClick = () => {
+                    if (s.label === "Creators Hired") {
+                      setHiredCreatorsModalOpen(true);
+                    } else if (s.label === "Campaigns Posted") {
+                      setCampaignFilterStatus("ALL");
+                      setBrandSubSection("campaigns");
+                      setTimeout(() => {
+                        const el = document.getElementById("brand-campaigns-section");
+                        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 100);
+                    } else if (s.label === "Active Campaigns") {
+                      setCampaignFilterStatus("ACTIVE");
+                      setBrandSubSection("campaigns");
+                      setTimeout(() => {
+                        const el = document.getElementById("brand-campaigns-section");
+                        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }, 100);
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={s.label}
+                      onClick={isClickable ? handleClick : undefined}
+                      className={cn(
+                        "stat-card-3d flex h-28 flex-col items-center justify-center rounded-3xl border border-border/60 bg-gradient-to-b from-card to-card/70 p-4 text-center shadow-soft transition-all duration-200",
+                        isClickable &&
+                          "cursor-pointer hover:border-primary/50 hover:shadow-glow hover:-translate-y-1 group active:scale-95"
+                      )}
+                      title={
+                        isClickable
+                          ? `Click to view ${s.label.toLowerCase()}`
+                          : undefined
+                      }
+                    >
+                      <div className="font-outfit text-2xl font-black tracking-tight text-foreground group-hover:text-primary transition-colors">
+                        {s.value}
+                      </div>
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1.5 font-jakarta flex items-center gap-1 group-hover:text-foreground">
+                        {s.label}
+                        {isClickable && (
+                          <span className="text-primary text-[10px] opacity-70 group-hover:opacity-100 font-normal">
+                            ↗
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1.5 font-jakarta">
-                      {s.label}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -2382,8 +2425,8 @@ const [submittingVerification, setSubmittingVerification] =
 
             {/* OPEN CAMPAIGNS */}
             {(brandSubSection === "all" || brandSubSection === "campaigns") && (
-            <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
+            <div id="brand-campaigns-section" className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                 <div>
                   <h2 className="font-outfit text-xl font-bold">
                     Open Campaigns
@@ -2394,12 +2437,36 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
                 <Button
                   size="sm"
-                  className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow text-xs h-9 px-4 font-bold flex items-center gap-1.5"
+                  className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow text-xs h-9 px-4 font-bold flex items-center gap-1.5 self-start sm:self-auto"
                   onClick={openAddCampaignModal}
                 >
                   <Plus className="h-4 w-4" /> Create Campaign
                 </Button>
               </div>
+
+              {/* Status Filter Tabs (All / Active / Inactive) */}
+              <div className="flex items-center gap-1.5 mt-3 mb-4 overflow-x-auto pb-1 no-scrollbar">
+                {[
+                  { id: "ALL", label: "All Campaigns", count: brandCampaigns?.length || 0 },
+                  { id: "ACTIVE", label: "Active", count: brandCampaigns?.filter((c) => c.active).length || 0 },
+                  { id: "INACTIVE", label: "Inactive", count: brandCampaigns?.filter((c) => !c.active).length || 0 },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setCampaignFilterStatus(f.id)}
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs font-semibold transition-all cursor-pointer",
+                      campaignFilterStatus === f.id
+                        ? "bg-primary text-primary-foreground shadow-xs ring-1 ring-primary/30"
+                        : "bg-secondary/40 text-muted-foreground hover:text-foreground hover:bg-secondary border border-border/40"
+                    )}
+                  >
+                    {f.label} ({f.count})
+                  </button>
+                ))}
+              </div>
+
               <p className="text-[11px] text-muted-foreground/80 mb-5">
                 Note: Created campaigns undergo a short Admin Verification before becoming visible to creators.
               </p>
@@ -2408,26 +2475,43 @@ const [submittingVerification, setSubmittingVerification] =
                 <div className="py-8 text-center text-xs text-muted-foreground">
                   Loading campaigns...
                 </div>
-              ) : brandCampaigns.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-10 text-center">
-                  <Megaphone className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
-                  <p className="font-semibold text-sm text-foreground font-outfit">
-                    No campaigns created yet
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
-                    Create your first campaign listing to attract creators and receive proposals.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="btn-bouncy mt-4 rounded-full gradient-sunset border-0 text-white shadow-glow text-xs font-bold px-4"
-                    onClick={openAddCampaignModal}
-                  >
-                    Create Campaign
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {brandCampaigns.map((camp) => (
+              ) : (() => {
+                const displayedCampaigns = brandCampaigns.filter((c) => {
+                  if (campaignFilterStatus === "ACTIVE") return Boolean(c.active);
+                  if (campaignFilterStatus === "INACTIVE") return !c.active;
+                  return true;
+                });
+
+                if (displayedCampaigns.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-10 text-center">
+                      <Megaphone className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <p className="font-semibold text-sm text-foreground font-outfit">
+                        {campaignFilterStatus === "ACTIVE"
+                          ? "No active campaigns found"
+                          : campaignFilterStatus === "INACTIVE"
+                          ? "No inactive campaigns found"
+                          : "No campaigns created yet"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
+                        {campaignFilterStatus === "ACTIVE"
+                          ? "None of your campaigns are currently marked as active."
+                          : "Create your first campaign listing to attract creators and receive proposals."}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="btn-bouncy mt-4 rounded-full gradient-sunset border-0 text-white shadow-glow text-xs font-bold px-4"
+                        onClick={openAddCampaignModal}
+                      >
+                        Create Campaign
+                      </Button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {displayedCampaigns.map((camp) => (
                     <div
                       key={camp._id}
                       className="card-3d rounded-2xl border border-border/60 bg-background/70 p-4 transition-all hover:border-primary/40"
@@ -2579,8 +2663,9 @@ const [submittingVerification, setSubmittingVerification] =
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </div>
             )}
 
@@ -4525,6 +4610,121 @@ const [submittingVerification, setSubmittingVerification] =
               }}
             >
               {reviewingSubmissionId !== null ? "Rejecting..." : "Confirm Rejection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Hired Creators Modal */}
+      <Dialog
+        open={hiredCreatorsModalOpen}
+        onOpenChange={(open) => setHiredCreatorsModalOpen(open)}
+      >
+        <DialogContent className="sm:max-w-2xl rounded-3xl p-6 bg-card border-border">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" /> Hired Creators ({approvedCollabs?.length || 0})
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Creators you have successfully hired and collaborated with on your campaigns.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+            {!approvedCollabs || approvedCollabs.length === 0 ? (
+              <div className="py-12 text-center rounded-2xl border border-dashed border-border p-6 bg-secondary/10">
+                <Users className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="font-semibold text-sm text-foreground">No creators hired yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  When you accept creator pitches or approve collaborations, they will appear here.
+                </p>
+              </div>
+            ) : (
+              approvedCollabs.map((collab) => {
+                const creator = collab.creatorProfile;
+                const creatorId = collab.creatorId?._id || collab.creatorId;
+                return (
+                  <div
+                    key={collab._id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-border bg-secondary/15 hover:bg-secondary/25 transition-all"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={
+                          creator?.avatarUrl ||
+                          `https://api.dicebear.com/9.x/avataaars/svg?seed=${creator?.fullName || "Creator"}`
+                        }
+                        alt=""
+                        className="h-12 w-12 rounded-2xl object-cover border border-border shrink-0"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback";
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-foreground truncate block">
+                            {creator?.fullName || "Creator"}
+                          </span>
+                          {creator?.category && (
+                            <Badge variant="secondary" className="text-[10px] rounded-md font-medium px-2 py-0.5">
+                              {creator.category}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {creator?.handle || creator?.email || "Creator Partner"}
+                        </p>
+                        {collab.campaign && (
+                          <p className="text-[11px] text-primary font-medium mt-0.5 truncate">
+                            Campaign: {collab.campaign.title}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                      {collab.conversationId && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-full text-xs px-3 font-semibold"
+                          onClick={() => {
+                            setHiredCreatorsModalOpen(false);
+                            navigate(`/messages?conversationId=${collab.conversationId}`);
+                          }}
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 mr-1" /> Chat
+                        </Button>
+                      )}
+                      {creatorId && (
+                        <Button
+                          size="sm"
+                          className="h-8 rounded-full gradient-sunset border-0 text-white text-xs font-bold px-3.5 shadow-sm"
+                          onClick={() => {
+                            setHiredCreatorsModalOpen(false);
+                            navigate(`/influencer/${creatorId}`);
+                          }}
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" /> View Profile
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full text-xs"
+              onClick={() => setHiredCreatorsModalOpen(false)}
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

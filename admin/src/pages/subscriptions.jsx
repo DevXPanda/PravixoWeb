@@ -1,5 +1,5 @@
 import api from "@/lib/axios";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,31 @@ import {
   MousePointer,
   ArrowUpRight,
   TrendingDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from "lucide-react";
+
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
 
 export function SubscriptionsPage() {
   const [activeTab, setActiveTab] = useState("packages");
@@ -34,6 +58,10 @@ export function SubscriptionsPage() {
   const [popupSettings, setPopupSettings] = useState(null);
   const [subscribers, setSubscribers] = useState([]);
   const [analytics, setAnalytics] = useState(null);
+
+  const [subSearch, setSubSearch] = useState("");
+  const [subPage, setSubPage] = useState(1);
+  const subItemsPerPage = 10;
 
   const fetchData = async () => {
     try {
@@ -585,55 +613,152 @@ export function SubscriptionsPage() {
         </form>
       )}
 
-      {activeTab === "subscribers" && (
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold">Active Subscriptions</h3>
+      {activeTab === "subscribers" && (() => {
+        const filteredSubscribers = subscribers.filter((sub) => {
+          const q = subSearch.trim().toLowerCase();
+          if (!q) return true;
+          const u = (sub.user || "").toLowerCase();
+          const r = (sub.role || "").toLowerCase();
+          const p = (sub.currentPlan || "").toLowerCase();
+          const s = (sub.status || "").toLowerCase();
+          return u.includes(q) || r.includes(q) || p.includes(q) || s.includes(q);
+        });
 
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-6">Subscriber</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead>Expiry Date</TableHead>
-                  <TableHead className="text-right pr-6">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {subscribers.map((sub) => (
-                  <TableRow key={sub._id}>
-                    <TableCell className="pl-6 font-semibold text-foreground">{sub.user}</TableCell>
-                    <TableCell className="capitalize text-xs text-muted-foreground">{sub.role}</TableCell>
-                    <TableCell className="font-semibold text-primary">{sub.currentPlan}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(sub.startDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {sub.expiryDate ? new Date(sub.expiryDate).toLocaleDateString() : "Lifetime / Free"}
-                    </TableCell>
-                    <TableCell className="text-right pr-6">
-                      <Badge
-                        variant="outline"
-                        className={`rounded-full text-[9px] uppercase font-bold border-0 ${
-                          sub.status === "active"
-                            ? "bg-emerald-500/10 text-emerald-600"
-                            : sub.status === "expired"
-                            ? "bg-red-500/10 text-red-600"
-                            : "bg-slate-500/10 text-slate-500"
-                        }`}
-                      >
-                        {sub.status}
-                      </Badge>
-                    </TableCell>
+        const totalSubs = filteredSubscribers.length;
+        const totalSubPages = Math.max(1, Math.ceil(totalSubs / subItemsPerPage));
+        const safeSubPage = Math.min(subPage, totalSubPages);
+        const startIndex = (safeSubPage - 1) * subItemsPerPage;
+        const paginatedSubscribers = filteredSubscribers.slice(startIndex, startIndex + subItemsPerPage);
+
+        return (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold">Active Subscriptions</h3>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search subscriber, role, plan..."
+                  value={subSearch}
+                  onChange={(e) => {
+                    setSubSearch(e.target.value);
+                    setSubPage(1);
+                  }}
+                  className="pl-9 text-xs h-9 rounded-full bg-card/60 border-border/60"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="pl-6">Subscriber</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>Expiry Date</TableHead>
+                    <TableHead className="text-right pr-6">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedSubscribers.map((sub) => (
+                    <TableRow key={sub._id}>
+                      <TableCell className="pl-6 font-semibold text-foreground">{sub.user}</TableCell>
+                      <TableCell className="capitalize text-xs text-muted-foreground">{sub.role}</TableCell>
+                      <TableCell className="font-semibold text-primary">{sub.currentPlan}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(sub.startDate).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {sub.expiryDate ? new Date(sub.expiryDate).toLocaleDateString() : "Lifetime / Free"}
+                      </TableCell>
+                      <TableCell className="text-right pr-6">
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full text-[9px] uppercase font-bold border-0 ${
+                            sub.status === "active"
+                              ? "bg-emerald-500/10 text-emerald-600"
+                              : sub.status === "expired"
+                              ? "bg-red-500/10 text-red-600"
+                              : "bg-slate-500/10 text-slate-500"
+                          }`}
+                        >
+                          {sub.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {paginatedSubscribers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground text-xs">
+                        No subscribers found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalSubs > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border/40 text-xs">
+                <span className="text-muted-foreground order-2 sm:order-1">
+                  Showing <strong className="text-foreground">{startIndex + 1}</strong> to{" "}
+                  <strong className="text-foreground">{Math.min(safeSubPage * subItemsPerPage, totalSubs)}</strong> of{" "}
+                  <strong className="text-foreground">{totalSubs}</strong> subscribers
+                </span>
+                {totalSubPages > 1 && (
+                  <div className="flex items-center gap-1.5 order-1 sm:order-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSubPage((p) => Math.max(1, p - 1))}
+                      disabled={safeSubPage === 1}
+                      className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                    </Button>
+
+                    <div className="flex items-center gap-1">
+                      {getPageNumbers(safeSubPage, totalSubPages).map((page, idx) =>
+                        page === "..." ? (
+                          <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground">
+                            ...
+                          </span>
+                        ) : (
+                          <Button
+                            key={page}
+                            variant={safeSubPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setSubPage(page)}
+                            className={`h-8 w-8 p-0 rounded-full text-xs font-semibold ${
+                              safeSubPage === page
+                                ? "gradient-sunset text-white border-0 shadow-xs"
+                                : "border-border/60 hover:bg-accent"
+                            }`}
+                          >
+                            {page}
+                          </Button>
+                        )
+                      )}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSubPage((p) => Math.min(totalSubPages, p + 1))}
+                      disabled={safeSubPage === totalSubPages}
+                      className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                    >
+                      Next <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {activeTab === "analytics" && analytics && (
         <div className="space-y-6">

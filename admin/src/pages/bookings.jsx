@@ -18,11 +18,34 @@ import {
   AlertCircle,
   RefreshCw,
   Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -125,6 +148,23 @@ export function BookingsPage() {
       return matchesStatus && matchesSearch;
     });
   }, [bookings, statusFilter, search]);
+
+  // Pagination (10 bookings per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, search]);
+
+  const totalItems = filteredBookings.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedBookings = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredBookings.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBookings, safeCurrentPage, itemsPerPage]);
 
   // Status counts
   const counts = useMemo(() => {
@@ -493,14 +533,14 @@ export function BookingsPage() {
                       <TableCell className="text-right"><Skeleton className="h-8 w-24 ml-auto" /></TableCell>
                     </TableRow>
                   ))
-                ) : filteredBookings.length === 0 ? (
+                ) : paginatedBookings.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12 text-sm text-muted-foreground">
                       No bookings found for the selected status.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredBookings.map((b) => (
+                  paginatedBookings.map((b) => (
                     <TableRow key={b._id} className="hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <div className="flex flex-col">
@@ -622,12 +662,12 @@ export function BookingsPage() {
                   <Skeleton className="h-4 w-3/4" />
                 </div>
               ))
-            ) : filteredBookings.length === 0 ? (
+            ) : paginatedBookings.length === 0 ? (
               <div className="text-center py-10 text-sm text-muted-foreground rounded-2xl border border-border bg-card p-4">
                 No bookings found.
               </div>
             ) : (
-              filteredBookings.map((b) => (
+              paginatedBookings.map((b) => (
                 <div key={b._id} className="p-4 rounded-2xl border border-border bg-card space-y-3 shadow-xs">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -689,6 +729,65 @@ export function BookingsPage() {
               ))
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {filteredBookings && filteredBookings.length > 0 && (
+            <div className="rounded-2xl border border-border px-6 py-3.5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3 bg-secondary/10 shadow-xs">
+              <div>
+                Showing <strong className="text-foreground font-semibold">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+                <strong className="text-foreground font-semibold">{Math.min(safeCurrentPage * itemsPerPage, totalItems)}</strong> of{" "}
+                <strong className="text-foreground font-semibold">{totalItems}</strong> booking{totalItems !== 1 && "s"}
+                {bookings && totalItems !== bookings.length && ` (filtered from ${bookings.length})`}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
+                      p === "..." ? (
+                        <span key={`dots-${idx}`} className="px-1.5 text-muted-foreground">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={`page-${p}`}
+                          type="button"
+                          onClick={() => setCurrentPage(p)}
+                          className={`h-8 min-w-[32px] px-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                            safeCurrentPage === p
+                              ? "bg-primary text-white shadow-xs"
+                              : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                  >
+                    Next <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

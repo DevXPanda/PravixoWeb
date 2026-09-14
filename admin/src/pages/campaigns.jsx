@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/axios";
 import {
   Megaphone,
@@ -14,6 +14,8 @@ import {
   Layers,
   X,
   Check,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,27 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
 
 export function CampaignsPage() {
   useEffect(() => {
@@ -122,6 +145,24 @@ export function CampaignsPage() {
 
     return matchesStatus && matchesSearch;
   });
+
+  // Pagination (10 campaigns per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, search]);
+
+  const totalItems = filteredCampaigns ? filteredCampaigns.length : 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedCampaigns = useMemo(() => {
+    if (!filteredCampaigns) return null;
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredCampaigns.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredCampaigns, safeCurrentPage, itemsPerPage]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -218,7 +259,7 @@ export function CampaignsPage() {
             No campaigns found in this view.
           </div>
         ) : (
-          filteredCampaigns.map((camp) => (
+          paginatedCampaigns.map((camp) => (
             <div key={camp._id} className="p-4 rounded-2xl border border-border bg-card space-y-3 shadow-xs">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -286,6 +327,35 @@ export function CampaignsPage() {
             </div>
           ))
         )}
+
+        {/* Mobile Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-2 pt-2 px-1 text-xs text-muted-foreground">
+            <span>
+              Page {safeCurrentPage} of {totalPages} ({totalItems} total)
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safeCurrentPage === 1}
+                className="h-8 rounded-full px-3 text-xs gap-1 border-border cursor-pointer disabled:opacity-40"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="h-8 rounded-full px-3 text-xs gap-1 border-border cursor-pointer disabled:opacity-40"
+              >
+                Next <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Desktop Campaigns Table (Visible on md+) */}
@@ -323,7 +393,7 @@ export function CampaignsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCampaigns.map((camp) => (
+                paginatedCampaigns.map((camp) => (
                   <TableRow key={camp._id} className="hover:bg-secondary/10">
                     <TableCell>
                       <div>
@@ -423,6 +493,64 @@ export function CampaignsPage() {
             </TableBody>
           </Table>
         </div>
+
+        {filteredCampaigns && filteredCampaigns.length > 0 && (
+          <div className="border-t border-border px-6 py-3.5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3 bg-secondary/10">
+            <div>
+              Showing <strong className="text-foreground font-semibold">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+              <strong className="text-foreground font-semibold">{Math.min(safeCurrentPage * itemsPerPage, totalItems)}</strong> of{" "}
+              <strong className="text-foreground font-semibold">{totalItems}</strong> campaigns
+              {campaigns && totalItems !== campaigns.length && ` (filtered from ${campaigns.length})`}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`dots-${idx}`} className="px-1.5 text-muted-foreground">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${p}`}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={`h-8 min-w-[32px] px-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          safeCurrentPage === p
+                            ? "bg-primary text-white shadow-xs"
+                            : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Campaign Details Modal */}

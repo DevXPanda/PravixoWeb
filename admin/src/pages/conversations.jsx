@@ -1,8 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { resolveImageUrl } from "@/lib/utils";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, MessageSquare, Search, Plus, Shield, Sparkles, Building2, User, Send, ArrowRight, Trash2 } from "lucide-react";
+import { Eye, MessageSquare, Search, Plus, Shield, Sparkles, Building2, User, Send, ArrowRight, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
+
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -119,32 +140,53 @@ export function ConversationsPage() {
     }
   };
 
-  const filtered = conversations?.filter((c) => {
-    const matchesStatus = !statusFilter || c.status === statusFilter;
-    
-    let matchesType = true;
-    if (typeFilter === "admin_brand") {
-      matchesType = c.conversationType === "admin_brand" || (!!c.admin && !!c.brand);
-    } else if (typeFilter === "admin_creator") {
-      matchesType = c.conversationType === "admin_creator" || (!!c.admin && !!c.creator);
-    } else if (typeFilter === "brand_creator") {
-      matchesType = c.conversationType === "brand_creator" || (!c.admin && !!c.creator && !!c.brand);
-    }
+  const filtered = useMemo(() => {
+    if (!conversations) return null;
+    return conversations.filter((c) => {
+      const matchesStatus = !statusFilter || c.status === statusFilter;
+      
+      let matchesType = true;
+      if (typeFilter === "admin_brand") {
+        matchesType = c.conversationType === "admin_brand" || (!!c.admin && !!c.brand);
+      } else if (typeFilter === "admin_creator") {
+        matchesType = c.conversationType === "admin_creator" || (!!c.admin && !!c.creator);
+      } else if (typeFilter === "brand_creator") {
+        matchesType = c.conversationType === "brand_creator" || (!c.admin && !!c.creator && !!c.brand);
+      }
 
-    const creatorName = c.creator?.fullName?.toLowerCase() || "";
-    const brandName = c.brand?.fullName?.toLowerCase() || "";
-    const adminName = c.admin?.fullName?.toLowerCase() || "";
-    const campaignTitle = c.campaign?.title?.toLowerCase() || "";
-    const searchLower = search.toLowerCase();
+      const creatorName = c.creator?.fullName?.toLowerCase() || "";
+      const brandName = c.brand?.fullName?.toLowerCase() || "";
+      const adminName = c.admin?.fullName?.toLowerCase() || "";
+      const campaignTitle = c.campaign?.title?.toLowerCase() || "";
+      const searchLower = search.toLowerCase();
 
-    const matchesSearch = !search ||
-      creatorName.includes(searchLower) ||
-      brandName.includes(searchLower) ||
-      adminName.includes(searchLower) ||
-      campaignTitle.includes(searchLower);
+      const matchesSearch = !search ||
+        creatorName.includes(searchLower) ||
+        brandName.includes(searchLower) ||
+        adminName.includes(searchLower) ||
+        campaignTitle.includes(searchLower);
 
-    return matchesStatus && matchesType && matchesSearch;
-  });
+      return matchesStatus && matchesType && matchesSearch;
+    });
+  }, [conversations, statusFilter, typeFilter, search]);
+
+  // Pagination (10 conversations per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, typeFilter, search]);
+
+  const totalItems = filtered ? filtered.length : 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedConversations = useMemo(() => {
+    if (!filtered) return null;
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [filtered, safeCurrentPage, itemsPerPage]);
 
   const statusColor = (status) => {
     switch (status) {
@@ -277,7 +319,7 @@ export function ConversationsPage() {
                   <TableCell><Skeleton className="h-8 w-16 ml-auto rounded-lg" /></TableCell>
                 </TableRow>
               ))
-            ) : filtered.length === 0 ? (
+            ) : paginatedConversations.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-16 text-center">
                   <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/40" />
@@ -287,7 +329,7 @@ export function ConversationsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((c) => {
+              paginatedConversations.map((c) => {
                 const isAdminChat = !!c.admin || c.conversationType === "admin_brand" || c.conversationType === "admin_creator";
                 const partyA = c.admin ? { ...c.admin, role: "admin", fullName: c.admin.fullName || "Pravixo Admin" } : c.creator;
                 const partyB = c.brand || c.creator;
@@ -425,10 +467,61 @@ export function ConversationsPage() {
           </TableBody>
         </Table>
 
-        {filtered && (
-          <div className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
-            Showing {filtered.length} conversation
-            {filtered.length !== 1 && "s"}
+        {filtered && filtered.length > 0 && (
+          <div className="border-t border-border px-6 py-3.5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3 bg-secondary/10">
+            <div>
+              Showing <strong className="text-foreground font-semibold">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+              <strong className="text-foreground font-semibold">{Math.min(safeCurrentPage * itemsPerPage, totalItems)}</strong> of{" "}
+              <strong className="text-foreground font-semibold">{totalItems}</strong> conversation{totalItems !== 1 && "s"}
+              {conversations && totalItems !== conversations.length && ` (filtered from ${conversations.length})`}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`dots-${idx}`} className="px-1.5 text-muted-foreground">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${p}`}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={`h-8 min-w-[32px] px-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          safeCurrentPage === p
+                            ? "bg-primary text-white shadow-xs"
+                            : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,6 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import api from "@/lib/axios";
-import { ClipboardCheck, Search } from "lucide-react";
+import { ClipboardCheck, Search, ChevronLeft, ChevronRight } from "lucide-react";
+
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,24 +59,44 @@ export function TasksPage() {
     };
     fetchTasks();
   }, []);
+  const filtered = useMemo(() => {
+    if (!tasks) return null;
+    return tasks.filter((t) => {
+      const matchesStatus = !statusFilter || t.status === statusFilter;
+      const campaignTitle = (t.campaign?.title || t.campaignId?.title || "").toLowerCase();
+      const brandName = (t.brand?.fullName || t.brand?.handle || t.brandId?.fullName || t.brandId?.handle || "").toLowerCase();
+      const creatorName = (t.creator?.fullName || t.creator?.handle || t.creatorId?.fullName || t.creatorId?.handle || "").toLowerCase();
+      const taskTitle = t.title?.toLowerCase() || "";
+      const searchLower = search.toLowerCase();
 
-  const filtered = tasks?.filter((t) => {
-    const matchesStatus = !statusFilter || t.status === statusFilter;
-    const campaignTitle = (t.campaign?.title || t.campaignId?.title || "").toLowerCase();
-    const brandName = (t.brand?.fullName || t.brand?.handle || t.brandId?.fullName || t.brandId?.handle || "").toLowerCase();
-    const creatorName = (t.creator?.fullName || t.creator?.handle || t.creatorId?.fullName || t.creatorId?.handle || "").toLowerCase();
-    const taskTitle = t.title?.toLowerCase() || "";
-    const searchLower = search.toLowerCase();
+      const matchesSearch =
+        !search ||
+        campaignTitle.includes(searchLower) ||
+        brandName.includes(searchLower) ||
+        creatorName.includes(searchLower) ||
+        taskTitle.includes(searchLower);
 
-    const matchesSearch =
-      !search ||
-      campaignTitle.includes(searchLower) ||
-      brandName.includes(searchLower) ||
-      creatorName.includes(searchLower) ||
-      taskTitle.includes(searchLower);
+      return matchesStatus && matchesSearch;
+    });
+  }, [tasks, statusFilter, search]);
 
-    return matchesStatus && matchesSearch;
-  });
+  // Pagination (10 tasks per page)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, search]);
+
+  const totalItems = filtered ? filtered.length : 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedTasks = useMemo(() => {
+    if (!filtered) return null;
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [filtered, safeCurrentPage, itemsPerPage]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -67,107 +108,108 @@ export function TasksPage() {
         return "bg-primary/10 text-primary border-primary/20";
       case "revision_requested":
         return "bg-red-500/10 text-red-500 border-red-500/20";
-      case "assigned":
-        return "bg-amber/10 text-amber border-amber-500/20";
       default:
-        return "bg-muted text-muted-foreground";
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
   const getOverdueStatus = (task) => {
-    if (task.status === "approved") {
-      return (
-        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-0">
-          On Time / Done
-        </Badge>
-      );
+    if (task.status === "completed" || task.status === "approved") {
+      return null;
     }
-    const isOverdue = Date.now() > task.dueDate;
+    const isOverdue = new Date(task.dueDate) < new Date();
     if (isOverdue) {
       return (
-        <Badge variant="outline" className="bg-red-500/10 text-red-500 border-0 font-bold">
+        <Badge variant="destructive" className="rounded-full text-[10px] font-bold">
           Overdue
         </Badge>
       );
     }
-    return (
-      <Badge variant="outline" className="bg-secondary text-muted-foreground border-0">
-        Active
-      </Badge>
-    );
+    return null;
   };
 
   return (
-    <div className="p-6 lg:p-8">
-      <div>
-        <h1 className="font-display text-2xl font-bold sm:text-3xl">
-          Task Monitoring
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Monitor all assigned tasks, countdown limits, and deliverables across the platform.
-        </p>
+    <div className="p-6 lg:p-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold sm:text-3xl text-foreground">
+            Tasks Monitoring
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Track workflow progress, deadlines, and deliverables across all active campaigns.
+          </p>
+        </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-wrap gap-2">
-          {["", "assigned", "in_progress", "completed", "revision_requested", "approved"].map((s) => (
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+          {[
+            { label: "All Tasks", value: "" },
+            { label: "In Progress", value: "in_progress" },
+            { label: "Revision Requested", value: "revision_requested" },
+            { label: "Completed", value: "completed" },
+            { label: "Approved", value: "approved" },
+          ].map((tab) => (
             <Button
-              key={s}
+              key={tab.value}
+              variant={statusFilter === tab.value ? "default" : "outline"}
               size="sm"
-              variant={statusFilter === s ? "default" : "outline"}
-              className={`rounded-full capitalize text-xs px-3 h-8 ${
-                statusFilter === s ? "gradient-sunset border-0 text-white" : ""
+              onClick={() => setStatusFilter(tab.value)}
+              className={`rounded-full text-xs whitespace-nowrap ${
+                statusFilter === tab.value
+                  ? "gradient-sunset border-0 text-white shadow-xs"
+                  : ""
               }`}
-              onClick={() => setStatusFilter(s)}
             >
-              {s === "" ? "All" : s.replace("_", " ")}
+              {tab.label}
             </Button>
           ))}
         </div>
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search campaign, creator, brand..."
-            className="pl-9 rounded-full bg-secondary/50 border-0 text-xs h-9"
+            placeholder="Search by title, brand, creator..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 text-xs rounded-xl"
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="mt-6 rounded-3xl border border-border bg-card overflow-hidden">
+      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/40">
             <TableRow className="hover:bg-transparent">
-              <TableHead className="pl-6">Campaign</TableHead>
-              <TableHead>Brand</TableHead>
-              <TableHead>Creator</TableHead>
-              <TableHead>Task Title</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Started Time</TableHead>
-              <TableHead>Completed Time</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead className="text-right pr-6">Time Limit Status</TableHead>
+              <TableHead className="pl-6 font-semibold text-xs">Campaign</TableHead>
+              <TableHead className="font-semibold text-xs">Brand</TableHead>
+              <TableHead className="font-semibold text-xs">Creator</TableHead>
+              <TableHead className="font-semibold text-xs">Task Title</TableHead>
+              <TableHead className="font-semibold text-xs">Status</TableHead>
+              <TableHead className="font-semibold text-xs">Started</TableHead>
+              <TableHead className="font-semibold text-xs">Completed</TableHead>
+              <TableHead className="font-semibold text-xs">Due Date</TableHead>
+              <TableHead className="text-right pr-6 font-semibold text-xs">Overdue</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!filtered ? (
+            {!paginatedTasks ? (
               Array.from({ length: 4 }).map((_, i) => (
                 <TableRow key={i}>
                   <TableCell className="pl-6"><Skeleton className="h-4 w-28" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell className="text-right pr-6"><Skeleton className="h-5 w-16 ml-auto rounded-full" /></TableCell>
                 </TableRow>
               ))
-            ) : filtered.length === 0 ? (
+            ) : paginatedTasks.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="py-16 text-center">
                   <ClipboardCheck className="mx-auto h-8 w-8 text-muted-foreground/40" />
@@ -177,7 +219,7 @@ export function TasksPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((t) => (
+              paginatedTasks.map((t) => (
                 <TableRow key={t._id}>
                   <TableCell className="pl-6 font-semibold max-w-[150px] truncate">
                     {t.campaign?.title || t.campaignId?.title || "General"}
@@ -219,9 +261,61 @@ export function TasksPage() {
           </TableBody>
         </Table>
 
-        {filtered && (
-          <div className="border-t border-border px-6 py-3 text-xs text-muted-foreground">
-            Showing {filtered.length} task{filtered.length !== 1 && "s"}
+        {filtered && filtered.length > 0 && (
+          <div className="border-t border-border px-6 py-3.5 text-xs text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-3 bg-secondary/10">
+            <div>
+              Showing <strong className="text-foreground font-semibold">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+              <strong className="text-foreground font-semibold">{Math.min(safeCurrentPage * itemsPerPage, totalItems)}</strong> of{" "}
+              <strong className="text-foreground font-semibold">{totalItems}</strong> task{totalItems !== 1 && "s"}
+              {tasks && totalItems !== tasks.length && ` (filtered from ${tasks.length})`}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" /> Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
+                    p === "..." ? (
+                      <span key={`dots-${idx}`} className="px-1.5 text-muted-foreground">
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={`page-${p}`}
+                        type="button"
+                        onClick={() => setCurrentPage(p)}
+                        className={`h-8 min-w-[32px] px-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          safeCurrentPage === p
+                            ? "bg-primary text-white shadow-xs"
+                            : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="h-8 rounded-full px-2.5 text-xs gap-1 border-border hover:bg-secondary disabled:opacity-40 cursor-pointer"
+                >
+                  Next <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

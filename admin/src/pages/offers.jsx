@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Tag,
   Trash2,
@@ -14,6 +14,8 @@ import {
   Send,
   Building2,
   User,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/axios";
@@ -27,11 +29,34 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
+
 export function OffersPage() {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Rejection modal state
   const [offerToReject, setOfferToReject] = useState(null);
@@ -116,28 +141,41 @@ export function OffersPage() {
     }
   };
 
-  const pendingCount = offers.filter((o) => o.status === "pending_approval").length;
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
-  const filteredOffers = offers.filter((offer) => {
-    const owner = offer.creatorId || offer.brandId || {};
-    const matchesSearch =
-      (owner.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (owner.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (offer.offerTitle || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (offer.conditionText || "").toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredOffers = useMemo(() => {
+    return offers.filter((offer) => {
+      const owner = offer.creatorId || offer.brandId || {};
+      const matchesSearch =
+        (owner.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (owner.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (offer.offerTitle || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (offer.conditionText || "").toLowerCase().includes(searchTerm.toLowerCase());
 
-    const isExpired = offer.expiresAt && new Date(offer.expiresAt).getTime() < Date.now();
-    let currentStatus = offer.status;
-    if (currentStatus === "active" && isExpired) currentStatus = "expired";
+      const isExpired = offer.expiresAt && new Date(offer.expiresAt).getTime() < Date.now();
+      let currentStatus = offer.status;
+      if (currentStatus === "active" && isExpired) currentStatus = "expired";
 
-    if (statusFilter === "all") return matchesSearch;
-    if (statusFilter === "pending") return matchesSearch && currentStatus === "pending_approval";
-    if (statusFilter === "active") return matchesSearch && currentStatus === "active";
-    if (statusFilter === "expired") return matchesSearch && currentStatus === "expired";
-    if (statusFilter === "rejected") return matchesSearch && currentStatus === "rejected";
-    if (statusFilter === "deleted") return matchesSearch && currentStatus === "deleted";
-    return matchesSearch;
-  });
+      if (statusFilter === "all") return matchesSearch;
+      if (statusFilter === "pending") return matchesSearch && currentStatus === "pending_approval";
+      if (statusFilter === "active") return matchesSearch && currentStatus === "active";
+      if (statusFilter === "expired") return matchesSearch && currentStatus === "expired";
+      if (statusFilter === "rejected") return matchesSearch && currentStatus === "rejected";
+      if (statusFilter === "deleted") return matchesSearch && currentStatus === "deleted";
+      return matchesSearch;
+    });
+  }, [offers, searchTerm, statusFilter]);
+
+  const totalOffers = filteredOffers.length;
+  const totalPages = Math.max(1, Math.ceil(totalOffers / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedOffers = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredOffers.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredOffers, safeCurrentPage, itemsPerPage]);
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -221,14 +259,14 @@ export function OffersPage() {
                     Loading offers...
                   </td>
                 </tr>
-              ) : filteredOffers.length === 0 ? (
+              ) : paginatedOffers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-muted-foreground">
                     No offers found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                filteredOffers.map((offer) => {
+                paginatedOffers.map((offer) => {
                   const isCreator = offer.creatorOrBrandType === "creator";
                   const owner = isCreator ? offer.creatorId : offer.brandId;
                   const isExpired = offer.expiresAt && new Date(offer.expiresAt).getTime() < Date.now();
@@ -390,6 +428,64 @@ export function OffersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalOffers > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-border/40 text-xs">
+            <span className="text-muted-foreground order-2 sm:order-1">
+              Showing <strong className="text-foreground">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+              <strong className="text-foreground">{Math.min(safeCurrentPage * itemsPerPage, totalOffers)}</strong> of{" "}
+              <strong className="text-foreground">{totalOffers}</strong> offers
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5 order-1 sm:order-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safeCurrentPage === 1}
+                  className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {getPageNumbers(safeCurrentPage, totalPages).map((page, idx) =>
+                    page === "..." ? (
+                      <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground">
+                        ...
+                      </span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={safeCurrentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className={`h-8 w-8 p-0 rounded-full text-xs font-semibold ${
+                          safeCurrentPage === page
+                            ? "bg-primary text-white border-0 shadow-xs"
+                            : "border-border/60 hover:bg-accent"
+                        }`}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  )}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                >
+                  Next <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Reject Offer Dialog */}

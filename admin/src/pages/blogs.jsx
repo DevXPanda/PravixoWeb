@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../lib/axios";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -22,10 +22,35 @@ import {
   DialogTrigger,
 } from "../components/ui/dialog";
 
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
+
 export default function BlogsPage() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   const [formData, setFormData] = useState({
     title: "", content: "", category: "Marketing Strategies", targetRole: "brand", coverImageUrl: "", published: true
   });
@@ -40,10 +65,35 @@ export default function BlogsPage() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  const filteredBlogs = useMemo(() => {
+    return blogs.filter((b) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      const title = (b.title || "").toLowerCase();
+      const content = (b.content || "").toLowerCase();
+      const cat = (b.category || "").toLowerCase();
+      const role = (b.targetRole || "").toLowerCase();
+      return title.includes(q) || content.includes(q) || cat.includes(q) || role.includes(q);
+    });
+  }, [blogs, search]);
+
+  const totalBlogs = filteredBlogs.length;
+  const totalPages = Math.max(1, Math.ceil(totalBlogs / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedBlogs = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredBlogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredBlogs, safeCurrentPage, itemsPerPage]);
+
   const fetchData = async () => {
     try {
       const res = await api.get("/admin/content/blogs");
-      setBlogs(res.data.data);
+      setBlogs(res.data.data || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -136,18 +186,31 @@ export default function BlogsPage() {
         </div>
       </div>
 
+      {/* Filter / Search Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search blogs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 text-xs h-9 rounded-full bg-card/60 border-border/60"
+          />
+        </div>
+      </div>
+
       {loading ? (
         <div className="p-8 text-center text-xs text-muted-foreground">Loading blogs...</div>
       ) : (
         <>
           {/* Mobile Card View (< md) */}
           <div className="space-y-3 md:hidden">
-            {blogs.length === 0 ? (
+            {paginatedBlogs.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-xs rounded-2xl border border-border bg-card">
                 No blogs found.
               </div>
             ) : (
-              blogs.map((b) => (
+              paginatedBlogs.map((b) => (
                 <div key={b._id} className="p-4 rounded-2xl border border-border bg-card space-y-3 shadow-xs">
                   <div className="flex items-start gap-3">
                     {b.coverImageUrl && (
@@ -189,7 +252,7 @@ export default function BlogsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {blogs.map(b => (
+                  {paginatedBlogs.map(b => (
                     <TableRow key={b._id}>
                       <TableCell className="pl-6 font-medium">
                         <div className="flex items-center gap-3">
@@ -206,13 +269,71 @@ export default function BlogsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {blogs.length === 0 && (
+                  {paginatedBlogs.length === 0 && (
                     <TableRow><TableCell colSpan={4} className="text-center py-12 text-muted-foreground text-xs">No blogs found.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
           </div>
+
+          {/* Pagination Controls */}
+          {totalBlogs > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border/40 text-xs">
+              <span className="text-muted-foreground order-2 sm:order-1">
+                Showing <strong className="text-foreground">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+                <strong className="text-foreground">{Math.min(safeCurrentPage * itemsPerPage, totalBlogs)}</strong> of{" "}
+                <strong className="text-foreground">{totalBlogs}</strong> blogs
+              </span>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1.5 order-1 sm:order-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers(safeCurrentPage, totalPages).map((page, idx) =>
+                      page === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground">
+                          ...
+                        </span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={safeCurrentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={`h-8 w-8 p-0 rounded-full text-xs font-semibold ${
+                            safeCurrentPage === page
+                              ? "gradient-sunset text-white border-0 shadow-xs"
+                              : "border-border/60 hover:bg-accent"
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>

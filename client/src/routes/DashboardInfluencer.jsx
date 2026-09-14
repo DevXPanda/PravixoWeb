@@ -438,6 +438,20 @@ export function DashboardInfluencer() {
     () => apiGet(`/wallet/my-withdrawals`),
     hasValidMongoProfileId
   );
+
+  // Safe normalized fallbacks so rendering never crashes on null/empty/arrays
+  const creatorWallet = (creatorWalletData && typeof creatorWalletData === "object" && !Array.isArray(creatorWalletData))
+    ? (creatorWalletData.wallet || {})
+    : {};
+  const creatorTransactionsList = (creatorWalletData && Array.isArray(creatorWalletData.recentTransactions))
+    ? creatorWalletData.recentTransactions
+    : [];
+  const creatorWithdrawalsList = Array.isArray(creatorWithdrawalsData)
+    ? creatorWithdrawalsData
+    : (creatorWithdrawalsData && Array.isArray(creatorWithdrawalsData.data))
+    ? creatorWithdrawalsData.data
+    : [];
+
   const [showWithdrawDialog, setShowWithdrawDialog] = useState(false);
   const [withdrawAmountInput, setWithdrawAmountInput] = useState("");
   const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
@@ -3323,7 +3337,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                       </div>
                     </div>
                     <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
-                      ₹{Number(creatorWalletData?.wallet?.availableBalance || 0).toLocaleString("en-IN")}
+                      ₹{Number(creatorWallet.availableBalance || 0).toLocaleString("en-IN")}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">
                       Available for immediate withdrawal
@@ -3339,7 +3353,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                       </div>
                     </div>
                     <div className="mt-3 text-3xl font-bold text-foreground font-display text-amber-700">
-                      ₹{Number(creatorWalletData?.wallet?.pendingWithdrawalBalance || 0).toLocaleString("en-IN")}
+                      ₹{Number(creatorWallet.pendingWithdrawalBalance || 0).toLocaleString("en-IN")}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">
                       Reserved & awaiting disbursement
@@ -3355,7 +3369,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                       </div>
                     </div>
                     <div className="mt-3 text-3xl font-bold text-foreground font-display text-emerald-600">
-                      ₹{Number(creatorWalletData?.wallet?.totalEarned || 0).toLocaleString("en-IN")}
+                      ₹{Number(creatorWallet.totalEarned || 0).toLocaleString("en-IN")}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">
                       Lifetime collaboration earnings
@@ -3392,7 +3406,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                   <div className="py-8 text-center text-xs text-muted-foreground">
                     Loading withdrawal history...
                   </div>
-                ) : creatorWithdrawalsData.length === 0 ? (
+                ) : creatorWithdrawalsList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-8 text-center">
                     <Landmark className="mx-auto h-7 w-7 text-muted-foreground/30 mb-2" />
                     <p className="font-semibold text-xs text-foreground">
@@ -3416,7 +3430,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {creatorWithdrawalsData.map((w) => (
+                        {creatorWithdrawalsList.map((w) => (
                           <tr key={w._id} className="hover:bg-secondary/10 transition-colors">
                             <td className="py-3 pl-2 text-muted-foreground whitespace-nowrap">
                               {new Date(w.requestedAt || w.createdAt).toLocaleDateString(undefined, {
@@ -3485,11 +3499,11 @@ const CAMPAIGNS_PER_PAGE = 6;
                   </div>
                 </div>
 
-                {!creatorWalletData?.recentTransactions ? (
+                {!creatorWalletData ? (
                   <div className="py-12 text-center text-xs text-muted-foreground">
                     Loading transactions...
                   </div>
-                ) : creatorWalletData.recentTransactions.length === 0 ? (
+                ) : creatorTransactionsList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-12 text-center">
                     <Wallet className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
                     <p className="font-semibold text-sm text-foreground">
@@ -3514,7 +3528,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {creatorWalletData.recentTransactions.map((tx) => (
+                        {creatorTransactionsList.map((tx) => (
                           <tr key={tx._id} className="hover:bg-secondary/10 transition-colors">
                             <td className="py-3.5 pl-2 text-muted-foreground whitespace-nowrap">
                               {new Date(tx.createdAt).toLocaleDateString(undefined, {
@@ -4726,7 +4740,7 @@ const CAMPAIGNS_PER_PAGE = 6;
             onSubmit={async (e) => {
               e.preventDefault();
               const amt = Number(withdrawAmountInput);
-              const available = Number(creatorWalletData?.wallet?.availableBalance || 0);
+              const available = Number(creatorWallet.availableBalance || 0);
 
               if (isNaN(amt) || amt <= 0) {
                 toast.error("Please enter a valid withdrawal amount.");
@@ -4772,7 +4786,7 @@ const CAMPAIGNS_PER_PAGE = 6;
               <div>
                 <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider">Available to Withdraw</span>
                 <div className="text-2xl font-extrabold text-foreground font-display mt-0.5">
-                  ₹{Number(creatorWalletData?.wallet?.availableBalance || 0).toLocaleString("en-IN")}
+                  ₹{Number(creatorWallet.availableBalance || 0).toLocaleString("en-IN")}
                 </div>
               </div>
               <Button
@@ -4780,7 +4794,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                 variant="outline"
                 size="sm"
                 className="rounded-full text-[10px] h-7 px-2.5 font-bold"
-                onClick={() => setWithdrawAmountInput(String(creatorWalletData?.wallet?.availableBalance || 0))}
+                onClick={() => setWithdrawAmountInput(String(creatorWallet.availableBalance || 0))}
               >
                 Max Amount
               </Button>
@@ -4813,7 +4827,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                 id="withdraw-amt"
                 type="number"
                 min={100}
-                max={creatorWalletData?.wallet?.availableBalance || 0}
+                max={creatorWallet.availableBalance || 0}
                 placeholder="Enter amount (min ₹100)"
                 required
                 value={withdrawAmountInput}
@@ -4840,7 +4854,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                 type="submit"
                 size="sm"
                 className="rounded-full gradient-sunset text-white font-bold text-xs px-6 shadow-glow"
-                disabled={requestingWithdrawal || !bankDetails?.accountNumber || Number(creatorWalletData?.wallet?.availableBalance || 0) <= 0}
+                disabled={requestingWithdrawal || !bankDetails?.accountNumber || Number(creatorWallet.availableBalance || 0) <= 0}
               >
                 {requestingWithdrawal ? "Submitting..." : "Confirm & Submit Withdrawal"}
               </Button>

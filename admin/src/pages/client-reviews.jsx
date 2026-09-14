@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Plus, Trash2, VideoIcon, CheckCircle2, XCircle, Star, MessageSquare, UserCheck } from "lucide-react";
+import React, { useState, useEffect, useMemo } from "react";
+import { Plus, Trash2, VideoIcon, CheckCircle2, XCircle, Star, MessageSquare, UserCheck, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../lib/axios";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -25,22 +25,72 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 
+function getPageNumbers(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  const pages = [];
+  pages.push(1);
+  if (currentPage > 3) {
+    pages.push("...");
+  }
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  if (currentPage < totalPages - 2) {
+    pages.push("...");
+  }
+  pages.push(totalPages);
+  return pages;
+}
+
 export default function ClientReviewsPage() {
   const [activeTab, setActiveTab] = useState("user_reviews"); // "user_reviews" | "video_reviews"
   const [userReviews, setUserReviews] = useState([]);
   const [videoReviews, setVideoReviews] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     reviewerName: "", reviewText: "", rating: 5, targetRole: "brand", videoUrl: "", thumbnailUrl: ""
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
   useEffect(() => {
     fetchData();
   }, [statusFilter]);
 
-    const fetchData = async () => {
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, activeTab]);
+
+  const filteredUserReviews = useMemo(() => {
+    return userReviews.filter((r) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      const reviewer = (r.reviewerName || "").toLowerCase();
+      const target = (r.targetUserName || "").toLowerCase();
+      const title = (r.title || "").toLowerCase();
+      const content = (r.content || r.feedback || "").toLowerCase();
+      return reviewer.includes(q) || target.includes(q) || title.includes(q) || content.includes(q);
+    });
+  }, [userReviews, search]);
+
+  const totalUserReviews = filteredUserReviews.length;
+  const totalUserReviewPages = Math.max(1, Math.ceil(totalUserReviews / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalUserReviewPages);
+
+  const paginatedUserReviews = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+    return filteredUserReviews.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredUserReviews, safeCurrentPage, itemsPerPage]);
+
+  const fetchData = async () => {
     setLoading(true);
     try {
       const [vRes, uRes] = await Promise.all([
@@ -193,13 +243,13 @@ export default function ClientReviewsPage() {
       {/* TAB 1: User Reviews Moderation */}
       {activeTab === "user_reviews" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground font-semibold">Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-xs rounded-full border border-border bg-background px-3 py-1.5"
+                className="text-xs rounded-full border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="all">All Reviews</option>
                 <option value="pending">Pending Approval</option>
@@ -207,19 +257,29 @@ export default function ClientReviewsPage() {
                 <option value="rejected">Rejected</option>
               </select>
             </div>
+
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search reviewer, target, text..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 text-xs h-9 rounded-full bg-card/60 border-border/60"
+              />
+            </div>
           </div>
 
           {/* Mobile Card Layout (< md) */}
           <div className="space-y-3 md:hidden">
             {loading ? (
               <div className="p-8 text-center text-xs text-muted-foreground">Loading user reviews...</div>
-            ) : userReviews.length === 0 ? (
+            ) : paginatedUserReviews.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-xs rounded-2xl border border-border bg-card">
                 <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
                 No reviews found matching filter.
               </div>
             ) : (
-              userReviews.map((r) => (
+              paginatedUserReviews.map((r) => (
                 <div key={r._id} className="p-4 rounded-2xl border border-border bg-card space-y-3 shadow-xs">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2.5 min-w-0">
@@ -315,7 +375,7 @@ export default function ClientReviewsPage() {
                         Loading user reviews...
                       </TableCell>
                     </TableRow>
-                  ) : userReviews.length === 0 ? (
+                  ) : paginatedUserReviews.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-16 text-center text-muted-foreground text-xs">
                         <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
@@ -323,7 +383,7 @@ export default function ClientReviewsPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    userReviews.map((r) => (
+                    paginatedUserReviews.map((r) => (
                       <TableRow key={r._id}>
                         <TableCell className="pl-6 py-4">
                           <div className="flex items-center gap-2.5">
@@ -421,6 +481,64 @@ export default function ClientReviewsPage() {
               </Table>
             </div>
           </div>
+
+          {/* Pagination Controls */}
+          {totalUserReviews > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border/40 text-xs">
+              <span className="text-muted-foreground order-2 sm:order-1">
+                Showing <strong className="text-foreground">{(safeCurrentPage - 1) * itemsPerPage + 1}</strong> to{" "}
+                <strong className="text-foreground">{Math.min(safeCurrentPage * itemsPerPage, totalUserReviews)}</strong> of{" "}
+                <strong className="text-foreground">{totalUserReviews}</strong> reviews
+              </span>
+              {totalUserReviewPages > 1 && (
+                <div className="flex items-center gap-1.5 order-1 sm:order-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safeCurrentPage === 1}
+                    className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" /> Prev
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {getPageNumbers(safeCurrentPage, totalUserReviewPages).map((page, idx) =>
+                      page === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground">
+                          ...
+                        </span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={safeCurrentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className={`h-8 w-8 p-0 rounded-full text-xs font-semibold ${
+                            safeCurrentPage === page
+                              ? "gradient-sunset text-white border-0 shadow-xs"
+                              : "border-border/60 hover:bg-accent"
+                          }`}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    )}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalUserReviewPages, p + 1))}
+                    disabled={safeCurrentPage === totalUserReviewPages}
+                    className="h-8 px-2.5 rounded-full border-border/60 hover:bg-accent disabled:opacity-40"
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
