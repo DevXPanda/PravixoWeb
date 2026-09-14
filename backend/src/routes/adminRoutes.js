@@ -24,6 +24,8 @@ import {
   getWebhookLogs,
   listAllProfiles,
   listAllSubscriptions,
+  approveSubscription,
+  rejectSubscription,
   getPackages,
   createPackage,
   updatePackage,
@@ -79,6 +81,8 @@ router.put("/credentials", updateAdminCredentials);
 
 // Subscriptions & Packages
 router.get("/subscriptions", listAllSubscriptions);
+router.patch("/subscriptions/:id/approve", approveSubscription);
+router.patch("/subscriptions/:id/reject", rejectSubscription);
 router.get("/subscription-analytics", getSubscriptionAnalytics);
 
 router.get("/packages", getPackages);

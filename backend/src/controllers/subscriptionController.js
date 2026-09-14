@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import SubscriptionPackage from "../models/SubscriptionPackage.js";
 import SubscriptionOffer from "../models/SubscriptionOffer.js";
 import UserSubscription from "../models/UserSubscription.js";
+import Profile from "../models/Profile.js";
+import Notification from "../models/Notification.js";
 
 // =====================================================
 // GET SUBSCRIPTION PACKAGES
@@ -80,18 +82,29 @@ export const getUserSubscription = async (req, res) => {
       });
     }
 
-    const subscription = await UserSubscription.findOne({
-      profileId,
-      status: "active",
-    })
-      .populate("packageId")
-      .populate("offerId")
-      .sort({ createdAt: -1 })
-      .lean();
+    const [activeSubscription, pendingSubscription] = await Promise.all([
+      UserSubscription.findOne({
+        profileId,
+        status: "active",
+      })
+        .populate("packageId")
+        .populate("offerId")
+        .sort({ createdAt: -1 })
+        .lean(),
+      UserSubscription.findOne({
+        profileId,
+        status: "pending",
+      })
+        .populate("packageId")
+        .populate("offerId")
+        .sort({ createdAt: -1 })
+        .lean(),
+    ]);
 
     return res.status(200).json({
       success: true,
-      data: subscription,
+      data: activeSubscription,
+      pending: pendingSubscription || null,
     });
   } catch (error) {
     console.error("Get user subscription error:", error);
@@ -104,7 +117,7 @@ export const getUserSubscription = async (req, res) => {
 };
 
 // =====================================================
-// CREATE SUBSCRIPTION
+// CREATE SUBSCRIPTION (REQUEST UPGRADE - PENDING ADMIN APPROVAL)
 // POST /api/subscriptions
 // =====================================================
 
@@ -155,6 +168,17 @@ export const createSubscription = async (req, res) => {
     }
 
     // -----------------------------
+    // Check Profile
+    // -----------------------------
+    const profile = await Profile.findById(profileId).select("fullName role email handle avatarUrl");
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "User profile not found.",
+      });
+    }
+
+    // -----------------------------
     // Check package
     // -----------------------------
 
@@ -168,6 +192,33 @@ export const createSubscription = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Subscription package not found or inactive.",
+      });
+    }
+
+    // Check if user already has an active subscription to this exact package
+    const existingActive = await UserSubscription.findOne({
+      profileId,
+      status: "active",
+      packageId,
+    });
+    if (existingActive) {
+      return res.status(400).json({
+        success: false,
+        message: `You are already subscribed to the ${subscriptionPackage.name} plan.`,
+      });
+    }
+
+    // Check if user already has a pending upgrade request
+    const existingPending = await UserSubscription.findOne({
+      profileId,
+      status: "pending",
+    }).populate("packageId");
+
+    if (existingPending) {
+      return res.status(400).json({
+        success: false,
+        message: `You already have a pending upgrade request for ${existingPending.packageId?.name || "a package"}. Please wait for admin approval.`,
+        data: existingPending,
       });
     }
 
@@ -206,23 +257,7 @@ export const createSubscription = async (req, res) => {
     }
 
     // -----------------------------
-    // Cancel existing active subscription
-    // -----------------------------
-
-    await UserSubscription.updateMany(
-      {
-        profileId,
-        status: "active",
-      },
-      {
-        $set: {
-          status: "cancelled",
-        },
-      }
-    );
-
-    // -----------------------------
-    // Calculate dates
+    // Calculate dates (to be activated on admin approval)
     // -----------------------------
 
     const startDate = Date.now();
@@ -265,7 +300,7 @@ export const createSubscription = async (req, res) => {
     }
 
     // -----------------------------
-    // Create subscription
+    // Create subscription with status: "pending"
     // -----------------------------
 
     const subscription =
@@ -275,8 +310,38 @@ export const createSubscription = async (req, res) => {
         offerId: offer ? offer._id : undefined,
         startDate,
         expiryDate,
-        status: "active",
+        status: "pending",
       });
+
+    // -----------------------------
+    // Notify Admins
+    // -----------------------------
+    try {
+      const admins = await Profile.find({ role: "admin" }).select("_id").lean();
+      const userTypeLabel = profile.role === "creator" ? "Creator" : profile.role === "brand" ? "Brand" : "User";
+      const notifText = `${userTypeLabel} "${profile.fullName}" requested to upgrade to the "${subscriptionPackage.name}" plan (₹${subscriptionPackage.price}/${subscriptionPackage.billingPeriod}).`;
+
+      for (const admin of admins) {
+        await Notification.create({
+          recipientId: admin._id,
+          senderId: profile._id,
+          type: "subscription_upgrade_requested",
+          text: notifText,
+          targetUrl: "/subscriptions",
+          metadata: {
+            subscriptionId: subscription._id,
+            packageId: subscriptionPackage._id,
+            packageName: subscriptionPackage.name,
+            profileId: profile._id,
+            profileName: profile.fullName,
+            role: profile.role,
+          },
+          createdAt: Date.now(),
+        });
+      }
+    } catch (notifErr) {
+      console.error("Failed to create admin notification for subscription request:", notifErr);
+    }
 
     // Populate response
     const populatedSubscription =
@@ -289,7 +354,7 @@ export const createSubscription = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Subscription created successfully.",
+      message: "Upgrade request submitted successfully. Waiting for admin approval.",
       data: populatedSubscription,
     });
   } catch (error) {
@@ -297,7 +362,7 @@ export const createSubscription = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to create subscription.",
+      message: "Failed to create subscription request.",
     });
   }
 };

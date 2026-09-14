@@ -1325,18 +1325,207 @@ export const sendAdminMessage = async (req, res) => {
 export const listAllSubscriptions = async (req, res) => {
   try {
     const subscriptions = await UserSubscription.find()
-      .populate("brandId", "fullName email handle avatarUrl")
-      .populate("packageId", "name durationMonths price")
+      .populate("profileId", "fullName email handle avatarUrl role")
+      .populate("packageId", "name billingPeriod durationMonths price")
+      .populate("offerId", "name discountPercentage discountAmount")
+      .sort({ createdAt: -1 })
       .lean();
+
+    const formatted = subscriptions.map((sub) => {
+      const profile = sub.profileId || {};
+      const pkg = sub.packageId || {};
+      return {
+        _id: sub._id,
+        id: sub._id,
+        profileId: profile._id || sub.profileId,
+        user: profile.fullName || "Unknown User",
+        email: profile.email || "",
+        handle: profile.handle ? `@${profile.handle}` : "",
+        avatarUrl: profile.avatarUrl || null,
+        role: profile.role || "creator",
+        currentPlan: pkg.name || "Custom Plan",
+        packageId: pkg._id,
+        packageName: pkg.name,
+        packagePrice: pkg.price,
+        billingPeriod: pkg.billingPeriod,
+        startDate: sub.startDate,
+        expiryDate: sub.expiryDate,
+        status: sub.status,
+        createdAt: sub.createdAt,
+      };
+    });
+
     return res.status(200).json({
       success: true,
-      data: subscriptions,
+      data: formatted,
     });
   } catch (error) {
     console.error("Admin listAllSubscriptions error:", error);
     return res.status(500).json({
       success: false,
       message: "Failed to list subscriptions.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// APPROVE SUBSCRIPTION UPGRADE REQUEST
+// PATCH /api/admin/subscriptions/:id/approve
+// =====================================================
+export const approveSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid subscription ID." });
+    }
+
+    const subscription = await UserSubscription.findById(id)
+      .populate("packageId")
+      .populate("profileId", "fullName role email");
+
+    if (!subscription) {
+      return res.status(404).json({ success: false, message: "Subscription request not found." });
+    }
+
+    if (subscription.status === "active") {
+      return res.status(400).json({ success: false, message: "Subscription is already active." });
+    }
+
+    const profileId = subscription.profileId?._id || subscription.profileId;
+    const pkg = subscription.packageId;
+
+    // 1. Cancel any previous active subscriptions for this user
+    await UserSubscription.updateMany(
+      {
+        profileId,
+        _id: { $ne: subscription._id },
+        status: "active",
+      },
+      {
+        $set: { status: "cancelled" },
+      }
+    );
+
+    // 2. Set this subscription to active starting from now
+    const startDate = Date.now();
+    let expiryDate;
+    const billingPeriod = (pkg?.billingPeriod || "month").toLowerCase();
+
+    if (billingPeriod.includes("year") || billingPeriod.includes("annual")) {
+      expiryDate = startDate + 365 * 24 * 60 * 60 * 1000;
+    } else if (billingPeriod.includes("month")) {
+      expiryDate = startDate + 30 * 24 * 60 * 60 * 1000;
+    } else if (billingPeriod.includes("week")) {
+      expiryDate = startDate + 7 * 24 * 60 * 60 * 1000;
+    } else if (billingPeriod.includes("day")) {
+      expiryDate = startDate + 24 * 60 * 60 * 1000;
+    } else {
+      expiryDate = startDate + 30 * 24 * 60 * 60 * 1000;
+    }
+
+    subscription.startDate = startDate;
+    subscription.expiryDate = expiryDate;
+    subscription.status = "active";
+    await subscription.save();
+
+    // 3. Send notification to user that upgrade request was approved
+    try {
+      const adminId = req.user?._id || profileId;
+      const packageName = pkg?.name || "Premium";
+      await Notification.create({
+        recipientId: profileId,
+        senderId: adminId,
+        type: "subscription_upgrade_approved",
+        text: `Congratulations! Your upgrade request for the "${packageName}" plan has been approved by admin and is now active!`,
+        targetUrl: subscription.profileId?.role === "brand" ? "/dashboard/brand" : "/dashboard/influencer",
+        metadata: {
+          subscriptionId: subscription._id,
+          packageId: pkg?._id,
+          packageName,
+        },
+        createdAt: Date.now(),
+      });
+    } catch (notifErr) {
+      console.error("Error creating approval notification:", notifErr);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Subscription for ${subscription.profileId?.fullName || "User"} approved successfully.`,
+      data: subscription,
+    });
+  } catch (error) {
+    console.error("Admin approveSubscription error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to approve subscription.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// REJECT SUBSCRIPTION UPGRADE REQUEST
+// PATCH /api/admin/subscriptions/:id/reject
+// =====================================================
+export const rejectSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid subscription ID." });
+    }
+
+    const subscription = await UserSubscription.findById(id)
+      .populate("packageId")
+      .populate("profileId", "fullName role email");
+
+    if (!subscription) {
+      return res.status(404).json({ success: false, message: "Subscription request not found." });
+    }
+
+    subscription.status = "rejected";
+    await subscription.save();
+
+    const profileId = subscription.profileId?._id || subscription.profileId;
+    const pkg = subscription.packageId;
+
+    // Send notification to user that upgrade request was rejected
+    try {
+      const adminId = req.user?._id || profileId;
+      const packageName = pkg?.name || "Premium";
+      const reasonMsg = reason ? ` Reason: ${reason}` : "";
+      await Notification.create({
+        recipientId: profileId,
+        senderId: adminId,
+        type: "subscription_upgrade_rejected",
+        text: `Your upgrade request for the "${packageName}" plan was declined by admin.${reasonMsg}`,
+        targetUrl: subscription.profileId?.role === "brand" ? "/dashboard/brand" : "/dashboard/influencer",
+        metadata: {
+          subscriptionId: subscription._id,
+          packageId: pkg?._id,
+          packageName,
+          reason,
+        },
+        createdAt: Date.now(),
+      });
+    } catch (notifErr) {
+      console.error("Error creating rejection notification:", notifErr);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Subscription upgrade request rejected.`,
+      data: subscription,
+    });
+  } catch (error) {
+    console.error("Admin rejectSubscription error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to reject subscription.",
       error: error.message,
     });
   }
@@ -1821,7 +2010,7 @@ export const getAdminActivityFeed = async (req, res) => {
     const systemNotifications = await Notification.find({
       $or: [
         { recipientId: adminId },
-        { type: { $in: ["campaign_pending_verification", "campaign_approved", "campaign_rejected", "dispute_raised", "withdrawal_requested", "verification_requested", "payment_release_eligible"] } }
+        { type: { $in: ["campaign_pending_verification", "campaign_approved", "campaign_rejected", "dispute_raised", "withdrawal_requested", "verification_requested", "payment_release_eligible", "subscription_upgrade_requested"] } }
       ],
       ...sinceFilter,
     }).sort({ createdAt: -1 }).limit(30)
@@ -1830,11 +2019,16 @@ export const getAdminActivityFeed = async (req, res) => {
 
     const notifEvents = systemNotifications.map((n) => {
       const time = n.createdAt ? (typeof n.createdAt === "number" ? n.createdAt : new Date(n.createdAt).getTime()) : Date.now();
+      let title = "Platform Alert";
+      if (n.type === "campaign_pending_verification") title = "New Campaign Submitted";
+      else if (n.type === "subscription_upgrade_requested") title = "Subscription Upgrade Request";
+      else if (n.type === "withdrawal_requested") title = "Withdrawal Request";
+      else if (n.type === "verification_requested") title = "Verification Request";
       return {
         _id: String(n._id),
         id: String(n._id),
         type: n.type,
-        title: n.type === "campaign_pending_verification" ? "New Campaign Submitted" : "Platform Alert",
+        title,
         text: n.text,
         body: n.text,
         targetUrl: n.targetUrl || "",

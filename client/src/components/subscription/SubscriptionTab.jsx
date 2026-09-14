@@ -17,6 +17,7 @@ const API_URL =
 
 export function SubscriptionTab({ role, profile }) {
   const [currentSub, setCurrentSub] = useState(null);
+  const [pendingSub, setPendingSub] = useState(null);
   const [packages, setPackages] = useState([]);
   const [offers, setOffers] = useState([]);
 
@@ -45,6 +46,10 @@ export function SubscriptionTab({ role, profile }) {
 
       setCurrentSub(
         subscriptionResponse.data?.data || null
+      );
+
+      setPendingSub(
+        subscriptionResponse.data?.pending || null
       );
 
       setPackages(
@@ -119,7 +124,7 @@ export function SubscriptionTab({ role, profile }) {
 
       toast.success(
         response.data?.message ||
-          "Subscription upgraded successfully! Enjoy your new features."
+          "Upgrade request submitted! An admin will review and approve your request shortly."
       );
 
       // Refresh subscription data
@@ -132,7 +137,7 @@ export function SubscriptionTab({ role, profile }) {
 
       toast.error(
         error.response?.data?.message ||
-          "Failed to upgrade subscription."
+          "Failed to request subscription upgrade."
       );
     } finally {
       setUpgradingId(null);
@@ -262,6 +267,45 @@ export function SubscriptionTab({ role, profile }) {
 
         </div>
       </div>
+
+      {/* =================================================
+          PENDING UPGRADE REQUEST ALERT BANNER
+      ================================================= */}
+
+      {pendingSub && (
+        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+              <Clock className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold text-sm text-foreground">
+                  Upgrade Request Under Review
+                </h3>
+                <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Pending Admin Approval
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                You requested to upgrade to the{" "}
+                <strong className="text-foreground">
+                  {pendingSub.packageId?.name || "selected"}
+                </strong>{" "}
+                plan. The admin has been notified and your plan will be activated once approved.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchSubscriptionData}
+            className="rounded-full text-xs shrink-0 border-amber-500/40 text-amber-600 hover:bg-amber-500/15"
+          >
+            Check Status
+          </Button>
+        </div>
+      )}
 
       {/* =================================================
           SPECIAL OFFER
@@ -409,23 +453,34 @@ export function SubscriptionTab({ role, profile }) {
 
               }
 
+              const isPending =
+                pendingSub?.packageId?._id === pkg._id ||
+                pendingSub?.packageId === pkg._id;
+
               return (
                 <div
                   key={pkg._id}
                   className={`rounded-3xl border p-6 flex flex-col justify-between relative bg-card ${
                     isActive
                       ? "border-primary shadow-elevated"
+                      : isPending
+                      ? "border-amber-500/50 shadow-sm bg-amber-500/[0.02]"
                       : "border-border hover:border-border/80 hover:shadow-sm"
                   }`}
                 >
 
                   {/* BADGE */}
 
-                  {pkg.badge && (
+                  {isPending ? (
+                    <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      Pending Approval
+                    </span>
+                  ) : pkg.badge ? (
                     <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wider bg-secondary text-secondary-foreground px-2.5 py-1 rounded-full">
                       {pkg.badge}
                     </span>
-                  )}
+                  ) : null}
 
                   <div className="space-y-4">
 
@@ -507,6 +562,15 @@ export function SubscriptionTab({ role, profile }) {
                       >
                         Active Plan
                       </Button>
+                    ) : isPending ? (
+                      <Button
+                        className="w-full rounded-full cursor-default border-amber-500/30 text-amber-500 bg-amber-500/10 hover:bg-amber-500/10 font-semibold"
+                        variant="outline"
+                        disabled
+                      >
+                        <Clock className="h-4 w-4 mr-1.5" />
+                        Approval Pending
+                      </Button>
                     ) : (
                       <Button
                         className={`w-full rounded-full font-semibold ${
@@ -528,11 +592,13 @@ export function SubscriptionTab({ role, profile }) {
                           )
                         }
                         disabled={
-                          upgradingId !== null
+                          upgradingId !== null || pendingSub !== null
                         }
                       >
                         {upgradingId === pkg._id
-                          ? "Upgrading..."
+                          ? "Requesting..."
+                          : pendingSub !== null
+                          ? "Request In Review"
                           : `Upgrade to ${pkg.name}`}
                       </Button>
                     )}

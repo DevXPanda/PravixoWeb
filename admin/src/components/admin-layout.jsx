@@ -58,6 +58,7 @@ function getEventIcon(type) {
     case "signup": return UserPlus;
     case "collaboration": return Handshake;
     case "payment": return CreditCard;
+    case "subscription_upgrade_requested": return Sparkles;
     case "deleted": return UserX;
     case "suspended": return UserMinus;
     default: return CheckCircle;
@@ -69,6 +70,7 @@ function getEventColor(type) {
     case "signup": return "text-emerald-500 bg-emerald-500/10";
     case "collaboration": return "text-violet-500 bg-violet-500/10";
     case "payment": return "text-amber-500 bg-amber-500/10";
+    case "subscription_upgrade_requested": return "text-pink-500 bg-pink-500/10";
     case "deleted": return "text-red-500 bg-red-500/10";
     case "suspended": return "text-orange-500 bg-orange-500/10";
     default: return "text-primary bg-primary/10";
