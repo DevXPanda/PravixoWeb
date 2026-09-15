@@ -10,6 +10,7 @@ import {
   Camera,
   Eye,
   EyeOff,
+  Gift,
   Lock,
   Mail,
   Sparkles,
@@ -22,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import api from "@/lib/api";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authApi } from "@/services/authServices";
@@ -139,6 +141,47 @@ export default function Register() {
       setRole(selectedRole);
     }
   }, [location.search]);
+
+  // =====================================================
+  // REFERRAL CODE STATE & URL DETECTION
+  // =====================================================
+
+  const [referralCode, setReferralCode] = useState(() => {
+    return localStorage.getItem("previxo_ref_code") || "";
+  });
+  const [referralInfo, setReferralInfo] = useState(null);
+  const [validatingRef, setValidatingRef] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const codeFromUrl = params.get("ref") || params.get("referral") || params.get("referralCode");
+    if (codeFromUrl) {
+      const upper = codeFromUrl.trim().toUpperCase();
+      setReferralCode(upper);
+      localStorage.setItem("previxo_ref_code", upper);
+      validateCode(upper);
+    } else {
+      const stored = localStorage.getItem("previxo_ref_code");
+      if (stored) {
+        validateCode(stored);
+      }
+    }
+  }, [location.search]);
+
+  const validateCode = async (code) => {
+    if (!code) return;
+    try {
+      setValidatingRef(true);
+      const res = await api.post("/referrals/validate", { code });
+      if (res.data?.success && res.data?.data) {
+        setReferralInfo(res.data.data);
+      }
+    } catch {
+      setReferralInfo(null);
+    } finally {
+      setValidatingRef(false);
+    }
+  };
 
   // =====================================================
   // REDIRECT IF ALREADY LOGGED IN
@@ -376,12 +419,15 @@ export default function Register() {
       */
 
   const registerResponse = await registerUser({
-  role,
-  email,
-  name,
-  password,
-  otp: code,
-});
+    role,
+    email,
+    name,
+    password,
+    otp: code,
+    referralCode: role === "creator" ? referralCode : undefined,
+  });
+
+  localStorage.removeItem("previxo_ref_code");
   
       console.log(
         "Register response:",
@@ -823,6 +869,50 @@ export default function Register() {
               </button>
             </div>
           </div>
+
+          {/* REFERRAL CODE (Optional for creators) */}
+          {role === "creator" && (
+            <div>
+              <Label htmlFor="referral-code" className="flex items-center justify-between">
+                <span>Referral Code <span className="text-xs text-muted-foreground font-normal">(Optional)</span></span>
+                {referralInfo && (
+                  <span className="text-xs text-emerald-500 font-medium flex items-center gap-1">
+                    ✓ Referred by {referralInfo.referrerName}
+                  </span>
+                )}
+              </Label>
+
+              <div className="relative mt-1.5">
+                <Gift className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <Input
+                  id="referral-code"
+                  value={referralCode}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    setReferralCode(val);
+                    if (val.length >= 4) {
+                      validateCode(val);
+                    } else {
+                      setReferralInfo(null);
+                    }
+                  }}
+                  placeholder="e.g. PVX89K2L"
+                  className="pl-10 uppercase tracking-wider"
+                  maxLength={12}
+                />
+              </div>
+
+              {referralInfo && (
+                <div className="mt-2 text-xs bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 p-2.5 rounded-xl flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 shrink-0 text-emerald-500" />
+                  <span>
+                    Referral code applied! You and your referrer qualify for rewards upon profile verification.
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* TERMS */}
 

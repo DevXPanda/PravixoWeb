@@ -19,7 +19,7 @@ import { formatNumber } from "@/lib/format";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { NotificationBell } from "@/components/notification-bell";
 
-export function Dashboard() {
+        export function Dashboard() {
   useEffect(() => {
     document.title = "Dashboard — Pravixo Admin";
   }, []);

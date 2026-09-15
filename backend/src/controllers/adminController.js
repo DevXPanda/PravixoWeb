@@ -20,6 +20,7 @@ import WalletTransaction from "../models/WalletTransaction.js";
 import Withdrawal from "../models/Withdrawal.js";
 import { creditCreatorWallet } from "./walletController.js";
 import { sendPushToUser, sendPushToUsers } from "../utils/webPush.js";
+import { processReferralQualification } from "../services/referralService.js";
 
 // =====================================================
 // AGGREGATE STATS
@@ -336,6 +337,18 @@ export const updateVerificationStatus = async (req, res) => {
           body: appText,
           url: userDashboardUrl,
         }).catch((err) => console.error("Verification approve push error:", err.message));
+
+        // Process referral qualification if profile is creator
+        if (profile.role === "creator") {
+          try {
+            await processReferralQualification({
+              referredCreatorId: profile._id,
+              triggerType: "profile_verified",
+            });
+          } catch (refErr) {
+            console.error("[Verification] Error processing referral qualification:", refErr);
+          }
+        }
       }
     }
 

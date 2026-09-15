@@ -18,6 +18,7 @@ import { CampaignsPage } from "./pages/campaigns";
 import { BookingsPage } from "./pages/bookings";
 import { NotificationsPage } from "./pages/notifications";
 import { OffersPage } from "./pages/offers";
+import { ReferralsPage } from "./pages/referrals";
 
 export const router = createBrowserRouter([
   {
@@ -82,6 +83,10 @@ export const router = createBrowserRouter([
       {
         path: "/offers",
         element: <OffersPage />,
+      },
+      {
+        path: "/referrals",
+        element: <ReferralsPage />,
       },
       {
         path: "/settings",

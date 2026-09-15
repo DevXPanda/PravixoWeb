@@ -4,6 +4,8 @@ import jwt from "jsonwebtoken";
 import Profile from "../models/Profile.js";
 import Otp from "../models/Otp.js";
 import ResetToken from "../models/ResetToken.js";
+import { getUniqueReferralCode } from "../utils/referralCode.js";
+import { recordReferralOnSignup } from "../services/referralService.js";
 
 export const registerController = async (req, res) => {
   try {
@@ -82,6 +84,12 @@ export const registerController = async (req, res) => {
         .toString("base64")
         .replace(/=/g, "")}`;
 
+    // GENERATE REFERRAL CODE FOR CREATORS
+    let creatorReferralCode = "";
+    if (role === "creator") {
+      creatorReferralCode = await getUniqueReferralCode();
+    }
+
     // CREATE PROFILE
     const profile = await Profile.create({
       userId,
@@ -89,8 +97,22 @@ export const registerController = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role,
+      referralCode: creatorReferralCode || undefined,
       verificationStatus: "pending",
     });
+
+    // PROCESS REFERRAL CODE IF PROVIDED
+    const incomingRefCode = req.body.referralCode || req.body.ref;
+    if (incomingRefCode && role === "creator") {
+      try {
+        await recordReferralOnSignup({
+          referralCode: incomingRefCode,
+          newCreatorProfile: profile,
+        });
+      } catch (refErr) {
+        console.error("[Register] Error recording referral:", refErr);
+      }
+    }
 
     // DELETE OTP
     await Otp.deleteMany({
@@ -193,6 +215,9 @@ export const registerController = async (req, res) => {
 
         aadharUrl: profile.aadharUrl,
         panUrl: profile.panUrl,
+
+        referralCode: profile.referralCode,
+        referralCount: profile.referralCount || 0,
 
         createdAt: profile.createdAt,
         updatedAt: profile.updatedAt,

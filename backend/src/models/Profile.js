@@ -244,6 +244,27 @@ const profileSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+    },
+
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Profile",
+      default: null,
+      index: true,
+    },
+
+    referralCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
   },
   {
     timestamps: true,

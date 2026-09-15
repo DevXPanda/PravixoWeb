@@ -44,6 +44,11 @@ import {
   ArrowUpRight,
   History,
   Landmark,
+  Gift,
+  Share2,
+  Copy,
+  CheckCircle2,
+  Users,
 } from "lucide-react";
 
 
@@ -439,6 +444,27 @@ export function DashboardInfluencer() {
     () => apiGet(`/wallet/my-withdrawals`),
     hasValidMongoProfileId
   );
+
+  // Referral Queries & States
+  const [referralRefreshKey, setReferralRefreshKey] = useState(0);
+  const referralDetails = useRestQuery(
+    `referral-details-${profileKey}-${referralRefreshKey}`,
+    () => apiGet(`/referrals/my-referral`),
+    hasValidMongoProfileId
+  );
+  const referralStats = useRestQuery(
+    `referral-stats-${profileKey}-${referralRefreshKey}`,
+    () => apiGet(`/referrals/stats`),
+    hasValidMongoProfileId
+  );
+  const referralList = useRestQuery(
+    `referral-list-${profileKey}-${referralRefreshKey}`,
+    () => apiGet(`/referrals/list`),
+    hasValidMongoProfileId
+  );
+
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Safe normalized fallbacks so rendering never crashes on null/empty/arrays
   const creatorWallet = (creatorWalletData && typeof creatorWalletData === "object" && !Array.isArray(creatorWalletData))
@@ -1451,6 +1477,20 @@ const CAMPAIGNS_PER_PAGE = 6;
             >
               <Star className="h-4 w-4" />
               ⭐ Packages
+            </button>
+            <button
+              onClick={() => setActiveTab("referrals")}
+              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
+                activeTab === "referrals"
+                  ? "gradient-sunset text-white shadow-glow"
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+              }`}
+            >
+              <Gift className="h-4 w-4 text-emerald-400" />
+              Refer & Earn
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 text-[10px] font-extrabold border border-emerald-500/30">
+                ₹{referralDetails?.rewardAmount || 500}
+              </span>
             </button>
           </div>
 
@@ -3581,6 +3621,268 @@ const CAMPAIGNS_PER_PAGE = 6;
                                 }`}
                               >
                                 {tx.status === "COMPLETED" ? "✓ Completed" : tx.status === "FAILED" ? "✕ Failed" : "⏳ Pending"}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : activeTab === "referrals" ? (
+            <div className="space-y-6">
+              {/* REFERRAL HERO CARD */}
+              <div className="rounded-3xl border border-border bg-gradient-to-br from-card via-card/90 to-primary/5 p-6 sm:p-8 shadow-sm relative overflow-hidden">
+                <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+                <div className="max-w-2xl relative z-10">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold mb-3">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Referral Program Active • Earn ₹{referralDetails?.rewardAmount || 500} per Creator</span>
+                  </div>
+                  <h2 className="font-display text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+                    Invite creators. <span className="text-gradient-sunset">Earn rewards.</span>
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                    Share your unique referral code or link with fellow creators. When they join Previxo and complete profile verification, you'll receive ₹{referralDetails?.rewardAmount || 500} directly in your Creator Wallet.
+                  </p>
+
+                  {/* CODE & LINK BOXES */}
+                  <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Code Box */}
+                    <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70 backdrop-blur-sm">
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                        Your Referral Code
+                      </span>
+                      <div className="flex items-center justify-between gap-2 bg-card px-3 py-2 rounded-xl border border-border">
+                        <span className="font-mono font-black text-base text-foreground tracking-wider">
+                          {referralDetails?.referralCode || profile?.referralCode || "Generating..."}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-3 rounded-lg text-xs font-bold text-primary hover:text-primary hover:bg-primary/10"
+                          onClick={() => {
+                            const code = referralDetails?.referralCode || profile?.referralCode || "";
+                            if (!code) return;
+                            navigator.clipboard.writeText(code);
+                            setCopiedCode(true);
+                            toast.success("Referral code copied to clipboard!");
+                            setTimeout(() => setCopiedCode(false), 2000);
+                          }}
+                        >
+                          {copiedCode ? (
+                            <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mr-1" /> Copied</>
+                          ) : (
+                            <><Copy className="h-3.5 w-3.5 mr-1" /> Copy Code</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Link Box */}
+                    <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70 backdrop-blur-sm">
+                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                        Your Referral Link
+                      </span>
+                      <div className="flex items-center justify-between gap-2 bg-card px-3 py-2 rounded-xl border border-border">
+                        <span className="font-mono text-xs text-muted-foreground truncate max-w-[170px]">
+                          {referralDetails?.referralLink || `${window.location.origin}/register?ref=${referralDetails?.referralCode || ""}`}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2.5 rounded-lg text-xs font-bold text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              const link = referralDetails?.referralLink || `${window.location.origin}/register?ref=${referralDetails?.referralCode || ""}`;
+                              navigator.clipboard.writeText(link);
+                              setCopiedLink(true);
+                              toast.success("Referral link copied!");
+                              setTimeout(() => setCopiedLink(false), 2000);
+                            }}
+                          >
+                            {copiedLink ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-8 px-3 rounded-lg text-xs font-bold gradient-sunset text-white border-0 shadow-sm flex items-center gap-1"
+                            onClick={() => {
+                              const link = referralDetails?.referralLink || `${window.location.origin}/register?ref=${referralDetails?.referralCode || ""}`;
+                              if (navigator.share) {
+                                navigator.share({
+                                  title: "Join Previxo Creator Network",
+                                  text: `Join Previxo using my referral code ${referralDetails?.referralCode || ""} and monetize your influence!`,
+                                  url: link,
+                                }).catch(() => {});
+                              } else {
+                                const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`Join Previxo with my referral code ${referralDetails?.referralCode || ""} and earn from brand collaborations: ${link}`)}`;
+                                window.open(whatsappUrl, "_blank");
+                              }
+                            }}
+                          >
+                            <Share2 className="h-3.5 w-3.5" /> Share
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* STATS METRICS */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Referred</span>
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <Users className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
+                    {referralStats?.totalReferrals ?? 0}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Creators who signed up with your code</p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Successful / Qualified</span>
+                    <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-3xl font-extrabold text-emerald-600 font-display">
+                    {referralStats?.qualifiedReferrals ?? 0}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Completed qualification criteria</p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Qualification</span>
+                    <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
+                      <Clock className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-3xl font-extrabold text-amber-600 font-display">
+                    {referralStats?.pendingReferrals ?? 0}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Awaiting profile verification</p>
+                </div>
+
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-primary uppercase tracking-wider">Total Rewards Earned</span>
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <IndianRupee className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
+                    ₹{Number(referralStats?.totalRewardsEarned || 0).toLocaleString("en-IN")}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Credited directly to your wallet</p>
+                </div>
+              </div>
+
+              {/* REFERRALS LIST TABLE */}
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="font-display text-base font-bold text-foreground">Your Referrals</h3>
+                    <p className="text-xs text-muted-foreground">Real-time status and reward tracking for creators you invited</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full text-xs flex items-center gap-1.5"
+                    onClick={() => setReferralRefreshKey((k) => k + 1)}
+                  >
+                    <History className="h-3.5 w-3.5" /> Refresh
+                  </Button>
+                </div>
+
+                {(!referralList?.referrals || referralList.referrals.length === 0) ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center text-muted-foreground mb-3">
+                      <Gift className="h-8 w-8 text-primary/60" />
+                    </div>
+                    <p className="font-semibold text-sm text-foreground">No referrals yet</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
+                      Share your referral link with creators in your network. Your invitations and earned rewards will show up here!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-border/50 text-muted-foreground">
+                          <th className="pb-3 pl-2 font-semibold">Creator</th>
+                          <th className="pb-3 px-2 font-semibold">Joined Date</th>
+                          <th className="pb-3 px-2 font-semibold">Referral Status</th>
+                          <th className="pb-3 px-2 font-semibold">Reward</th>
+                          <th className="pb-3 pr-2 text-right font-semibold">Reward Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {referralList.referrals.map((item) => (
+                          <tr key={item._id} className="hover:bg-secondary/10 transition-colors">
+                            <td className="py-3.5 pl-2 font-semibold text-foreground flex items-center gap-2.5">
+                              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                {item.referredCreator?.name?.[0] || "C"}
+                              </div>
+                              <div>
+                                <span>{item.referredCreator?.name || "Creator"}</span>
+                                {item.referredCreator?.handle && (
+                                  <span className="block text-[10px] text-muted-foreground font-normal">
+                                    {item.referredCreator.handle}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-2 text-muted-foreground whitespace-nowrap">
+                              {new Date(item.date).toLocaleDateString(undefined, {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </td>
+                            <td className="py-3.5 px-2">
+                              <Badge
+                                className={`rounded-full text-[10px] font-bold px-2 py-0.5 border ${
+                                  item.status === "reward_credited" || item.status === "qualified"
+                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                    : item.status === "rejected"
+                                    ? "bg-red-500/10 text-red-600 border-red-500/20"
+                                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                }`}
+                              >
+                                {item.status === "reward_credited"
+                                  ? "✓ Qualified & Credited"
+                                  : item.status === "qualified"
+                                  ? "✓ Qualified"
+                                  : item.status === "rejected"
+                                  ? "✕ Rejected"
+                                  : "⏳ Verification Pending"}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-2 font-bold text-sm text-foreground">
+                              ₹{item.rewardAmount || referralDetails?.rewardAmount || 500}
+                            </td>
+                            <td className="py-3.5 pr-2 text-right">
+                              <Badge
+                                className={`rounded-full text-[9px] font-bold px-2 py-0.5 border ${
+                                  item.rewardStatus === "credited"
+                                    ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30"
+                                    : "bg-secondary text-muted-foreground border-border"
+                                }`}
+                              >
+                                {item.rewardStatus === "credited" ? "✓ Credited" : "Pending"}
                               </Badge>
                             </td>
                           </tr>

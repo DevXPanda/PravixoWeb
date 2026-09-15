@@ -19,6 +19,7 @@ import {
   Megaphone,
   Tag,
   CalendarCheck,
+  Gift,
 } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "./theme-provider";
@@ -50,6 +51,7 @@ const navLinks = [
   { to: "/protips", label: "ProTips", icon: Lightbulb },
   { to: "/notifications", label: "Notifications", icon: Megaphone },
   { to: "/offers", label: "Creator Offers", icon: Tag },
+  { to: "/referrals", label: "Refer & Earn", icon: Gift },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 

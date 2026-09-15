@@ -166,4 +166,23 @@ router.get("/activity", getAdminActivityFeed);
 import { sendBroadcast } from "../controllers/broadcastController.js";
 router.post("/broadcast", sendBroadcast);
 
+// =====================================================
+// REFERRAL SYSTEM MANAGEMENT
+// =====================================================
+import {
+  adminListReferrals,
+  adminGetReferralStats,
+  adminGetReferralSettings,
+  adminUpdateReferralSettings,
+  adminManuallyQualifyReferral,
+  adminRejectReferral,
+} from "../controllers/adminReferralController.js";
+
+router.get("/referrals", adminListReferrals);
+router.get("/referrals/stats", adminGetReferralStats);
+router.get("/referrals/settings", adminGetReferralSettings);
+router.put("/referrals/settings", adminUpdateReferralSettings);
+router.post("/referrals/:id/qualify", adminManuallyQualifyReferral);
+router.post("/referrals/:id/reject", adminRejectReferral);
+
 export default router;

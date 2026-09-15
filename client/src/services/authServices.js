@@ -22,6 +22,7 @@ export const authApi = {
     name,
     password,
     otp,
+    referralCode,
   }) => {
     const response = await api.post("/auth/register", {
       role,
@@ -29,6 +30,7 @@ export const authApi = {
       name,
       password,
       otp,
+      referralCode,
     });
 
     return response.data;

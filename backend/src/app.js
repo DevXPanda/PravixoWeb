@@ -33,6 +33,7 @@ import walletRoutes from "./routes/walletRoutes.js";
 import agreementRoutes from "./routes/agreementRoutes.js";
 import offerRoutes from "./routes/offerRoutes.js";
 import pushRouter from "./routes/push.js";
+import referralRoutes from "./routes/referralRoutes.js";
 // const { router: pushRouter } = require('./routes/push');
 
 const app = express();
@@ -117,6 +118,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/submissions", submissionRoutes);
 
 app.use("/api/offers", offerRoutes);
+
+app.use("/api/referrals", referralRoutes);
 
 app.use("/api/push", pushRouter );
 

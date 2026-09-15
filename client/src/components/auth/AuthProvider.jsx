@@ -151,6 +151,7 @@ export function AuthProvider({ children }) {
     password,
     role,
     otp,
+    referralCode,
   }) => {
     const response = await authApi.register({
       name,
@@ -158,6 +159,7 @@ export function AuthProvider({ children }) {
       password,
       role,
       otp,
+      referralCode,
     });
 
     console.log("REGISTER RESPONSE:", response);
