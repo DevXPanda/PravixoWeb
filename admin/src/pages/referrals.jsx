@@ -21,13 +21,6 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../components/ui/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -35,14 +28,38 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
-import { Switch } from "../components/ui/switch";
+
+function Card({ className = "", children, ...props }) {
+  return (
+    <div className={`rounded-2xl border border-border bg-card text-card-foreground shadow-sm ${className}`} {...props}>
+      {children}
+    </div>
+  );
+}
+
+function CardHeader({ className = "", children, ...props }) {
+  return (
+    <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props}>
+      {children}
+    </div>
+  );
+}
+
+function CardTitle({ className = "", children, ...props }) {
+  return (
+    <h3 className={`font-semibold leading-none tracking-tight ${className}`} {...props}>
+      {children}
+    </h3>
+  );
+}
+
+function CardContent({ className = "", children, ...props }) {
+  return (
+    <div className={`p-6 pt-0 ${className}`} {...props}>
+      {children}
+    </div>
+  );
+}
 
 export function ReferralsPage() {
   const [stats, setStats] = useState(null);
@@ -324,24 +341,20 @@ export function ReferralsPage() {
 
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Filter Status:</span>
-          <Select
+          <select
             value={statusFilter}
-            onValueChange={(val) => {
-              setStatusFilter(val);
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
               setPage(1);
             }}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <SelectTrigger className="w-[170px] h-9 text-xs">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Referrals</SelectItem>
-              <SelectItem value="registered">Pending Verification</SelectItem>
-              <SelectItem value="qualified">Qualified</SelectItem>
-              <SelectItem value="reward_credited">Reward Credited</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+            <option value="all">All Referrals</option>
+            <option value="registered">Pending Verification</option>
+            <option value="qualified">Qualified</option>
+            <option value="reward_credited">Reward Credited</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
       </div>
 
@@ -536,11 +549,13 @@ export function ReferralsPage() {
                   Allow creators to share links and earn referral rewards
                 </p>
               </div>
-              <Switch
+              <input
+                type="checkbox"
                 checked={settingsForm.isEnabled}
-                onCheckedChange={(checked) =>
-                  setSettingsForm((prev) => ({ ...prev, isEnabled: checked }))
+                onChange={(e) =>
+                  setSettingsForm((prev) => ({ ...prev, isEnabled: e.target.checked }))
                 }
+                className="h-4 w-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
               />
             </div>
 
@@ -566,33 +581,29 @@ export function ReferralsPage() {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold">Qualification Condition *</Label>
-              <Select
+              <select
                 value={settingsForm.qualificationTrigger}
-                onValueChange={(val) =>
+                onChange={(e) =>
                   setSettingsForm((prev) => ({
                     ...prev,
-                    qualificationTrigger: val,
+                    qualificationTrigger: e.target.value,
                   }))
                 }
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <SelectTrigger className="text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="profile_verified">
-                    Creator Profile Verified (Admin KYC approval)
-                  </SelectItem>
-                  <SelectItem value="on_register">
-                    Instant on Registration (Instant payout)
-                  </SelectItem>
-                  <SelectItem value="first_collaboration_completed">
-                    First Collaboration Completed
-                  </SelectItem>
-                  <SelectItem value="admin_manual">
-                    Manual Admin Review Only
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="profile_verified">
+                  Creator Profile Verified (Admin KYC approval)
+                </option>
+                <option value="on_register">
+                  Instant on Registration (Instant payout)
+                </option>
+                <option value="first_collaboration_completed">
+                  First Collaboration Completed
+                </option>
+                <option value="admin_manual">
+                  Manual Admin Review Only
+                </option>
+              </select>
               <p className="text-[10px] text-muted-foreground">
                 Condition required for the referral status to move from registered to qualified.
               </p>
