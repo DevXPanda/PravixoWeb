@@ -447,11 +447,19 @@ export const getReferralEarnings = async (req, res) => {
       ? new mongoose.Types.ObjectId(userId)
       : userId;
 
-    // 1. Calculate active referrals count where current user is referrer
+    const userProfile = await Profile.findById(userId).lean();
+    const userCodes = [];
+    if (userProfile?.referral_code) userCodes.push(userProfile.referral_code);
+    if (userProfile?.referralCode && !userCodes.includes(userProfile.referralCode)) {
+      userCodes.push(userProfile.referralCode);
+    }
+
+    // 1. Calculate active referrals count where current user is referrer (by ID or code)
     const relCount = await ReferralRelationship.countDocuments({
       $or: [
         { referrer_id: targetObjectId },
         { referrer_id: userId },
+        ...(userCodes.length > 0 ? [{ referral_code_used: { $in: userCodes } }] : []),
       ],
       status: "active",
     });
