@@ -271,6 +271,7 @@ export const acceptRequest = async (req, res) => {
     // Notify Creator
     const brandProfile = await Profile.findById(connection.brandId).select("fullName").lean();
     const brandName = brandProfile?.fullName || "A Brand";
+    const campaignTitle = campaign?.title || "Collaboration";
     const approveText = `${brandName} approved your request for "${campaignTitle}".`;
     await Notification.create({
       recipientId: connection.creatorId,

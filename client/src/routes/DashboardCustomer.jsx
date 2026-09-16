@@ -1216,8 +1216,9 @@ const [submittingVerification, setSubmittingVerification] =
                           toast.success(
                             `Connected with ${req.creatorProfile?.fullName}!`,
                           );
+                          setRequestsRefreshKey((k) => k + 1);
                         } catch (err) {
-                          toast.error("Failed to accept request");
+                          toast.error(err?.response?.data?.message || err.message || "Failed to accept request");
                         }
                       }}
                     >
