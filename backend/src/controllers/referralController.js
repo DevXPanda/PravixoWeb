@@ -442,13 +442,24 @@ export const getReferralEarnings = async (req, res) => {
       : userId;
 
     // 1. Calculate active referrals count where current user is referrer
-    const active_referrals_count = await ReferralRelationship.countDocuments({
+    const relCount = await ReferralRelationship.countDocuments({
       $or: [
         { referrer_id: targetObjectId },
         { referrer_id: userId },
       ],
       status: "active",
     });
+
+    const profileRefCount = await Profile.countDocuments({
+      $or: [
+        { referred_by_user_id: targetObjectId },
+        { referred_by_user_id: userId },
+        { referredBy: targetObjectId },
+        { referredBy: userId },
+      ],
+    });
+
+    const active_referrals_count = Math.max(relCount, profileRefCount);
 
     // 2. Aggregate total commission earned by current user
     const totalEarnedAgg = await WalletTransaction.aggregate([
