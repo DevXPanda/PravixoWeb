@@ -447,19 +447,14 @@ export function DashboardInfluencer() {
 
   // Referral Queries & States
   const [referralRefreshKey, setReferralRefreshKey] = useState(0);
-  const referralDetails = useRestQuery(
-    `referral-details-${profileKey}-${referralRefreshKey}`,
-    () => apiGet(`/referrals/my-referral`),
+  const referralCodeData = useRestQuery(
+    `referral-code-${profileKey}-${referralRefreshKey}`,
+    () => apiGet(`/v1/referrals/my-code`),
     hasValidMongoProfileId
   );
-  const referralStats = useRestQuery(
-    `referral-stats-${profileKey}-${referralRefreshKey}`,
-    () => apiGet(`/referrals/stats`),
-    hasValidMongoProfileId
-  );
-  const referralList = useRestQuery(
-    `referral-list-${profileKey}-${referralRefreshKey}`,
-    () => apiGet(`/referrals/list`),
+  const referralEarnings = useRestQuery(
+    `referral-earnings-${profileKey}-${referralRefreshKey}`,
+    () => apiGet(`/v1/referrals/earnings?page=1&limit=20`),
     hasValidMongoProfileId
   );
 
@@ -1489,7 +1484,7 @@ const CAMPAIGNS_PER_PAGE = 6;
               <Gift className="h-4 w-4 text-emerald-400" />
               Refer & Earn
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 text-[10px] font-extrabold border border-emerald-500/30">
-                ₹{referralDetails?.rewardAmount || 500}
+                5% Recurring
               </span>
             </button>
           </div>
@@ -3639,13 +3634,13 @@ const CAMPAIGNS_PER_PAGE = 6;
                 <div className="max-w-2xl relative z-10">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold mb-3">
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span>Referral Program Active • Earn ₹{referralDetails?.rewardAmount || 500} per Creator</span>
+                    <span>5% Recurring Commission • Lifetime & Uncapped</span>
                   </div>
                   <h2 className="font-display text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                    Invite creators. <span className="text-gradient-sunset">Earn rewards.</span>
+                    Invite creators & brands. <span className="text-gradient-sunset">Earn 5% recurring.</span>
                   </h2>
                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                    Share your unique referral code or link with fellow creators. When they join Previxo and complete profile verification, you'll receive ₹{referralDetails?.rewardAmount || 500} directly in your Creator Wallet.
+                    Share your unique referral code or link. Whenever a creator you refer completes a project payout, you'll earn a recurring 5% commission credited directly into your wallet with zero earnings cap.
                   </p>
 
                   {/* CODE & LINK BOXES */}
@@ -3657,14 +3652,14 @@ const CAMPAIGNS_PER_PAGE = 6;
                       </span>
                       <div className="flex items-center justify-between gap-2 bg-card px-3 py-2 rounded-xl border border-border">
                         <span className="font-mono font-black text-base text-foreground tracking-wider">
-                          {referralDetails?.referralCode || profile?.referralCode || "Generating..."}
+                          {referralCodeData?.referral_code || profile?.referral_code || profile?.referralCode || "Generating..."}
                         </span>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-8 px-3 rounded-lg text-xs font-bold text-primary hover:text-primary hover:bg-primary/10"
                           onClick={() => {
-                            const code = referralDetails?.referralCode || profile?.referralCode || "";
+                            const code = referralCodeData?.referral_code || profile?.referral_code || profile?.referralCode || "";
                             if (!code) return;
                             navigator.clipboard.writeText(code);
                             setCopiedCode(true);
@@ -3688,7 +3683,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                       </span>
                       <div className="flex items-center justify-between gap-2 bg-card px-3 py-2 rounded-xl border border-border">
                         <span className="font-mono text-xs text-muted-foreground truncate max-w-[170px]">
-                          {referralDetails?.referralLink || `${window.location.origin}/register?ref=${referralDetails?.referralCode || ""}`}
+                          {referralCodeData?.referral_link || `${window.location.origin}/register?ref=${referralCodeData?.referral_code || profile?.referral_code || ""}`}
                         </span>
                         <div className="flex items-center gap-1">
                           <Button
@@ -3696,7 +3691,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                             variant="ghost"
                             className="h-8 px-2.5 rounded-lg text-xs font-bold text-primary hover:text-primary hover:bg-primary/10"
                             onClick={() => {
-                              const link = referralDetails?.referralLink || `${window.location.origin}/register?ref=${referralDetails?.referralCode || ""}`;
+                              const link = referralCodeData?.referral_link || `${window.location.origin}/register?ref=${referralCodeData?.referral_code || profile?.referral_code || ""}`;
                               navigator.clipboard.writeText(link);
                               setCopiedLink(true);
                               toast.success("Referral link copied!");
@@ -3713,15 +3708,16 @@ const CAMPAIGNS_PER_PAGE = 6;
                             size="sm"
                             className="h-8 px-3 rounded-lg text-xs font-bold gradient-sunset text-white border-0 shadow-sm flex items-center gap-1"
                             onClick={() => {
-                              const link = referralDetails?.referralLink || `${window.location.origin}/register?ref=${referralDetails?.referralCode || ""}`;
+                              const link = referralCodeData?.referral_link || `${window.location.origin}/register?ref=${referralCodeData?.referral_code || profile?.referral_code || ""}`;
+                              const refCode = referralCodeData?.referral_code || profile?.referral_code || "";
                               if (navigator.share) {
                                 navigator.share({
                                   title: "Join Previxo Creator Network",
-                                  text: `Join Previxo using my referral code ${referralDetails?.referralCode || ""} and monetize your influence!`,
+                                  text: `Join Previxo using my referral code ${refCode} and monetize your influence!`,
                                   url: link,
                                 }).catch(() => {});
                               } else {
-                                const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`Join Previxo with my referral code ${referralDetails?.referralCode || ""} and earn from brand collaborations: ${link}`)}`;
+                                const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`Join Previxo with my referral code ${refCode} and earn from brand collaborations: ${link}`)}`;
                                 window.open(whatsappUrl, "_blank");
                               }
                             }}
@@ -3736,66 +3732,53 @@ const CAMPAIGNS_PER_PAGE = 6;
               </div>
 
               {/* STATS METRICS */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Referred</span>
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <Users className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
-                    {referralStats?.totalReferrals ?? 0}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Creators who signed up with your code</p>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Successful / Qualified</span>
-                    <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                      <CheckCircle2 className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3 text-3xl font-extrabold text-emerald-600 font-display">
-                    {referralStats?.qualifiedReferrals ?? 0}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Completed qualification criteria</p>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Qualification</span>
-                    <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
-                      <Clock className="h-4 w-4" />
-                    </div>
-                  </div>
-                  <div className="mt-3 text-3xl font-extrabold text-amber-600 font-display">
-                    {referralStats?.pendingReferrals ?? 0}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Awaiting profile verification</p>
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-primary uppercase tracking-wider">Total Rewards Earned</span>
+                    <span className="text-xs font-semibold text-primary uppercase tracking-wider">Total Commission Earned</span>
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                       <IndianRupee className="h-4 w-4" />
                     </div>
                   </div>
                   <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
-                    ₹{Number(referralStats?.totalRewardsEarned || 0).toLocaleString("en-IN")}
+                    ₹{Number(referralEarnings?.total_earned || 0).toLocaleString("en-IN")}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1">Credited directly to your wallet</p>
                 </div>
+
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Referrals</span>
+                    <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                      <Users className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
+                    {referralEarnings?.active_referrals_count ?? 0}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Currently earning commission from</p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Commission Rate</span>
+                    <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
+                      <Sparkles className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="mt-3 text-3xl font-extrabold text-amber-600 font-display">
+                    5%
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Per completed creator project payout</p>
+                </div>
               </div>
 
-              {/* REFERRALS LIST TABLE */}
+              {/* REFERRAL COMMISSIONS TABLE */}
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="font-display text-base font-bold text-foreground">Your Referrals</h3>
-                    <p className="text-xs text-muted-foreground">Real-time status and reward tracking for creators you invited</p>
+                    <h3 className="font-display text-base font-bold text-foreground">Referral Commission History</h3>
+                    <p className="text-xs text-muted-foreground">Earnings credited from referred creators' completed project payouts</p>
                   </div>
                   <Button
                     size="sm"
@@ -3807,14 +3790,14 @@ const CAMPAIGNS_PER_PAGE = 6;
                   </Button>
                 </div>
 
-                {(!referralList?.referrals || referralList.referrals.length === 0) ? (
+                {(!referralEarnings?.earnings || referralEarnings.earnings.length === 0) ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center text-muted-foreground mb-3">
                       <Gift className="h-8 w-8 text-primary/60" />
                     </div>
-                    <p className="font-semibold text-sm text-foreground">No referrals yet</p>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
-                      Share your referral link with creators in your network. Your invitations and earned rewards will show up here!
+                    <p className="font-semibold text-sm text-foreground">No commission earnings yet</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-[340px]">
+                      Share your referral code with fellow creators and brands. When your referred creators complete projects, your 5% commissions will appear right here!
                     </p>
                   </div>
                 ) : (
@@ -3822,67 +3805,40 @@ const CAMPAIGNS_PER_PAGE = 6;
                     <table className="w-full text-left text-xs">
                       <thead>
                         <tr className="border-b border-border/50 text-muted-foreground">
-                          <th className="pb-3 pl-2 font-semibold">Creator</th>
-                          <th className="pb-3 px-2 font-semibold">Joined Date</th>
-                          <th className="pb-3 px-2 font-semibold">Referral Status</th>
-                          <th className="pb-3 px-2 font-semibold">Reward</th>
-                          <th className="pb-3 pr-2 text-right font-semibold">Reward Status</th>
+                          <th className="pb-3 pl-2 font-semibold">Referred Creator</th>
+                          <th className="pb-3 px-2 font-semibold">Project / Payout</th>
+                          <th className="pb-3 px-2 font-semibold">Date</th>
+                          <th className="pb-3 px-2 font-semibold">Commission (5%)</th>
+                          <th className="pb-3 pr-2 text-right font-semibold">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30">
-                        {referralList.referrals.map((item) => (
-                          <tr key={item._id} className="hover:bg-secondary/10 transition-colors">
+                        {referralEarnings.earnings.map((item, idx) => (
+                          <tr key={item._id || item.project_id || idx} className="hover:bg-secondary/10 transition-colors">
                             <td className="py-3.5 pl-2 font-semibold text-foreground flex items-center gap-2.5">
                               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                                {item.referredCreator?.name?.[0] || "C"}
+                                {item.referred_user_name?.[0] || "C"}
                               </div>
                               <div>
-                                <span>{item.referredCreator?.name || "Creator"}</span>
-                                {item.referredCreator?.handle && (
-                                  <span className="block text-[10px] text-muted-foreground font-normal">
-                                    {item.referredCreator.handle}
-                                  </span>
-                                )}
+                                <span>{item.referred_user_name || "Referred Creator"}</span>
                               </div>
                             </td>
+                            <td className="py-3.5 px-2 text-muted-foreground font-mono text-[11px]">
+                              {item.project_id ? (item.project_id.length > 12 ? `${item.project_id.slice(0, 10)}...` : item.project_id) : "Completed Project"}
+                            </td>
                             <td className="py-3.5 px-2 text-muted-foreground whitespace-nowrap">
-                              {new Date(item.date).toLocaleDateString(undefined, {
+                              {item.date ? new Date(item.date).toLocaleDateString(undefined, {
                                 year: "numeric",
                                 month: "short",
                                 day: "numeric",
-                              })}
+                              }) : "-"}
                             </td>
-                            <td className="py-3.5 px-2">
-                              <Badge
-                                className={`rounded-full text-[10px] font-bold px-2 py-0.5 border ${
-                                  item.status === "reward_credited" || item.status === "qualified"
-                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                    : item.status === "rejected"
-                                    ? "bg-red-500/10 text-red-600 border-red-500/20"
-                                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                }`}
-                              >
-                                {item.status === "reward_credited"
-                                  ? "✓ Qualified & Credited"
-                                  : item.status === "qualified"
-                                  ? "✓ Qualified"
-                                  : item.status === "rejected"
-                                  ? "✕ Rejected"
-                                  : "⏳ Verification Pending"}
-                              </Badge>
-                            </td>
-                            <td className="py-3.5 px-2 font-bold text-sm text-foreground">
-                              ₹{item.rewardAmount || referralDetails?.rewardAmount || 500}
+                            <td className="py-3.5 px-2 font-bold text-sm text-emerald-600">
+                              +₹{Number(item.commission_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                             </td>
                             <td className="py-3.5 pr-2 text-right">
-                              <Badge
-                                className={`rounded-full text-[9px] font-bold px-2 py-0.5 border ${
-                                  item.rewardStatus === "credited"
-                                    ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30"
-                                    : "bg-secondary text-muted-foreground border-border"
-                                }`}
-                              >
-                                {item.rewardStatus === "credited" ? "✓ Credited" : "Pending"}
+                              <Badge className="rounded-full text-[9px] font-bold px-2 py-0.5 border bg-emerald-500/15 text-emerald-700 border-emerald-500/30">
+                                ✓ Credited
                               </Badge>
                             </td>
                           </tr>
