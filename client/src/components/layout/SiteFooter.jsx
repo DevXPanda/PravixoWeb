@@ -169,6 +169,13 @@ export function SiteFooter() {
               </Link>
 
               <Link
+                to="/terms"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Terms & Conditions
+              </Link>
+
+              <Link
                 to="/protection-info"
                 className="text-sm text-muted-foreground hover:text-foreground"
               >
@@ -185,6 +192,13 @@ export function SiteFooter() {
           </p>
 
           <div className="flex gap-5">
+            <Link
+              to="/terms"
+              className="hover:text-foreground"
+            >
+              Terms
+            </Link>
+
             <Link
               to="/privacy"
               className="hover:text-foreground"

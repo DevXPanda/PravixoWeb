@@ -18,6 +18,10 @@ export const creditCreatorWallet = async ({
   payoutId = null,
   referenceId,
   description = "Collaboration payout released by Admin",
+  transaction_type = "collaboration",
+  related_transaction_id = null,
+  related_referral_id = null,
+  status = "COMPLETED",
 }) => {
   if (!creatorId || !amount || amount <= 0) {
     throw new Error("Invalid creatorId or credit amount.");
@@ -42,20 +46,33 @@ export const creditCreatorWallet = async ({
     }
   }
 
-  // Atomic find & update or create wallet
+  // Atomic find & update or create wallet (only increment balance if COMPLETED)
+  const isCompleted = status === "COMPLETED";
+  const updateQuery = isCompleted
+    ? {
+        $inc: {
+          availableBalance: amount,
+          totalEarned: amount,
+        },
+        $setOnInsert: {
+          pendingWithdrawalBalance: 0,
+          totalWithdrawn: 0,
+          currency: "INR",
+        },
+      }
+    : {
+        $setOnInsert: {
+          availableBalance: 0,
+          totalEarned: 0,
+          pendingWithdrawalBalance: 0,
+          totalWithdrawn: 0,
+          currency: "INR",
+        },
+      };
+
   const updatedWallet = await Wallet.findOneAndUpdate(
     { creatorId },
-    {
-      $inc: {
-        availableBalance: amount,
-        totalEarned: amount,
-      },
-      $setOnInsert: {
-        pendingWithdrawalBalance: 0,
-        totalWithdrawn: 0,
-        currency: "INR",
-      },
-    },
+    updateQuery,
     {
       new: true,
       upsert: true,
@@ -70,9 +87,12 @@ export const creditCreatorWallet = async ({
     campaignId,
     payoutId,
     type: "CREDIT",
+    transaction_type,
+    related_transaction_id,
+    related_referral_id,
     amount,
     currency: "INR",
-    status: "COMPLETED",
+    status,
     description,
     referenceId: referenceId || `WTX-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
     balanceAfter: updatedWallet.availableBalance,

@@ -41,6 +41,40 @@ const referralSettingSchema = new mongoose.Schema(
       default: null,
     },
 
+    referral_type: {
+      type: String,
+      enum: ["brand_to_brand", "creator_to_creator", "brand_to_creator"],
+      unique: true,
+      sparse: true,
+    },
+
+    commission_percent: {
+      type: Number,
+      default: 5.0,
+      min: 0,
+      max: 100,
+    },
+
+    commission_source: {
+      type: String,
+      default: "creator_share",
+    },
+
+    validity_period_days: {
+      type: Number,
+      default: null,
+    },
+
+    max_lifetime_commission: {
+      type: Number,
+      default: null,
+    },
+
+    is_active: {
+      type: Boolean,
+      default: true,
+    },
+
     terms: {
       type: [String],
       default: [

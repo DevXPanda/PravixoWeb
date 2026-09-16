@@ -34,6 +34,7 @@ import agreementRoutes from "./routes/agreementRoutes.js";
 import offerRoutes from "./routes/offerRoutes.js";
 import pushRouter from "./routes/push.js";
 import referralRoutes from "./routes/referralRoutes.js";
+import internalRoutes from "./routes/internalRoutes.js";
 // const { router: pushRouter } = require('./routes/push');
 
 const app = express();
@@ -114,12 +115,17 @@ app.use("/api/otp", otpRoutes);
 app.use("/api/auth", authRoutes);
 
 app.use("/api/admin", adminRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 app.use("/api/submissions", submissionRoutes);
 
 app.use("/api/offers", offerRoutes);
 
 app.use("/api/referrals", referralRoutes);
+app.use("/api/v1/referrals", referralRoutes);
+
+app.use("/internal", internalRoutes);
+app.use("/api/internal", internalRoutes);
 
 app.use("/api/push", pushRouter );
 

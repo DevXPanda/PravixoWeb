@@ -253,11 +253,31 @@ const profileSchema = new mongoose.Schema(
       uppercase: true,
     },
 
+    referral_code: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+    },
+
     referredBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Profile",
       default: null,
       index: true,
+    },
+
+    referred_by_user_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Profile",
+      default: null,
+      index: true,
+    },
+
+    referred_at: {
+      type: Date,
+      default: null,
     },
 
     referralCount: {

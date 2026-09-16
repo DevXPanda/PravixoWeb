@@ -43,10 +43,36 @@ const walletTransactionSchema = new mongoose.Schema(
       required: true,
     },
 
+    transaction_type: {
+      type: String,
+      enum: [
+        "collaboration",
+        "payout",
+        "project_payout",
+        "withdrawal",
+        "referral_commission",
+        "refund_reversal",
+      ],
+      default: "collaboration",
+    },
+
+    related_transaction_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "WalletTransaction",
+      default: null,
+      index: true,
+    },
+
+    related_referral_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ReferralRelationship",
+      default: null,
+      index: true,
+    },
+
     amount: {
       type: Number,
       required: true,
-      min: 0,
     },
 
     currency: {
@@ -57,7 +83,7 @@ const walletTransactionSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["PENDING", "COMPLETED", "FAILED"],
+      enum: ["PENDING", "COMPLETED", "FAILED", "REVERSED", "reversed"],
       default: "COMPLETED",
       index: true,
     },

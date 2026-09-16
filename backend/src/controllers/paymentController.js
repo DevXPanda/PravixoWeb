@@ -19,6 +19,7 @@ import {
   createPayout,
 } from "../services/paymentServices.js";
 import { sendPushToUser } from "../utils/webPush.js";
+import { reversePayoutAndReferralCommission } from "../services/referralService.js";
 
 const HOLDING_DURATION = 72 * 60 * 60 * 1000;
 
@@ -1614,6 +1615,16 @@ export const refundPayment =
         details:
           `Refund processed. Refund ref: ${refund.id}`,
       });
+
+      // Automatically reverse payout and linked referral commission if payout was issued
+      try {
+        const payoutIdToReverse = payment.payoutReference || payment._id;
+        const connection = await Connection.findById(payment.connectionId);
+        const targetPayoutId = connection?.payoutId || payoutIdToReverse;
+        await reversePayoutAndReferralCommission({ payout_id: targetPayoutId });
+      } catch (revErr) {
+        console.warn("Refund auto-reversal warning:", revErr.message);
+      }
 
       return res.status(200).json({
         success: true,

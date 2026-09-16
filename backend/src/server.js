@@ -10,6 +10,7 @@ import connectDB from "./config/db.js";
 import { startSocialSyncJob } from "./jobs/socialSyncJob.js";
 import { startPaymentReleaseJob } from "./jobs/paymentReleaseJob.js";
 import { initChatCleanupJob } from "./jobs/chatCleanup.js";
+import { initPayoutEventListener } from "./services/payoutEventService.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -24,6 +25,7 @@ const startServer = async () => {
       startSocialSyncJob();
       startPaymentReleaseJob();
       initChatCleanupJob();
+      initPayoutEventListener();
     });
   } catch (error) {
     console.error(

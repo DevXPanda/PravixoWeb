@@ -20,7 +20,7 @@ import WalletTransaction from "../models/WalletTransaction.js";
 import Withdrawal from "../models/Withdrawal.js";
 import { creditCreatorWallet } from "./walletController.js";
 import { sendPushToUser, sendPushToUsers } from "../utils/webPush.js";
-import { processReferralQualification } from "../services/referralService.js";
+import { processReferralQualification, processProjectPayoutWithReferral, reversePayoutAndReferralCommission } from "../services/referralService.js";
 
 // =====================================================
 // AGGREGATE STATS
@@ -938,24 +938,31 @@ export const releaseCreatorPayout = async (req, res) => {
       }
     }
 
-    // Credit Creator Wallet (Task 13 - Idempotent, exactly creator agreed amount)
+    // Credit Creator Wallet (Additive referral hook: splits commission if active referral exists, else normal payout)
     let walletResult = null;
+    let payoutBreakdown = null;
     try {
-      walletResult = await creditCreatorWallet({
+      const payoutRes = await processProjectPayoutWithReferral({
         creatorId: connection.creatorId,
-        amount: creatorAmount,
         collaborationId: connection._id,
         campaignId: connection.campaignId || null,
         payoutId: payout._id,
-        referenceId: transactionReference,
+        gross_payout_amount: creatorAmount,
+        platform_fee: 0, // Commission comes out of creator's share
+        transactionReference,
         description: `Payment released for collaboration (${campaignTitle})`,
       });
+      walletResult = payoutRes.creatorResult;
+      payoutBreakdown = payoutRes.breakdown;
     } catch (walletErr) {
-      console.error("Wallet credit error:", walletErr);
+      console.error("Wallet credit / referral commission error:", walletErr);
     }
 
+    // Amount actually credited to creator after referral commission if applicable
+    const finalCreatorCredited = payoutBreakdown?.creator_net_amount ?? creatorAmount;
+
     // Send Notification to Creator
-    const creatorPayoutText = `₹${creatorAmount.toLocaleString("en-IN")} has been added to your wallet from your completed collaboration for "${campaignTitle}" (Ref: ${transactionReference}).`;
+    const creatorPayoutText = `₹${finalCreatorCredited.toLocaleString("en-IN")} has been added to your wallet from your completed collaboration for "${campaignTitle}" (Ref: ${transactionReference}).`;
     await Notification.create({
       recipientId: connection.creatorId,
       senderId: adminId || connection.brandId,
@@ -1127,6 +1134,17 @@ export const resolveDispute = async (req, res) => {
         taskId: payment.taskId,
         read: false,
       });
+
+      // Automatically reverse any payout and linked referral commission
+      try {
+        const payoutIdToReverse = payment.payoutReference || payment._id;
+        // Also check if connection has an associated payout
+        const connection = await Connection.findById(payment.connectionId);
+        const targetPayoutId = connection?.payoutId || payoutIdToReverse;
+        await reversePayoutAndReferralCommission({ payout_id: targetPayoutId });
+      } catch (revErr) {
+        console.warn("Dispute refund auto-reversal error:", revErr.message);
+      }
     }
 
     return res.status(200).json({

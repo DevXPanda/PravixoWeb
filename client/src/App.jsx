@@ -22,6 +22,7 @@ import InfluencerDetails from "./routes/InfluencerDetails";
 import Login from "./routes/Login";
 import Messages from "./routes/Messages";
 import Privacy from "./routes/Privacy";
+import Terms from "./routes/Terms";
 import ProtectionInfo from "./routes/ProtectionInfo";
 import Register from "./routes/Register";
 import ResetPassword from "./routes/Reset-Password";
@@ -32,6 +33,7 @@ import OAuthCallback from "./routes/OAuthCallback";
 
 import DashboardCustomer from "./routes/DashboardCustomer";
 import DashboardInfluencer from "./routes/DashboardInfluencer";
+import PayoutProcessedModal from "./components/collaboration/PayoutProcessedModal";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -104,6 +106,8 @@ function Layout() {
           <Route path="/messages" element={<Messages />} />
 
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/terms-and-conditions" element={<Terms />} />
 
           <Route
             path="/protection-info"
@@ -161,6 +165,7 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <Layout />
+          <PayoutProcessedModal />
           <ThemedToaster />
         </AuthProvider>
       </ThemeProvider>

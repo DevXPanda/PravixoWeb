@@ -16,6 +16,10 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
+  Ban,
+  ShieldAlert,
+  Percent,
+  Link2,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -40,8 +44,12 @@ import {
 } from "../components/ui/dialog";
 
 export function ReferralsPage() {
+  const [activeTab, setActiveTab] = useState("relationships"); // "relationships" | "signups"
   const [stats, setStats] = useState(null);
   const [referrals, setReferrals] = useState([]);
+  const [relationships, setRelationships] = useState([]);
+  const [relLoading, setRelLoading] = useState(false);
+  const [relStatusFilter, setRelStatusFilter] = useState("all");
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -63,14 +71,62 @@ export function ReferralsPage() {
   const [rejectReason, setRejectReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Revoke Relationship Modal state
+  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [revokeReason, setRevokeReason] = useState("");
+  const [revoking, setRevoking] = useState(false);
+
   useEffect(() => {
     fetchStats();
     fetchSettings();
+    fetchRelationships();
   }, []);
 
   useEffect(() => {
     fetchReferrals();
   }, [statusFilter, page]);
+
+  useEffect(() => {
+    fetchRelationships();
+  }, [relStatusFilter]);
+
+  const fetchRelationships = async () => {
+    try {
+      setRelLoading(true);
+      const res = await api.get("/admin/referrals/relationships", {
+        params: { status: relStatusFilter },
+      });
+      if (res.data?.success) {
+        setRelationships(res.data.relationships || []);
+      }
+    } catch (err) {
+      console.error("Failed to load referral relationships:", err);
+      toast.error("Failed to load referral relationships");
+    } finally {
+      setRelLoading(false);
+    }
+  };
+
+  const handleRevokeRelationship = async () => {
+    if (!revokeTarget) return;
+    try {
+      setRevoking(true);
+      const res = await api.post(`/v1/admin/referrals/${revokeTarget.id}/revoke`, {
+        reason: revokeReason || "fraud_suspected",
+      });
+      if (res.data?.status === "revoked") {
+        toast.success("Referral relationship revoked successfully.");
+        setRevokeTarget(null);
+        setRevokeReason("");
+        fetchRelationships();
+      }
+    } catch (err) {
+      console.error("Revoke error:", err);
+      toast.error(err.response?.data?.message || err.response?.data?.error || "Failed to revoke relationship");
+    } finally {
+      setRevoking(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -308,6 +364,202 @@ export function ReferralsPage() {
         </div>
       </div>
 
+      {/* TAB NAVIGATION */}
+      <div className="flex items-center gap-2 border-b border-border pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("relationships")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
+            activeTab === "relationships"
+              ? "gradient-sunset text-white shadow-glow"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          }`}
+        >
+          <Link2 className="h-3.5 w-3.5" /> Referral Relationships ({relationships.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("signups")}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all cursor-pointer ${
+            activeTab === "signups"
+              ? "gradient-sunset text-white shadow-glow"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          }`}
+        >
+          <Gift className="h-3.5 w-3.5" /> Sign-up Rewards
+        </button>
+      </div>
+
+      {/* VIEW 1: REFERRAL RELATIONSHIPS DASHBOARD */}
+      {activeTab === "relationships" && (
+        <div className="space-y-4">
+          {/* Status Filter */}
+          <div className="flex items-center justify-between bg-card p-3.5 rounded-3xl border border-border shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-semibold">Relationship Status:</span>
+              <select
+                value={relStatusFilter}
+                onChange={(e) => setRelStatusFilter(e.target.value)}
+                className="h-9 rounded-full border border-border bg-secondary/40 px-3.5 py-1 text-xs font-semibold text-foreground shadow-sm focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="revoked">Revoked</option>
+              </select>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchRelationships}
+              className="rounded-full h-8 text-xs gap-1.5"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh List
+            </Button>
+          </div>
+
+          {/* Relationships Table */}
+          <div className="rounded-3xl border border-border bg-card overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-b border-border/60">
+                  <TableHead className="pl-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Referrer (Name / Type)
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Referred User (Name / Type)
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Commission %
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Total Paid to Date
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Created At
+                  </TableHead>
+                  <TableHead className="text-right pr-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {relLoading ? (
+                  [...Array(4)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell colSpan={7} className="py-4 px-6">
+                        <Skeleton className="h-8 w-full rounded-xl" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : relationships.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-xs">
+                      No referral relationships found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  relationships.map((rel) => {
+                    const isRevoked = rel.status === "revoked";
+                    return (
+                      <TableRow key={rel.id} className="hover:bg-secondary/30 transition-colors">
+                        {/* Referrer */}
+                        <TableCell className="pl-6 py-4">
+                          <div className="font-semibold text-xs text-foreground">
+                            {rel.referrer_name}
+                          </div>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold mt-1 px-2 py-0 border-border">
+                            {rel.referrer_type}
+                          </Badge>
+                        </TableCell>
+
+                        {/* Referred */}
+                        <TableCell className="py-4">
+                          <div className="font-semibold text-xs text-foreground">
+                            {rel.referred_name}
+                          </div>
+                          <Badge variant="outline" className="text-[10px] uppercase font-bold mt-1 px-2 py-0 border-border">
+                            {rel.referred_type}
+                          </Badge>
+                        </TableCell>
+
+                        {/* Status */}
+                        <TableCell className="py-4">
+                          <Badge
+                            className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
+                              rel.status === "active"
+                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                : rel.status === "revoked"
+                                ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {rel.status}
+                          </Badge>
+                          {isRevoked && rel.revoke_reason && (
+                            <p className="text-[10px] text-muted-foreground mt-1 italic">
+                              Reason: {rel.revoke_reason}
+                            </p>
+                          )}
+                        </TableCell>
+
+                        {/* Commission % */}
+                        <TableCell className="py-4 font-bold text-xs text-foreground">
+                          {rel.commission_percent}%
+                        </TableCell>
+
+                        {/* Total Paid to Date */}
+                        <TableCell className="py-4 font-extrabold text-xs text-emerald-500">
+                          ₹{Number(rel.total_commission_paid || 0).toLocaleString("en-IN")}
+                        </TableCell>
+
+                        {/* Created At */}
+                        <TableCell className="py-4 text-xs text-muted-foreground">
+                          {rel.created_at ? new Date(rel.created_at).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          }) : "—"}
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="pr-6 py-4 text-right">
+                          {rel.status !== "revoked" ? (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setRevokeTarget(rel);
+                                setRevokeReason("fraud_suspected");
+                              }}
+                              className="rounded-full h-8 text-xs font-semibold px-3.5 shadow-sm gap-1"
+                            >
+                              <Ban className="h-3 w-3" /> Revoke
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-muted-foreground">
+                              Revoked
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: SIGN-UP REWARDS TABLE */}
+      {activeTab === "signups" && (
+        <div className="space-y-4">
       {/* SEARCH & FILTERS BAR */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-3.5 rounded-3xl border border-border shadow-sm">
         <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 max-w-md">
@@ -693,6 +945,9 @@ export function ReferralsPage() {
         </DialogContent>
       </Dialog>
 
+        </div>
+      )}
+
       {/* REJECT REFERRAL DIALOG */}
       <Dialog open={Boolean(rejectTarget)} onOpenChange={(open) => !open && setRejectTarget(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl p-6">
@@ -736,6 +991,69 @@ export function ReferralsPage() {
               onClick={handleRejectReferral}
             >
               {actionLoading ? "Rejecting..." : "Confirm Rejection"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* REVOKE RELATIONSHIP DIALOG */}
+      <Dialog open={Boolean(revokeTarget)} onOpenChange={(open) => !open && setRevokeTarget(null)}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive font-bold text-lg">
+              <Ban className="h-5 w-5" /> Revoke Referral Relationship
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Once revoked, no further commissions will be calculated or paid for this relationship. Past commissions remain untouched.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-xs pt-1">
+            <div className="rounded-xl border border-border bg-secondary/20 p-3 space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Referrer:</span>
+                <span className="font-semibold text-foreground">{revokeTarget?.referrer_name} ({revokeTarget?.referrer_type})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Referred:</span>
+                <span className="font-semibold text-foreground">{revokeTarget?.referred_name} ({revokeTarget?.referred_type})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Commission:</span>
+                <span className="font-semibold text-foreground">{revokeTarget?.commission_percent}%</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-foreground">Revoke Reason</Label>
+              <Input
+                placeholder="e.g. fraud_suspected, terms_violation, admin_manual"
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                className="rounded-xl text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full text-xs"
+              onClick={() => setRevokeTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="rounded-full text-xs font-bold px-5"
+              disabled={revoking}
+              onClick={handleRevokeRelationship}
+            >
+              {revoking ? "Revoking..." : "Confirm Revoke"}
             </Button>
           </DialogFooter>
         </DialogContent>

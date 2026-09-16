@@ -38,3 +38,39 @@ export const getUniqueReferralCode = async () => {
 
   return code;
 };
+
+/**
+ * Generate a guaranteed unique referral code matching format:
+ * 2-letter prefix (BR for brand, CR for creator) + "-" + 5 random alphanumeric chars (e.g. BR-K9X2Q, CR-7M4P9)
+ */
+export const generateTypedReferralCode = async (role = "creator") => {
+  const prefix = role === "brand" ? "BR" : "CR";
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // alphanumeric without ambiguous chars
+  let unique = false;
+  let code = "";
+  let attempts = 0;
+
+  while (!unique && attempts < 15) {
+    let randomPart = "";
+    const bytes = crypto.randomBytes(5);
+    for (let i = 0; i < 5; i++) {
+      randomPart += chars[bytes[i] % chars.length];
+    }
+    code = `${prefix}-${randomPart}`;
+
+    const existing = await Profile.findOne({
+      $or: [{ referral_code: code }, { referralCode: code }],
+    });
+    if (!existing) {
+      unique = true;
+    }
+    attempts++;
+  }
+
+  if (!unique) {
+    const fallback = crypto.randomBytes(3).toString("hex").toUpperCase().slice(0, 5);
+    code = `${prefix}-${fallback}`;
+  }
+
+  return code;
+};
