@@ -285,9 +285,15 @@ export const getMyReferralCode = async (req, res) => {
     const cleanOrigin = origin.replace(/\/+$/, "");
     const referral_link = `${cleanOrigin}/join?ref=${code}`;
 
-    return res.status(200).json({
+    const codeData = {
       referral_code: code,
       referral_link,
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: codeData,
+      ...codeData,
     });
   } catch (error) {
     console.error("getMyReferralCode error:", error);
@@ -517,10 +523,16 @@ export const getReferralEarnings = async (req, res) => {
       };
     });
 
-    return res.status(200).json({
+    const payload = {
       total_earned,
       active_referrals_count,
       earnings,
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: payload,
+      ...payload,
     });
   } catch (error) {
     console.error("getReferralEarnings error:", error);
