@@ -449,12 +449,12 @@ export function DashboardInfluencer() {
   const [referralRefreshKey, setReferralRefreshKey] = useState(0);
   const referralCodeData = useRestQuery(
     `referral-code-${profileKey}-${referralRefreshKey}`,
-    () => apiGet(`/v1/referrals/my-code`),
+    () => apiGet(`/referrals/my-code`),
     hasValidMongoProfileId
   );
   const referralEarnings = useRestQuery(
     `referral-earnings-${profileKey}-${referralRefreshKey}`,
-    () => apiGet(`/v1/referrals/earnings?page=1&limit=20`),
+    () => apiGet(`/referrals/earnings?page=1&limit=20`),
     hasValidMongoProfileId
   );
 

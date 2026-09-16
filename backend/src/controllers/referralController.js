@@ -437,9 +437,16 @@ export const getReferralEarnings = async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const skip = (page - 1) * limit;
 
+    const targetObjectId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : userId;
+
     // 1. Calculate active referrals count where current user is referrer
     const active_referrals_count = await ReferralRelationship.countDocuments({
-      referrer_id: userId,
+      $or: [
+        { referrer_id: targetObjectId },
+        { referrer_id: userId },
+      ],
       status: "active",
     });
 
@@ -447,7 +454,10 @@ export const getReferralEarnings = async (req, res) => {
     const totalEarnedAgg = await WalletTransaction.aggregate([
       {
         $match: {
-          creatorId: userId,
+          $or: [
+            { creatorId: targetObjectId },
+            { creatorId: userId.toString() },
+          ],
           transaction_type: "referral_commission",
           status: "COMPLETED",
         },
@@ -463,7 +473,10 @@ export const getReferralEarnings = async (req, res) => {
 
     // 3. Paginated list of commission transactions
     const commissionTxs = await WalletTransaction.find({
-      creatorId: userId,
+      $or: [
+        { creatorId: targetObjectId },
+        { creatorId: userId.toString() },
+      ],
       transaction_type: "referral_commission",
       status: "COMPLETED",
     })

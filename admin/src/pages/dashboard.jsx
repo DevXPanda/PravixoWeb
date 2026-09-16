@@ -259,7 +259,7 @@ import { NotificationBell } from "@/components/notification-bell";
                       </span>
                     </span>
                   </div>
-                ) : (
+                ) : ( 
                   <div className="flex flex-col items-center justify-center animate-in fade-in-50 duration-150">
                     <span className="text-2xl font-bold text-foreground">{totalVerification}</span>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Accounts</span>
