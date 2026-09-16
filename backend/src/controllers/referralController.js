@@ -445,20 +445,29 @@ export const getReferralEarnings = async (req, res) => {
 
     const targetObjectId = mongoose.Types.ObjectId.isValid(userId)
       ? new mongoose.Types.ObjectId(userId)
-      : userId;
+      : null;
 
-    const userProfile = await Profile.findById(userId).lean();
+    const userProfile = (targetObjectId ? await Profile.findById(targetObjectId).lean() : null) ||
+      (await Profile.findOne({ $or: [{ _id: userId }, { userId: userId }] }).lean());
+
     const userCodes = [];
     if (userProfile?.referral_code) userCodes.push(userProfile.referral_code);
     if (userProfile?.referralCode && !userCodes.includes(userProfile.referralCode)) {
       userCodes.push(userProfile.referralCode);
     }
+    if (userProfile?.userId && !userCodes.includes(userProfile.userId)) {
+      userCodes.push(userProfile.userId);
+    }
+
+    const matchIds = [userId];
+    if (targetObjectId) matchIds.push(targetObjectId);
+    if (userProfile?._id && !matchIds.includes(userProfile._id)) matchIds.push(userProfile._id);
+    if (userProfile?.userId && !matchIds.includes(userProfile.userId)) matchIds.push(userProfile.userId);
 
     // 1. Calculate active referrals count where current user is referrer (by ID or code)
     const relCount = await ReferralRelationship.countDocuments({
       $or: [
-        { referrer_id: targetObjectId },
-        { referrer_id: userId },
+        { referrer_id: { $in: matchIds } },
         ...(userCodes.length > 0 ? [{ referral_code_used: { $in: userCodes } }] : []),
       ],
       status: "active",
@@ -466,10 +475,8 @@ export const getReferralEarnings = async (req, res) => {
 
     const profileRefCount = await Profile.countDocuments({
       $or: [
-        { referred_by_user_id: targetObjectId },
-        { referred_by_user_id: userId },
-        { referredBy: targetObjectId },
-        { referredBy: userId },
+        { referred_by_user_id: { $in: matchIds } },
+        { referredBy: { $in: matchIds } },
       ],
     });
 
@@ -479,10 +486,7 @@ export const getReferralEarnings = async (req, res) => {
     const totalEarnedAgg = await WalletTransaction.aggregate([
       {
         $match: {
-          $or: [
-            { creatorId: targetObjectId },
-            { creatorId: userId.toString() },
-          ],
+          creatorId: { $in: matchIds },
           transaction_type: "referral_commission",
           status: "COMPLETED",
         },
@@ -498,10 +502,7 @@ export const getReferralEarnings = async (req, res) => {
 
     // 3. Paginated list of commission transactions
     const commissionTxs = await WalletTransaction.find({
-      $or: [
-        { creatorId: targetObjectId },
-        { creatorId: userId.toString() },
-      ],
+      creatorId: { $in: matchIds },
       transaction_type: "referral_commission",
       status: "COMPLETED",
     })
