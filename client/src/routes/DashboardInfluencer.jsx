@@ -255,34 +255,34 @@ export function DashboardInfluencer() {
   const useRestQuery = (key, getter, enabled = true) => {
     const [data, setData] = useState(undefined);
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-      let alive = true;
-
+    const execute = async () => {
       if (!enabled) {
         setData(undefined);
         setError(null);
-        return () => { alive = false; };
+        return;
       }
+      setLoading(true);
+      try {
+        const v = await getter();
+        setData(v);
+        setError(null);
+      } catch (e) {
+        console.error(`REST query failed [${key}]`, e);
+        setError(e);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      getter()
-        .then((v) => {
-          if (alive) {
-            setData(v);
-            setError(null);
-          }
-        })
-        .catch((e) => {
-          if (alive) {
-            console.error(`REST query failed [${key}]`, e);
-            setError(e);
-            setData([]);
-          }
-        });
-
-      return () => { alive = false; };
+    useEffect(() => {
+      execute();
     }, [key, enabled]);
 
+    // To ensure backwards compatibility where code expects `data` directly or as array/object:
+    // If callers use `val = useRestQuery(...)`, returning `data` directly preserves all existing accesses.
     return data;
   };
 
@@ -435,6 +435,7 @@ export function DashboardInfluencer() {
     hasValidMongoProfileId
   );
   const [walletRefreshKey, setWalletRefreshKey] = useState(0);
+  const [isRefreshingWallet, setIsRefreshingWallet] = useState(false);
   const creatorWalletData = useRestQuery(
     `wallet-${profileKey}-${walletRefreshKey}`,
     () => apiGet(`/wallet/my-wallet`),
@@ -448,6 +449,7 @@ export function DashboardInfluencer() {
 
   // Referral Queries & States
   const [referralRefreshKey, setReferralRefreshKey] = useState(0);
+  const [isRefreshingReferral, setIsRefreshingReferral] = useState(false);
   const [showReferredModal, setShowReferredModal] = useState(false);
   const [referredSearchFilter, setReferredSearchFilter] = useState("");
   const referralCodeData = useRestQuery(
@@ -3354,9 +3356,19 @@ const CAMPAIGNS_PER_PAGE = 6;
                       size="sm"
                       variant="outline"
                       className="rounded-full text-xs flex items-center gap-1.5"
-                      onClick={() => setWalletRefreshKey((k) => k + 1)}
+                      disabled={isRefreshingWallet}
+                      onClick={async () => {
+                        setIsRefreshingWallet(true);
+                        setWalletRefreshKey((k) => k + 1);
+                        toast.info("Refreshing wallet balance & ledger...");
+                        setTimeout(() => {
+                          setIsRefreshingWallet(false);
+                          toast.success("Wallet updated!");
+                        }, 700);
+                      }}
                     >
-                      <History className="h-3.5 w-3.5" /> Refresh
+                      <History className={`h-3.5 w-3.5 ${isRefreshingWallet ? "animate-spin text-primary" : ""}`} />
+                      {isRefreshingWallet ? "Refreshing..." : "Refresh"}
                     </Button>
                     <Button
                       size="sm"
@@ -3810,9 +3822,19 @@ const CAMPAIGNS_PER_PAGE = 6;
                       size="sm"
                       variant="outline"
                       className="rounded-full text-xs flex items-center gap-1.5"
-                      onClick={() => setReferralRefreshKey((k) => k + 1)}
+                      disabled={isRefreshingReferral}
+                      onClick={() => {
+                        setIsRefreshingReferral(true);
+                        setReferralRefreshKey((k) => k + 1);
+                        toast.info("Refreshing referral data & commissions...");
+                        setTimeout(() => {
+                          setIsRefreshingReferral(false);
+                          toast.success("Referral data updated!");
+                        }, 700);
+                      }}
                     >
-                      <History className="h-3.5 w-3.5" /> Refresh
+                      <History className={`h-3.5 w-3.5 ${isRefreshingReferral ? "animate-spin text-primary" : ""}`} />
+                      {isRefreshingReferral ? "Refreshing..." : "Refresh"}
                     </Button>
                   </div>
                 </div>

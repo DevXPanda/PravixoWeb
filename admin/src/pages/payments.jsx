@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "@/lib/axios";
-import { CreditCard, Search, ArrowUpRight, ShieldAlert, Award, RefreshCcw, Landmark, Activity, Terminal, Clock, CheckCircle2, Eye, FileText } from "lucide-react";
+import { CreditCard, Search, ArrowUpRight, ShieldAlert, Award, RefreshCcw, Landmark, Activity, Terminal, Clock, CheckCircle2, Eye, FileText, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -54,6 +55,9 @@ export function PaymentsPage() {
   const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
   const [withdrawalNotes, setWithdrawalNotes] = useState("");
   const [withdrawalRejectReason, setWithdrawalRejectReason] = useState("");
+
+  // Stat Breakdown Detail Modal State
+  const [selectedStatDetail, setSelectedStatDetail] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -248,71 +252,381 @@ export function PaymentsPage() {
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2">
-                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider">
+              {/* Today's Revenue */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "today",
+                    title: "Today's Revenue",
+                    description: "All payments and campaign invoices captured in the last 24 hours.",
+                    badgeColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 hover:border-primary/50 hover:bg-secondary/20 transition-all cursor-pointer group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider group-hover:text-primary transition-colors">
                   <span>Today's Revenue</span>
-                  <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                  <ArrowUpRight className="h-4 w-4 text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold">₹{stats.todayRevenue.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold">₹{stats.todayRevenue.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Click to view originating payments</p>
               </div>
 
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2">
-                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider">
+              {/* Weekly Revenue */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "weekly",
+                    title: "Weekly Revenue",
+                    description: "Total invoice volume captured across all campaigns over the past 7 days.",
+                    badgeColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 hover:border-primary/50 hover:bg-secondary/20 transition-all cursor-pointer group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider group-hover:text-primary transition-colors">
                   <span>Weekly Revenue</span>
-                  <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                  <ArrowUpRight className="h-4 w-4 text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold">₹{stats.weeklyRevenue.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold">₹{stats.weeklyRevenue.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Click to view originating payments</p>
               </div>
 
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2">
-                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider">
+              {/* Monthly Revenue */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "monthly",
+                    title: "Monthly Revenue",
+                    description: "Gross volume processed across campaigns in the past 30 days.",
+                    badgeColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 hover:border-primary/50 hover:bg-secondary/20 transition-all cursor-pointer group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider group-hover:text-primary transition-colors">
                   <span>Monthly Revenue</span>
-                  <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                  <ArrowUpRight className="h-4 w-4 text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold">₹{stats.monthlyRevenue.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold">₹{stats.monthlyRevenue.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Click to view originating payments</p>
               </div>
 
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2">
-                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider">
+              {/* Total Gross Volume */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "total",
+                    title: "Total Gross Volume",
+                    description: "Lifetime total gross payments captured from brands across all campaigns.",
+                    badgeColor: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 hover:border-primary/50 hover:bg-secondary/20 transition-all cursor-pointer group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider group-hover:text-primary transition-colors">
                   <span>Total Gross Volume</span>
-                  <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                  <ArrowUpRight className="h-4 w-4 text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold">₹{stats.totalRevenue.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold">₹{stats.totalRevenue.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Click to inspect origin & details</p>
               </div>
 
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 border-emerald-500/20 bg-emerald-500/5">
+              {/* Commission Earned (20%) */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "commission",
+                    title: "Platform Commission Earned (20%)",
+                    description: "20% platform revenue deducted from campaign budgets across all processed payments.",
+                    badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/50 hover:bg-emerald-500/10 transition-all cursor-pointer group relative overflow-hidden"
+              >
                 <div className="flex justify-between items-center text-emerald-600 text-xs font-bold uppercase tracking-wider">
                   <span>Commission Earned (20%)</span>
-                  <Award className="h-4 w-4" />
+                  <Award className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold text-emerald-600">₹{stats.platformCommissionEarned.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold text-emerald-600">₹{stats.platformCommissionEarned.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-600/80">Click to view commission source</p>
               </div>
 
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 border-blue-500/20 bg-blue-500/5">
+              {/* Money In Holding */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "holding",
+                    title: "Money In Holding",
+                    description: "Funds currently held in escrow pending creator milestone completion or review.",
+                    badgeColor: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 border-blue-500/20 bg-blue-500/5 hover:border-blue-500/50 hover:bg-blue-500/10 transition-all cursor-pointer group relative overflow-hidden"
+              >
                 <div className="flex justify-between items-center text-blue-500 text-xs font-bold uppercase tracking-wider">
                   <span>Money In Holding</span>
-                  <RefreshCcw className="h-4 w-4 animate-spin-slow" />
+                  <RefreshCcw className="h-4 w-4 animate-spin-slow group-hover:scale-110 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold text-blue-500">₹{stats.paymentsInHolding.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold text-blue-500">₹{stats.paymentsInHolding.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-blue-500/80">Click to view escrow holding list</p>
               </div>
 
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2">
-                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider">
+              {/* Released Payments */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "released",
+                    title: "Released Payments",
+                    description: "Completed project payouts disbursed and credited to creator accounts.",
+                    badgeColor: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 hover:border-primary/50 hover:bg-secondary/20 transition-all cursor-pointer group relative overflow-hidden"
+              >
+                <div className="flex justify-between items-center text-muted-foreground text-xs font-bold uppercase tracking-wider group-hover:text-primary transition-colors">
                   <span>Released Payments</span>
-                  <CreditCard className="h-4 w-4" />
+                  <CreditCard className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold">₹{stats.releasedPayments.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold">₹{stats.releasedPayments.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Click to view completed releases</p>
               </div>
 
-              <div className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 border-red-500/20 bg-red-500/5">
+              {/* Disputed Payments */}
+              <div
+                onClick={() =>
+                  setSelectedStatDetail({
+                    key: "disputed",
+                    title: "Disputed Payments",
+                    description: "Campaign escrow amounts flagged with active disputes awaiting admin resolution.",
+                    badgeColor: "bg-red-500/10 text-red-500 border-red-500/20",
+                  })
+                }
+                className="p-6 border border-border rounded-3xl bg-card shadow-sm space-y-2 border-red-500/20 bg-red-500/5 hover:border-red-500/50 hover:bg-red-500/10 transition-all cursor-pointer group relative overflow-hidden"
+              >
                 <div className="flex justify-between items-center text-red-500 text-xs font-bold uppercase tracking-wider">
                   <span>Disputed Payments</span>
-                  <ShieldAlert className="h-4 w-4" />
+                  <ShieldAlert className="h-4 w-4 group-hover:scale-110 transition-transform" />
                 </div>
-                <p className="text-2xl font-bold text-red-500">₹{stats.disputedPayments.toLocaleString()}</p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-2xl font-bold text-red-500">₹{stats.disputedPayments.toLocaleString()}</p>
+                  <span className="text-[10px] font-bold text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                    Breakdown <ChevronRight className="h-3 w-3" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-red-500/80">Click to view disputed payments</p>
               </div>
             </div>
           )}
+
+          {/* STAT DETAIL MODAL: WHERE THE MONEY COMES FROM */}
+          <Dialog open={Boolean(selectedStatDetail)} onOpenChange={(open) => !open && setSelectedStatDetail(null)}>
+            <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col rounded-3xl p-6 bg-card border border-border">
+              <DialogHeader>
+                <div className="flex items-center justify-between pr-6">
+                  <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                    <Landmark className="h-5 w-5 text-primary" /> {selectedStatDetail?.title} Breakdown
+                  </DialogTitle>
+                </div>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  {selectedStatDetail?.description}
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedStatDetail && (() => {
+                const now = Date.now();
+                const oneDay = 24 * 60 * 60 * 1000;
+                const oneWeek = 7 * oneDay;
+                const oneMonth = 30 * oneDay;
+
+                // Filter payments according to clicked card
+                const relevantPayments = (payments || []).filter((p) => {
+                  const isPaid =
+                    p.paymentStatus !== "pending" &&
+                    p.paymentStatus !== "invoice_generated" &&
+                    p.paymentStatus !== "refunded";
+
+                  if (!isPaid) return false;
+
+                  const timeDiff = now - new Date(p.createdAt).getTime();
+
+                  if (selectedStatDetail.key === "today") return timeDiff <= oneDay;
+                  if (selectedStatDetail.key === "weekly") return timeDiff <= oneWeek;
+                  if (selectedStatDetail.key === "monthly") return timeDiff <= oneMonth;
+                  if (selectedStatDetail.key === "total") return true;
+                  if (selectedStatDetail.key === "commission") return (p.platformCommissionAmount || 0) > 0;
+                  if (selectedStatDetail.key === "holding") return p.paymentStatus === "holding";
+                  if (selectedStatDetail.key === "released") return p.paymentStatus === "completed" || p.paymentStatus === "released";
+                  if (selectedStatDetail.key === "disputed") return p.paymentStatus === "disputed";
+                  return true;
+                });
+
+                const totalSum = relevantPayments.reduce((acc, p) => {
+                  if (selectedStatDetail.key === "commission") return acc + (p.platformCommissionAmount || 0);
+                  return acc + (p.grossAmount || 0);
+                }, 0);
+
+                return (
+                  <div className="space-y-4 pt-1 overflow-y-auto">
+                    {/* Summary bar */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl bg-secondary/30 border border-border/70 text-xs">
+                      <div>
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block">Relevant Transactions</span>
+                        <span className="font-bold text-foreground text-sm font-display">{relevantPayments.length}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block">Filtered Total</span>
+                        <span className="font-bold text-emerald-600 text-sm font-display">
+                          ₹{Number(totalSum).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block">Currency</span>
+                        <span className="font-bold text-foreground text-sm font-mono">INR (₹)</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block">Platform Share</span>
+                        <span className="font-bold text-foreground text-sm font-mono">20% Escrow</span>
+                      </div>
+                    </div>
+
+                    {/* Breakdown table */}
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                        Originating Campaign Transactions ({relevantPayments.length})
+                      </h4>
+
+                      {relevantPayments.length === 0 ? (
+                        <div className="text-center py-10 text-xs text-muted-foreground border border-dashed border-border rounded-2xl p-6">
+                          No transactions found matching this revenue category.
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-b border-border/50 text-[11px]">
+                                <TableHead className="pl-4 h-9">Campaign & Brand (Source)</TableHead>
+                                <TableHead className="h-9">Creator (Recipient)</TableHead>
+                                <TableHead className="h-9">Status</TableHead>
+                                <TableHead className="h-9">Date</TableHead>
+                                <TableHead className="h-9 text-right pr-4">Amount</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody className="text-xs divide-y divide-border/30">
+                              {relevantPayments.map((p) => {
+                                const brandName = p.brand?.fullName || p.brand?.name || "Direct Brand";
+                                const creatorName = p.creator?.fullName || p.creator?.name || "Creator";
+                                const campaignTitle = p.campaign?.title || p.task?.title || "Campaign Collaboration";
+                                const amountToDisplay =
+                                  selectedStatDetail.key === "commission"
+                                    ? p.platformCommissionAmount || 0
+                                    : p.grossAmount || 0;
+
+                                return (
+                                  <TableRow key={p._id} className="hover:bg-secondary/15">
+                                    <TableCell className="pl-4 py-3 font-medium text-foreground">
+                                      <div className="font-bold text-xs">{campaignTitle}</div>
+                                      <div className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                        <span className="font-semibold text-foreground">{brandName}</span>
+                                        {p.invoiceNumber && <span className="font-mono text-[10px] text-primary">({p.invoiceNumber})</span>}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="py-3 text-xs text-foreground">
+                                      <div className="font-semibold">{creatorName}</div>
+                                      {p.creator?.handle && (
+                                        <div className="text-[10px] text-muted-foreground font-mono">@{p.creator.handle.replace(/^@/, '')}</div>
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="py-3">
+                                      <Badge
+                                        className={`rounded-full text-[9px] font-bold px-2 py-0.5 border ${
+                                          p.paymentStatus === "completed" || p.paymentStatus === "released"
+                                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                            : p.paymentStatus === "holding"
+                                            ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                                            : p.paymentStatus === "disputed"
+                                            ? "bg-red-500/10 text-red-500 border-red-500/20"
+                                            : "bg-secondary text-muted-foreground"
+                                        }`}
+                                      >
+                                        {p.paymentStatus?.toUpperCase()}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="py-3 text-muted-foreground text-[11px] whitespace-nowrap">
+                                      {p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-IN", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      }) : "-"}
+                                    </TableCell>
+                                    <TableCell className="py-3 text-right pr-4 font-bold text-emerald-600 whitespace-nowrap text-sm">
+                                      ₹{Number(amountToDisplay).toLocaleString("en-IN")}
+                                      {selectedStatDetail.key === "commission" && (
+                                        <span className="block text-[10px] text-muted-foreground font-normal">
+                                          (Gross: ₹{Number(p.grossAmount || 0).toLocaleString("en-IN")})
+                                        </span>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <DialogFooter className="pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full text-xs"
+                  onClick={() => setSelectedStatDetail(null)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
