@@ -59,6 +59,7 @@ export function TasksPage() {
     };
     fetchTasks();
   }, []);
+
   const filtered = useMemo(() => {
     if (!tasks) return null;
     return tasks.filter((t) => {
@@ -113,11 +114,25 @@ export function TasksPage() {
     }
   };
 
+  const safeFormatDate = (val, dateFormat) => {
+    if (!val) return "—";
+    const d = new Date(Number(val) || val);
+    if (isNaN(d.getTime())) return "—";
+    try {
+      return format(d, dateFormat);
+    } catch {
+      return "—";
+    }
+  };
+
   const getOverdueStatus = (task) => {
     if (task.status === "completed" || task.status === "approved") {
       return null;
     }
-    const isOverdue = new Date(task.dueDate) < new Date();
+    if (!task.dueDate) return null;
+    const dueTime = new Date(Number(task.dueDate) || task.dueDate);
+    if (isNaN(dueTime.getTime())) return null;
+    const isOverdue = dueTime < new Date();
     if (isOverdue) {
       return (
         <Badge variant="destructive" className="rounded-full text-[10px] font-bold">
@@ -244,13 +259,13 @@ export function TasksPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {t.startedAt ? format(new Date(t.startedAt), "MMM d, HH:mm") : "—"}
+                    {safeFormatDate(t.startedAt, "MMM d, HH:mm")}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {t.completedAt ? format(new Date(t.completedAt), "MMM d, HH:mm") : "—"}
+                    {safeFormatDate(t.completedAt, "MMM d, HH:mm")}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {format(new Date(t.dueDate), "MMM d, yyyy HH:mm")}
+                    {safeFormatDate(t.dueDate, "MMM d, yyyy HH:mm")}
                   </TableCell>
                   <TableCell className="text-right pr-6">
                     {getOverdueStatus(t)}
@@ -285,22 +300,19 @@ export function TasksPage() {
                 <div className="flex items-center gap-1">
                   {getPageNumbers(safeCurrentPage, totalPages).map((p, idx) =>
                     p === "..." ? (
-                      <span key={`dots-${idx}`} className="px-1.5 text-muted-foreground">
-                        …
-                      </span>
+                      <span key={`ellipsis-${idx}`} className="px-1 text-muted-foreground">...</span>
                     ) : (
-                      <button
-                        key={`page-${p}`}
-                        type="button"
+                      <Button
+                        key={p}
+                        variant={safeCurrentPage === p ? "default" : "ghost"}
+                        size="sm"
                         onClick={() => setCurrentPage(p)}
-                        className={`h-8 min-w-[32px] px-2 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                          safeCurrentPage === p
-                            ? "bg-primary text-white shadow-xs"
-                            : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        className={`h-8 w-8 p-0 rounded-full text-xs font-medium cursor-pointer ${
+                          safeCurrentPage === p ? "gradient-sunset text-white border-0" : "hover:bg-secondary text-muted-foreground"
                         }`}
                       >
                         {p}
-                      </button>
+                      </Button>
                     )
                   )}
                 </div>

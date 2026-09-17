@@ -547,6 +547,8 @@ export const unsuspendProfile = async (req, res) => {
 
 // =====================================================
 // LIST ALL TASKS
+// =====================================================
+// LIST ALL TASKS
 // GET /api/admin/tasks
 // =====================================================
 export const listAllTasks = async (req, res) => {
@@ -565,9 +567,102 @@ export const listAllTasks = async (req, res) => {
       brand: t.brandId || t.brand || null,
     }));
 
+    // Also fetch connections that track deliverables
+    const connections = await Connection.find({
+      $or: [
+        { deliverablesTracking: { $exists: true, $not: { $size: 0 } } },
+        { allDeliverablesCompleted: true },
+        { paymentReleaseStatus: { $in: ["WAITING_72_HOURS", "ELIGIBLE_FOR_RELEASE", "RELEASED"] } },
+      ],
+    })
+      .populate("campaignId", "title budget category")
+      .populate("creatorId", "fullName email handle avatarUrl")
+      .populate("brandId", "fullName email handle avatarUrl")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const connectionTasks = [];
+    const existingTaskConnectionIds = new Set(
+      tasks.map((t) => t.connectionId?.toString()).filter(Boolean)
+    );
+
+    for (const c of connections) {
+      const cIdStr = c._id.toString();
+
+      // Determine default overall status for deliverables in this connection
+      let derivedStatus = "in_progress";
+      if (c.paymentReleaseStatus === "RELEASED" || c.approvalCompletedAt) {
+        derivedStatus = "approved";
+      } else if (c.allDeliverablesCompleted || c.workCompletedAt) {
+        derivedStatus = "completed";
+      }
+
+      if (c.deliverablesTracking && c.deliverablesTracking.length > 0) {
+        for (const deliv of c.deliverablesTracking) {
+          let delivStatus = derivedStatus;
+          if (deliv.status === "COMPLETED" || deliv.status === "APPROVED") {
+            delivStatus = c.paymentReleaseStatus === "RELEASED" ? "approved" : "completed";
+          } else if (deliv.status === "IN_PROGRESS" || deliv.status === "SUBMITTED") {
+            delivStatus = "in_progress";
+          } else if (deliv.status === "REJECTED") {
+            delivStatus = "revision_requested";
+          }
+
+          connectionTasks.push({
+            _id: deliv._id || `${cIdStr}-${deliv.type}`,
+            campaignId: c.campaignId?._id || null,
+            creatorId: c.creatorId?._id || null,
+            brandId: c.brandId?._id || null,
+            connectionId: c._id,
+            campaign: c.campaignId || null,
+            creator: c.creatorId || null,
+            brand: c.brandId || null,
+            title: `${deliv.type || "Deliverable"} (${deliv.completedQuantity || 0}/${deliv.requiredQuantity || 1} completed)`,
+            description: `Deliverable requirement for ${c.campaignId?.title || "Campaign"}`,
+            deliverables: `${deliv.requiredQuantity || 1} ${deliv.type || "Deliverable"}`,
+            priority: "medium",
+            status: delivStatus,
+            dueDate: c.campaignId?.endDate || deliv.updatedAt || deliv.createdAt || c.createdAt || Date.now(),
+            startedAt: deliv.createdAt || c.agreedAt || c.createdAt || null,
+            completedAt: (deliv.status === "COMPLETED" || deliv.status === "APPROVED" || c.allDeliverablesCompleted) ? (deliv.updatedAt || c.payoutReleasedAt || c.approvalCompletedAt || c.workCompletedAt || deliv.createdAt) : null,
+            createdAt: deliv.createdAt || c.createdAt || Date.now(),
+            updatedAt: deliv.updatedAt || c.updatedAt || Date.now(),
+          });
+        }
+      } else if (!existingTaskConnectionIds.has(cIdStr)) {
+        // Fallback for connections without explicit deliverablesTracking array
+        connectionTasks.push({
+          _id: c._id,
+          campaignId: c.campaignId?._id || null,
+          creatorId: c.creatorId?._id || null,
+          brandId: c.brandId?._id || null,
+          connectionId: c._id,
+          campaign: c.campaignId || null,
+          creator: c.creatorId || null,
+          brand: c.brandId || null,
+          title: `Collaboration Deliverable - ${c.campaignId?.title || "Direct Collaboration"}`,
+          description: c.pitch || "Collaboration deliverables",
+          deliverables: "Collaboration Deliverables",
+          priority: "medium",
+          status: derivedStatus,
+          dueDate: c.campaignId?.endDate || c.updatedAt || c.createdAt || Date.now(),
+          startedAt: c.agreedAt || c.createdAt || null,
+          completedAt: c.payoutReleasedAt || c.approvalCompletedAt || c.workCompletedAt || null,
+          createdAt: c.createdAt || Date.now(),
+          updatedAt: c.updatedAt || Date.now(),
+        });
+      }
+    }
+
+    const allCombined = [...formattedTasks, ...connectionTasks].sort((a, b) => {
+      const timeA = new Date(a.createdAt || 0).getTime();
+      const timeB = new Date(b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+
     return res.status(200).json({
       success: true,
-      data: formattedTasks,
+      data: allCombined,
     });
   } catch (error) {
     console.error("Admin listAllTasks error:", error);

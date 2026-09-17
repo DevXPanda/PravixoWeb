@@ -23,7 +23,7 @@ const seedAdmin = async () => {
     console.log('Connected to MongoDB');
 
     const adminEmail = 'admin@pravixo.com';
-    const adminPassword = ' here';
+    const adminPassword = 'AdminPassword123!';
 
     const existingAdmin = await Profile.findOne({ email: adminEmail });
     if (existingAdmin) {
