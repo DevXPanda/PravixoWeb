@@ -1,6 +1,8 @@
 import Referral from "../models/Referral.js";
 import ReferralReward from "../models/ReferralReward.js";
 import ReferralSetting from "../models/ReferralSetting.js";
+import ReferralRelationship from "../models/ReferralRelationship.js";
+import WalletTransaction from "../models/WalletTransaction.js";
 import Profile from "../models/Profile.js";
 import {
   getActiveReferralSettings,
@@ -92,6 +94,9 @@ export const adminGetReferralStats = async (req, res) => {
       rejectedCount,
       totalRewardsData,
       totalReferrers,
+      totalRelationships,
+      activeRelationships,
+      totalCommissionsData,
     ] = await Promise.all([
       Referral.countDocuments(),
       Referral.countDocuments({ status: "registered" }),
@@ -103,9 +108,17 @@ export const adminGetReferralStats = async (req, res) => {
         { $group: { _id: null, totalAmount: { $sum: "$rewardAmount" } } },
       ]),
       Referral.distinct("referrerCreatorId"),
+      ReferralRelationship.countDocuments(),
+      ReferralRelationship.countDocuments({ status: "active" }),
+      WalletTransaction.aggregate([
+        { $match: { transaction_type: "referral_commission", status: "COMPLETED" } },
+        { $group: { _id: null, totalAmount: { $sum: "$amount" } } },
+      ]),
     ]);
 
-    const totalRewardsDisbursed = totalRewardsData[0]?.totalAmount || 0;
+    const signupRewardsDisbursed = totalRewardsData[0]?.totalAmount || 0;
+    const recurringCommissionsDisbursed = totalCommissionsData[0]?.totalAmount || 0;
+    const totalRewardsDisbursed = Number((signupRewardsDisbursed + recurringCommissionsDisbursed).toFixed(2));
 
     return res.status(200).json({
       success: true,
@@ -116,6 +129,10 @@ export const adminGetReferralStats = async (req, res) => {
         rewardCreditedCount,
         rejectedCount,
         totalRewardsDisbursed,
+        signupRewardsDisbursed,
+        recurringCommissionsDisbursed: Number(recurringCommissionsDisbursed.toFixed(2)),
+        totalRelationships,
+        activeRelationships,
         totalUniqueReferrers: totalReferrers.length,
       },
     });

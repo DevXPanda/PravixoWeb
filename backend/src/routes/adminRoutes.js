@@ -181,10 +181,12 @@ import {
 import {
   revokeReferralRelationship,
   listAdminReferralRelationships,
+  getAdminRelationshipTransactions,
 } from "../controllers/referralController.js";
 
 router.get("/referrals", adminListReferrals);
 router.get("/referrals/relationships", listAdminReferralRelationships);
+router.get("/referrals/relationships/:id/transactions", getAdminRelationshipTransactions);
 router.post("/referrals/:id/revoke", revokeReferralRelationship);
 router.get("/referrals/stats", adminGetReferralStats);
 router.get("/referrals/settings", adminGetReferralSettings);

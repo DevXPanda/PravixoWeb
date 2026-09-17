@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Percent,
   Link2,
+  Eye,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -50,6 +51,7 @@ export function ReferralsPage() {
   const [relationships, setRelationships] = useState([]);
   const [relLoading, setRelLoading] = useState(false);
   const [relStatusFilter, setRelStatusFilter] = useState("all");
+  const [relSearch, setRelSearch] = useState("");
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -76,6 +78,11 @@ export function ReferralsPage() {
   const [revokeReason, setRevokeReason] = useState("");
   const [revoking, setRevoking] = useState(false);
 
+  // View Relationship Breakdown Dialog state
+  const [selectedRelForDetails, setSelectedRelForDetails] = useState(null);
+  const [relTransactions, setRelTransactions] = useState([]);
+  const [loadingRelTxs, setLoadingRelTxs] = useState(false);
+
   useEffect(() => {
     fetchStats();
     fetchSettings();
@@ -88,13 +95,16 @@ export function ReferralsPage() {
 
   useEffect(() => {
     fetchRelationships();
-  }, [relStatusFilter]);
+  }, [relStatusFilter, relSearch]);
 
   const fetchRelationships = async () => {
     try {
       setRelLoading(true);
       const res = await api.get("/admin/referrals/relationships", {
-        params: { status: relStatusFilter },
+        params: {
+          status: relStatusFilter,
+          search: relSearch,
+        },
       });
       if (res.data?.success) {
         setRelationships(res.data.relationships || []);
@@ -107,11 +117,28 @@ export function ReferralsPage() {
     }
   };
 
+  const fetchRelationshipTransactions = async (rel) => {
+    setSelectedRelForDetails(rel);
+    setLoadingRelTxs(true);
+    setRelTransactions([]);
+    try {
+      const res = await api.get(`/admin/referrals/relationships/${rel.id}/transactions`);
+      if (res.data?.success) {
+        setRelTransactions(res.data.transactions || []);
+      }
+    } catch (err) {
+      console.error("Failed to load relationship transactions:", err);
+      toast.error("Could not load commission transactions");
+    } finally {
+      setLoadingRelTxs(false);
+    }
+  };
+
   const handleRevokeRelationship = async () => {
     if (!revokeTarget) return;
     try {
       setRevoking(true);
-      const res = await api.post(`/v1/admin/referrals/${revokeTarget.id}/revoke`, {
+      const res = await api.post(`/admin/referrals/${revokeTarget.id}/revoke`, {
         reason: revokeReason || "fraud_suspected",
       });
       if (res.data?.status === "revoked") {
@@ -394,10 +421,22 @@ export function ReferralsPage() {
       {/* VIEW 1: REFERRAL RELATIONSHIPS DASHBOARD */}
       {activeTab === "relationships" && (
         <div className="space-y-4">
-          {/* Status Filter */}
-          <div className="flex items-center justify-between bg-card p-3.5 rounded-3xl border border-border shadow-sm">
+          {/* Status & Search Filter */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card p-3.5 rounded-3xl border border-border shadow-sm">
+            <div className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={relSearch}
+                  onChange={(e) => setRelSearch(e.target.value)}
+                  placeholder="Search by referrer, referred, or code..."
+                  className="pl-9 h-9 text-xs rounded-full bg-secondary/30 border-border/80 focus-visible:ring-primary"
+                />
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-semibold">Relationship Status:</span>
+              <span className="text-xs text-muted-foreground font-semibold whitespace-nowrap">Status:</span>
               <select
                 value={relStatusFilter}
                 onChange={(e) => setRelStatusFilter(e.target.value)}
@@ -408,16 +447,15 @@ export function ReferralsPage() {
                 <option value="inactive">Inactive</option>
                 <option value="revoked">Revoked</option>
               </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchRelationships}
+                className="rounded-full h-9 text-xs gap-1.5"
+              >
+                <RefreshCw className="h-3.5 w-3.5" /> Refresh
+              </Button>
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchRelationships}
-              className="rounded-full h-8 text-xs gap-1.5"
-            >
-              <RefreshCw className="h-3.5 w-3.5" /> Refresh List
-            </Button>
           </div>
 
           {/* Relationships Table */}
@@ -426,10 +464,13 @@ export function ReferralsPage() {
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-b border-border/60">
                   <TableHead className="pl-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
-                    Referrer (Name / Type)
+                    Referrer (Name / Email)
                   </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
-                    Referred User (Name / Type)
+                    Referred User (Name / Email)
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
+                    Referral Code
                   </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
                     Status
@@ -438,7 +479,7 @@ export function ReferralsPage() {
                     Commission %
                   </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
-                    Total Paid to Date
+                    Total Paid
                   </TableHead>
                   <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground h-12">
                     Created At
@@ -452,14 +493,14 @@ export function ReferralsPage() {
                 {relLoading ? (
                   [...Array(4)].map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={7} className="py-4 px-6">
+                      <TableCell colSpan={8} className="py-4 px-6">
                         <Skeleton className="h-8 w-full rounded-xl" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : relationships.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground text-xs">
+                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground text-xs">
                       No referral relationships found.
                     </TableCell>
                   </TableRow>
@@ -473,9 +514,19 @@ export function ReferralsPage() {
                           <div className="font-semibold text-xs text-foreground">
                             {rel.referrer_name}
                           </div>
-                          <Badge variant="outline" className="text-[10px] uppercase font-bold mt-1 px-2 py-0 border-border">
-                            {rel.referrer_type}
-                          </Badge>
+                          {rel.referrer_email && (
+                            <div className="text-[11px] text-muted-foreground font-mono">
+                              {rel.referrer_email}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 py-0 border-border">
+                              {rel.referrer_type}
+                            </Badge>
+                            {rel.referrer_handle && (
+                              <span className="text-[10px] text-muted-foreground font-mono">{rel.referrer_handle}</span>
+                            )}
+                          </div>
                         </TableCell>
 
                         {/* Referred */}
@@ -483,9 +534,26 @@ export function ReferralsPage() {
                           <div className="font-semibold text-xs text-foreground">
                             {rel.referred_name}
                           </div>
-                          <Badge variant="outline" className="text-[10px] uppercase font-bold mt-1 px-2 py-0 border-border">
-                            {rel.referred_type}
-                          </Badge>
+                          {rel.referred_email && (
+                            <div className="text-[11px] text-muted-foreground font-mono">
+                              {rel.referred_email}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Badge variant="outline" className="text-[10px] uppercase font-bold px-2 py-0 border-border">
+                              {rel.referred_type}
+                            </Badge>
+                            {rel.referred_handle && (
+                              <span className="text-[10px] text-muted-foreground font-mono">{rel.referred_handle}</span>
+                            )}
+                          </div>
+                        </TableCell>
+
+                        {/* Referral Code */}
+                        <TableCell className="py-4">
+                          <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-secondary/60 border border-border">
+                            {rel.referral_code_used || "N/A"}
+                          </span>
                         </TableCell>
 
                         {/* Status */}
@@ -514,12 +582,12 @@ export function ReferralsPage() {
                         </TableCell>
 
                         {/* Total Paid to Date */}
-                        <TableCell className="py-4 font-extrabold text-xs text-emerald-500">
-                          ₹{Number(rel.total_commission_paid || 0).toLocaleString("en-IN")}
+                        <TableCell className="py-4 font-extrabold text-xs text-emerald-600">
+                          ₹{Number(rel.total_commission_paid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </TableCell>
 
                         {/* Created At */}
-                        <TableCell className="py-4 text-xs text-muted-foreground">
+                        <TableCell className="py-4 text-xs text-muted-foreground whitespace-nowrap">
                           {rel.created_at ? new Date(rel.created_at).toLocaleDateString("en-IN", {
                             day: "numeric",
                             month: "short",
@@ -529,23 +597,35 @@ export function ReferralsPage() {
 
                         {/* Actions */}
                         <TableCell className="pr-6 py-4 text-right">
-                          {rel.status !== "revoked" ? (
+                          <div className="flex items-center justify-end gap-1.5">
                             <Button
                               size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setRevokeTarget(rel);
-                                setRevokeReason("fraud_suspected");
-                              }}
-                              className="rounded-full h-8 text-xs font-semibold px-3.5 shadow-sm gap-1"
+                              variant="outline"
+                              onClick={() => fetchRelationshipTransactions(rel)}
+                              className="rounded-full h-8 text-xs font-semibold px-3 shadow-sm gap-1 hover:bg-primary/10 hover:text-primary"
+                              title="View commission payout history"
                             >
-                              <Ban className="h-3 w-3" /> Revoke
+                              <Eye className="h-3 w-3" /> Breakdown
                             </Button>
-                          ) : (
-                            <span className="text-[11px] font-semibold text-muted-foreground">
-                              Revoked
-                            </span>
-                          )}
+
+                            {rel.status !== "revoked" ? (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setRevokeTarget(rel);
+                                  setRevokeReason("fraud_suspected");
+                                }}
+                                className="rounded-full h-8 text-xs font-semibold px-3 shadow-sm gap-1"
+                              >
+                                <Ban className="h-3 w-3" /> Revoke
+                              </Button>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-muted-foreground px-2">
+                                Revoked
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -554,6 +634,123 @@ export function ReferralsPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* VIEW RELATIONSHIP BREAKDOWN MODAL */}
+          <Dialog open={Boolean(selectedRelForDetails)} onOpenChange={(open) => !open && setSelectedRelForDetails(null)}>
+            <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col rounded-3xl p-6 bg-card border border-border">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                  <Eye className="h-5 w-5 text-primary" /> Referral Commission Breakdown
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  History of commissions paid to the referrer for projects completed by the referred user.
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedRelForDetails && (
+                <div className="space-y-4 pt-1 overflow-y-auto">
+                  {/* Top Stats Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-secondary/30 border border-border/70 text-xs">
+                    <div>
+                      <span className="text-muted-foreground text-[10px] uppercase font-bold block">Referrer</span>
+                      <span className="font-bold text-foreground text-sm block truncate">
+                        {selectedRelForDetails.referrer_name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-mono block">
+                        {selectedRelForDetails.referrer_email}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-muted-foreground text-[10px] uppercase font-bold block">Referred User</span>
+                      <span className="font-bold text-foreground text-sm block truncate">
+                        {selectedRelForDetails.referred_name}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-mono block">
+                        {selectedRelForDetails.referred_email}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1">
+                      <span className="text-muted-foreground text-[10px] uppercase font-bold block">Commission Rate</span>
+                      <span className="font-bold text-foreground text-sm block">
+                        {selectedRelForDetails.commission_percent}% (Lifetime)
+                      </span>
+                      <span className="text-xs font-extrabold text-emerald-600 block mt-0.5">
+                        Total: ₹{Number(selectedRelForDetails.total_commission_paid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Transactions Table */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                      Wallet Commission Transactions ({relTransactions.length})
+                    </h4>
+
+                    {loadingRelTxs ? (
+                      <div className="space-y-2 py-4">
+                        <Skeleton className="h-10 w-full rounded-xl" />
+                        <Skeleton className="h-10 w-full rounded-xl" />
+                      </div>
+                    ) : relTransactions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-xs bg-secondary/20 rounded-2xl border border-dashed border-border p-4">
+                        No commission transactions recorded yet for this relationship.
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-b border-border/50 text-[11px]">
+                              <TableHead className="pl-4 h-9">Project / Reference</TableHead>
+                              <TableHead className="h-9">Description</TableHead>
+                              <TableHead className="h-9">Date</TableHead>
+                              <TableHead className="h-9 font-semibold text-right pr-4">Commission</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody className="text-xs divide-y divide-border/30">
+                            {relTransactions.map((tx) => (
+                              <TableRow key={tx._id} className="hover:bg-secondary/15">
+                                <TableCell className="pl-4 py-2.5 font-medium text-foreground">
+                                  <div>{tx.projectTitle}</div>
+                                  <div className="text-[10px] text-muted-foreground font-mono">{tx.referenceId}</div>
+                                </TableCell>
+                                <TableCell className="py-2.5 text-muted-foreground text-[11px] max-w-[200px] truncate">
+                                  {tx.description || "Referral commission"}
+                                </TableCell>
+                                <TableCell className="py-2.5 text-muted-foreground text-[11px] whitespace-nowrap">
+                                  {tx.date ? new Date(tx.date).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  }) : "-"}
+                                </TableCell>
+                                <TableCell className="py-2.5 text-right pr-4 font-bold text-emerald-600 whitespace-nowrap">
+                                  +₹{Number(tx.amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter className="pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full text-xs"
+                  onClick={() => setSelectedRelForDetails(null)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 

@@ -49,8 +49,9 @@ import {
   Copy,
   CheckCircle2,
   Users,
+  ChevronRight,
+  Search,
 } from "lucide-react";
-
 
 
 import { Button } from "@/components/ui/Button";
@@ -447,6 +448,8 @@ export function DashboardInfluencer() {
 
   // Referral Queries & States
   const [referralRefreshKey, setReferralRefreshKey] = useState(0);
+  const [showReferredModal, setShowReferredModal] = useState(false);
+  const [referredSearchFilter, setReferredSearchFilter] = useState("");
   const referralCodeData = useRestQuery(
     `referral-code-${profileKey}-${referralRefreshKey}`,
     () => apiGet(`/referrals/my-code`),
@@ -455,6 +458,11 @@ export function DashboardInfluencer() {
   const referralEarnings = useRestQuery(
     `referral-earnings-${profileKey}-${referralRefreshKey}`,
     () => apiGet(`/referrals/earnings?page=1&limit=20`),
+    hasValidMongoProfileId
+  );
+  const referredListQuery = useRestQuery(
+    `referral-list-${profileKey}-${referralRefreshKey}`,
+    () => apiGet(`/referrals/list?limit=100`),
     hasValidMongoProfileId
   );
 
@@ -3732,6 +3740,7 @@ const CAMPAIGNS_PER_PAGE = 6;
               </div>
 
               {/* STATS METRICS */}
+              {/* STATS METRICS */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
                   <div className="flex items-center justify-between">
@@ -3741,22 +3750,30 @@ const CAMPAIGNS_PER_PAGE = 6;
                     </div>
                   </div>
                   <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
-                    ₹{Number(referralEarnings?.total_earned || 0).toLocaleString("en-IN")}
+                    ₹{Number(referralEarnings?.total_earned || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1">Credited directly to your wallet</p>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div
+                  onClick={() => setShowReferredModal(true)}
+                  className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group relative overflow-hidden"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Referrals</span>
-                    <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">Active Referrals</span>
+                    <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
                       <Users className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
-                    {referralEarnings?.active_referrals_count ?? 0}
+                  <div className="mt-3 flex items-baseline justify-between">
+                    <div className="text-3xl font-extrabold text-foreground font-display">
+                      {referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)}
+                    </div>
+                    <span className="text-[11px] font-bold text-primary flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+                      View list <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Currently earning commission from</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">Click to view all creators referred by your code</p>
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -3775,19 +3792,29 @@ const CAMPAIGNS_PER_PAGE = 6;
 
               {/* REFERRAL COMMISSIONS TABLE */}
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <div>
                     <h3 className="font-display text-base font-bold text-foreground">Referral Commission History</h3>
                     <p className="text-xs text-muted-foreground">Earnings credited from referred creators' completed project payouts</p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full text-xs flex items-center gap-1.5"
-                    onClick={() => setReferralRefreshKey((k) => k + 1)}
-                  >
-                    <History className="h-3.5 w-3.5" /> Refresh
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full text-xs flex items-center gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                      onClick={() => setShowReferredModal(true)}
+                    >
+                      <Users className="h-3.5 w-3.5" /> Referred Creators ({referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)})
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full text-xs flex items-center gap-1.5"
+                      onClick={() => setReferralRefreshKey((k) => k + 1)}
+                    >
+                      <History className="h-3.5 w-3.5" /> Refresh
+                    </Button>
+                  </div>
                 </div>
 
                 {(!referralEarnings?.earnings || referralEarnings.earnings.length === 0) ? (
@@ -3834,7 +3861,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                               }) : "-"}
                             </td>
                             <td className="py-3.5 px-2 font-bold text-sm text-emerald-600">
-                              +₹{Number(item.commission_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              +₹{Number(item.commission_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                             <td className="py-3.5 pr-2 text-right">
                               <Badge className="rounded-full text-[9px] font-bold px-2 py-0.5 border bg-emerald-500/15 text-emerald-700 border-emerald-500/30">
@@ -3848,6 +3875,144 @@ const CAMPAIGNS_PER_PAGE = 6;
                   </div>
                 )}
               </div>
+
+              {/* REFERRED CREATORS DIALOG */}
+              <Dialog open={showReferredModal} onOpenChange={setShowReferredModal}>
+                <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col rounded-3xl p-6 bg-card border border-border">
+                  <DialogHeader>
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="h-9 w-9 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <DialogTitle className="font-display text-lg sm:text-xl font-bold text-foreground">
+                          People Referred By You
+                        </DialogTitle>
+                        <DialogDescription className="text-xs text-muted-foreground">
+                          Creators and brands registered using your referral code. You earn a recurring 5% commission on their completed projects.
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+
+                  {/* Summary Bar inside Modal */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-secondary/40 border border-border/60 text-xs">
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Referred</span>
+                      <span className="font-bold text-base text-foreground font-display">
+                        {referredListQuery?.total ?? referralEarnings?.active_referrals_count ?? 0}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Commission Earned</span>
+                      <span className="font-bold text-base text-emerald-600 font-display">
+                        ₹{Number(referredListQuery?.totalCommissionEarned ?? referralEarnings?.total_earned ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="col-span-2 sm:col-span-1">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Commission Rate</span>
+                      <span className="font-bold text-base text-amber-600 font-display">5% Recurring</span>
+                    </div>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, handle, or referral code..."
+                      value={referredSearchFilter}
+                      onChange={(e) => setReferredSearchFilter(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-secondary/30 border border-border focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+
+                  {/* List Content */}
+                  <div className="overflow-y-auto space-y-2.5 max-h-[45vh] pr-1 no-scrollbar">
+                    {(() => {
+                      const allList = referredListQuery?.referrals || [];
+                      const filtered = referredSearchFilter.trim()
+                        ? allList.filter((r) =>
+                            r.fullName?.toLowerCase().includes(referredSearchFilter.toLowerCase()) ||
+                            r.handle?.toLowerCase().includes(referredSearchFilter.toLowerCase()) ||
+                            r.referralCode?.toLowerCase().includes(referredSearchFilter.toLowerCase())
+                          )
+                        : allList;
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="py-12 text-center text-muted-foreground">
+                            <Users className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                            <p className="text-xs font-semibold text-foreground">
+                              {referredSearchFilter ? "No matching referred users found" : "No referred creators yet"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-1 max-w-[280px] mx-auto">
+                              Share your referral code {referralCodeData?.referral_code || profile?.referral_code || ""} to start earning 5% recurring payouts!
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return filtered.map((ref) => (
+                        <div
+                          key={ref._id}
+                          className="p-3.5 rounded-2xl border border-border/70 bg-card hover:border-primary/40 hover:bg-secondary/20 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={
+                                ref.avatarUrl ||
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(ref.fullName || "Creator")}&background=random`
+                              }
+                              alt=""
+                              className="h-10 w-10 rounded-full border border-border object-cover bg-muted shrink-0"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback";
+                              }}
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-foreground">{ref.fullName}</span>
+                                <Badge variant="outline" className="text-[9px] uppercase px-1.5 py-0 border-border text-muted-foreground font-semibold">
+                                  {ref.role || "creator"}
+                                </Badge>
+                                <Badge className="text-[9px] font-bold px-1.5 py-0 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                  Active
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                                {ref.handle && <span>{ref.handle}</span>}
+                                {ref.handle && <span>•</span>}
+                                <span>Joined {ref.date ? new Date(ref.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "-"}</span>
+                              </div>
+                              <div className="mt-1">
+                                <span className="inline-flex items-center text-[10px] font-mono px-2 py-0.5 rounded-md bg-secondary text-foreground font-semibold border border-border/50">
+                                  Code: {ref.referralCode || "CR-E3H4P"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex sm:flex-col items-end justify-between sm:justify-center border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40">
+                            <div className="text-right">
+                              <span className="text-[10px] text-muted-foreground block font-medium">Your 5% Commission</span>
+                              <span className="font-black text-sm text-emerald-600">
+                                +₹{Number(ref.commissionEarned || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div className="text-right mt-0.5">
+                              <span className="text-[10px] text-muted-foreground">
+                                Completed Payouts: ₹{Number(ref.referredUserEarnings || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <SubscriptionTab role="creator" profile={profile} />
