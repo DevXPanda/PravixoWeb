@@ -51,6 +51,14 @@ import {
   Users,
   ChevronRight,
   Search,
+  MessageCircle,
+  UserMinus,
+  Heart,
+  Film,
+  Send,
+  Play,
+  Bookmark,
+  Share,
 } from "lucide-react";
 
 
@@ -368,14 +376,23 @@ export function DashboardInfluencer() {
   const upsertPricing = ({ profileId, tiers }) => apiPut(`/pricing`, { profileId, tiers });
   const removeTierMutation = ({ id }) => apiDelete(`/pricing/${id}`);
 
-  const addPortfolioImage = async ({ profileId, imageFile, sortOrder }) => {
+  const addPortfolioImage = async ({ profileId, imageFile, sortOrder, metadata = {} }) => {
     const form = new FormData();
     form.append("image", imageFile);
     form.append("profileId", profileId);
     form.append("sortOrder", String(sortOrder ?? 0));
+    if (metadata.type) form.append("type", metadata.type);
+    if (metadata.caption) form.append("caption", metadata.caption);
+    if (metadata.brandTag) form.append("brandTag", metadata.brandTag);
+    if (metadata.likesCount) form.append("likesCount", String(metadata.likesCount));
+    if (metadata.viewsCount) form.append("viewsCount", String(metadata.viewsCount));
+    if (metadata.aspectRatio) form.append("aspectRatio", metadata.aspectRatio);
+    if (metadata.mediaType) form.append("mediaType", metadata.mediaType);
     return apiPost(`/portfolio`, form, { headers: { "Content-Type": "multipart/form-data" } });
   };
   const removePortfolioImage = ({ id }) => apiDelete(`/portfolio/${id}`);
+  const togglePortfolioLike = (id) => apiPost(`/portfolio/${id}/like`, {});
+  const addPortfolioComment = (id, data) => apiPost(`/portfolio/${id}/comments`, data);
 
   const setAvatarImage = async ({ file, profileId }) => {
     const form = new FormData();
@@ -489,14 +506,61 @@ export function DashboardInfluencer() {
   const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
 
   const [discoverRefreshKey, setDiscoverRefreshKey] = useState(0);
+  const [isRefreshingDiscover, setIsRefreshingDiscover] = useState(false);
   const discoverableCampaigns = useRestQuery(
     `campaigns-discover-${discoverRefreshKey}`,
     () => apiGet(`/campaigns/discover`),
     true
   );
 
+  const creatorTotalFollowers = useMemo(() => {
+    return (
+      Number(profile?.instagramFollowers || 0) +
+      Number(profile?.youtubeFollowers || 0) +
+      Number(profile?.facebookFollowers || 0) +
+      Number(profile?.twitterFollowers || 0) +
+      Number(profile?.linkedinFollowers || 0) +
+      Number(profile?.quoraFollowers || 0)
+    );
+  }, [profile]);
+
+  const handleRefreshDiscover = async () => {
+    setIsRefreshingDiscover(true);
+    try {
+      setDiscoverRefreshKey((k) => k + 1);
+      toast.success("Campaign listings refreshed!");
+    } finally {
+      setTimeout(() => setIsRefreshingDiscover(false), 500);
+    }
+  };
+
+  const handleShareCampaign = (camp) => {
+    const reqFollowers = Number(camp.minFollowers || 0);
+    const reqText = reqFollowers > 0
+      ? ` (Requires ${reqFollowers >= 1000 ? `${(reqFollowers / 1000).toFixed(0)}k+` : reqFollowers} followers)`
+      : "";
+    const shareUrl = `${window.location.origin}/browse?campaign=${camp._id}`;
+    let tierText = "";
+    if (camp.tiers && camp.tiers.length > 0) {
+      tierText = ` [Options/Perks: ${camp.tiers.map(t => `${t.minFollowers >= 1000 ? `${(t.minFollowers/1000).toFixed(0)}k+` : t.minFollowers}: ${t.reward || ''}${t.cashAmount ? ` + ₹${t.cashAmount}` : ''}`).join(' | ')}]`;
+    }
+    const shareText = `Check out "${camp.title}" brand campaign on Pravixo${reqText}${tierText}! Total Budget: ₹${Number(camp.totalBudget || 0).toLocaleString()}. View details & apply: ${shareUrl}`;
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareText);
+      toast.success(
+        reqFollowers > 0
+          ? `Campaign referral link copied! Share with creators who have ${reqFollowers >= 1000 ? `${(reqFollowers / 1000).toFixed(0)}k+` : reqFollowers} followers.`
+          : "Campaign link copied to clipboard!"
+      );
+    } else {
+      toast.info(`Campaign Link: ${shareUrl}`);
+    }
+  };
+
   // Campaign Discovery Modal & Join Request States
   const [selectedCampaignForDiscovery, setSelectedCampaignForDiscovery] = useState(null);
+  const [selectedTierForJoin, setSelectedTierForJoin] = useState(null);
   const [joinPitch, setJoinPitch] = useState("");
   const [joiningCampaign, setJoiningCampaign] = useState(false);
 
@@ -522,6 +586,23 @@ export function DashboardInfluencer() {
   const [activeTab, setActiveTab] = useState("dashboard");
   // Sub-section quick selector to eliminate excessive scrolling
   const [creatorSubSection, setCreatorSubSection] = useState("all");
+
+  // Instagram-style Portfolio States
+  const [portfolioTab, setPortfolioTab] = useState("all"); // "all" | "post" | "reel" | "story"
+  const [showAddPortfolioModal, setShowAddPortfolioModal] = useState(false);
+  const [selectedPortfolioPost, setSelectedPortfolioPost] = useState(null);
+  const [portfolioCommentText, setPortfolioCommentText] = useState("");
+  const [submittingPortfolioComment, setSubmittingPortfolioComment] = useState(false);
+  const [newPortfolioForm, setNewPortfolioForm] = useState({
+    type: "post",
+    file: null,
+    filePreview: null,
+    caption: "",
+    brandTag: "",
+    likesCount: 120,
+    viewsCount: 1500,
+  });
+  const [uploadingPortfolioItem, setUploadingPortfolioItem] = useState(false);
 
 
   // Popup & Banner State
@@ -660,9 +741,11 @@ export function DashboardInfluencer() {
   const [location, setLocation] = useState("");
   const [bio, setBio] = useState("");
   const [startingPrice, setStartingPrice] = useState(0);
+  const [isBarterAllowed, setIsBarterAllowed] = useState(false);
   const [tiers, setTiers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [aadharStorageId, setAadharStorageId] = useState("");
@@ -686,6 +769,72 @@ export function DashboardInfluencer() {
   const [quoraFollowers, setQuoraFollowers] = useState(0);
   const [twHandle, setTwHandle] = useState("");
   const [twFollowers, setTwFollowers] = useState(0);
+  const [xHandle, setXHandle] = useState("");
+  const [xFollowers, setXFollowers] = useState(0);
+  const [snapHandle, setSnapHandle] = useState("");
+  const [snapFollowers, setSnapFollowers] = useState(0);
+  const [pinHandle, setPinHandle] = useState("");
+  const [pinFollowers, setPinFollowers] = useState(0);
+
+  // Followers & Following view modal state
+  const [followModalType, setFollowModalType] = useState(null); // 'followers' | 'following' | null
+  const [followListUsers, setFollowListUsers] = useState([]);
+  const [loadingFollowList, setLoadingFollowList] = useState(false);
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+
+  const fetchFollowCounts = async () => {
+    if (!mongoProfileId) return;
+    try {
+      const res = await apiGet(`/follows/status?targetProfileId=${mongoProfileId}`);
+      if (res) {
+        setFollowCounts({
+          followers: res.followersCount || 0,
+          following: res.followingCount || 0,
+        });
+      }
+    } catch (e) {
+      console.error("Fetch follow counts error:", e);
+    }
+  };
+
+  const openFollowModal = async (type) => {
+    setFollowModalType(type);
+    setLoadingFollowList(true);
+    try {
+      const res = await apiGet(`/follows/${type}/${mongoProfileId}`);
+      setFollowListUsers(Array.isArray(res) ? res : res?.data || []);
+    } catch (err) {
+      console.error(`Failed to fetch ${type}:`, err);
+      toast.error(`Failed to load ${type}`);
+    } finally {
+      setLoadingFollowList(false);
+    }
+  };
+
+  const handleUnfollowUser = async (targetUserId) => {
+    try {
+      await apiPost("/follows/toggle", {
+        followerId: mongoProfileId,
+        targetProfileId: targetUserId,
+      });
+      toast.success("Updated follow status");
+      // refresh current modal list
+      if (followModalType) {
+        const res = await apiGet(`/follows/${followModalType}/${mongoProfileId}`);
+        setFollowListUsers(Array.isArray(res) ? res : res?.data || []);
+      }
+      fetchFollowCounts();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to unfollow");
+    }
+  };
+
+  useEffect(() => {
+    if (mongoProfileId) {
+      fetchFollowCounts();
+    }
+  }, [mongoProfileId]);
+
   const [showVerificationDialog, setShowVerificationDialog] =
   useState(false);
 
@@ -698,8 +847,67 @@ const [panFile, setPanFile] =
 const [verificationUploading, setVerificationUploading] =
   useState(false);
 const [showPostSaveDialog, setShowPostSaveDialog] = useState(false);
+const [openKycSection, setOpenKycSection] = useState(false);
+const [openSocialSection, setOpenSocialSection] = useState(false);
+const [openPortfolioSection, setOpenPortfolioSection] = useState(false);
+const [openPricingSection, setOpenPricingSection] = useState(false);
 const [discoverPage, setDiscoverPage] = useState(1);
 const CAMPAIGNS_PER_PAGE = 6;
+
+  // ===== DEALS & TASKS tab states =====
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showSubmitTaskModal, setShowSubmitTaskModal] = useState(false);
+  const [taskProofUrl, setTaskProofUrl] = useState("");
+  const [taskNotes, setTaskNotes] = useState("");
+  const [submittingTaskProof, setSubmittingTaskProof] = useState(false);
+
+  // ===== FIND CAMPAIGNS tab states =====
+  const [selectedCampaignDetail, setSelectedCampaignDetail] = useState(null);
+
+  // Compute set of campaign IDs that the current creator has already requested to join
+  const userRequestedCampaignIds = useMemo(() => {
+    if (!myRequests || !Array.isArray(myRequests)) return new Set();
+    return new Set(myRequests.map((r) => r.campaignId?._id || r.campaignId).filter(Boolean));
+  }, [myRequests]);
+
+  // Helper: human-readable time remaining from a dueDate timestamp/string
+  const getTimeRemaining = (dueDate) => {
+    if (!dueDate) return "No deadline";
+    const diff = new Date(dueDate) - Date.now();
+    if (diff <= 0) return "Overdue";
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    if (days > 0) return `${days}d ${hours}h`;
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  };
+
+  // Handler: submit task proof
+  const handleSubmitTaskProof = async () => {
+    if (!selectedTask) return;
+    if (!taskProofUrl.trim()) {
+      toast.error("Please provide a proof link.");
+      return;
+    }
+    setSubmittingTaskProof(true);
+    try {
+      await submitTask({
+        taskId: selectedTask._id,
+        submissionLink: taskProofUrl,
+        notes: taskNotes,
+        attachmentLink: "",
+      });
+      toast.success("Task submitted successfully!");
+      setShowSubmitTaskModal(false);
+      setSelectedTask(null);
+      setTaskProofUrl("");
+      setTaskNotes("");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to submit task");
+    } finally {
+      setSubmittingTaskProof(false);
+    }
+  };
 
   // Social Verification States & Methods
   const [syncingPlatform, setSyncingPlatform] = useState(null);
@@ -852,6 +1060,7 @@ const CAMPAIGNS_PER_PAGE = 6;
       setLocation(profile.location || "");
       setBio(profile.bio || "");
       setStartingPrice(Number(profile.startingPrice ?? 0));
+      setIsBarterAllowed(Boolean(profile.isBarterAllowed));
       // Socials
       setInstaHandle(profile.instagramHandle || "");
       setInstaFollowers(profile.instagramFollowers || 0);
@@ -902,7 +1111,7 @@ const CAMPAIGNS_PER_PAGE = 6;
     const missing = getMissingProfileDetails();
     if (!category.trim()) missing.push("category");
     if (!location.trim()) missing.push("location");
-    if (!Number(startingPrice)) missing.push("starting price");
+    if (!Number(startingPrice) && !isBarterAllowed) missing.push("starting price or barter option");
     if (missing.length) {
       toast.error(`Please complete your ${missing.join(", ")}.`);
       return;
@@ -918,7 +1127,8 @@ const CAMPAIGNS_PER_PAGE = 6;
         bio: bio.trim(),
         category: category,
         location: location,
-        startingPrice: startingPrice,
+        startingPrice: startingPrice || 0,
+        isBarterAllowed: isBarterAllowed,
       });
       const updated = res?.data || res?.profile || res;
       if (updated && updateLocalProfile) {
@@ -1031,6 +1241,149 @@ const CAMPAIGNS_PER_PAGE = 6;
       }
     }
     setTiers(tiers.filter((_, i) => i !== idx));
+  };
+
+  const onPortfolioUpload = async (e) => {
+    if (!profile || !e.target.files?.length) return;
+    const files = Array.from(e.target.files);
+    setUploadingPortfolio(true);
+    try {
+      for (const file of files) {
+        await addPortfolioImage({
+          profileId: mongoProfileId,
+          imageFile: file,
+          sortOrder: portfolioImages?.length || 0,
+        });
+      }
+      setPortfolioRefreshKey((current) => current + 1);
+      toast.success(files.length > 1 ? `${files.length} images uploaded to portfolio!` : "Portfolio image uploaded!");
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to upload portfolio image");
+    } finally {
+      setUploadingPortfolio(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleCreateInstagramPortfolioItem = async () => {
+    if (!profile || !newPortfolioForm.file) {
+      toast.error("Please choose an image or video file to publish.");
+      return;
+    }
+    setUploadingPortfolioItem(true);
+    try {
+      await addPortfolioImage({
+        profileId: mongoProfileId,
+        imageFile: newPortfolioForm.file,
+        sortOrder: portfolioImages?.length || 0,
+        metadata: {
+          type: newPortfolioForm.type,
+          caption: newPortfolioForm.caption,
+          brandTag: newPortfolioForm.brandTag,
+          likesCount: Number(newPortfolioForm.likesCount) || 0,
+          viewsCount: Number(newPortfolioForm.viewsCount) || 0,
+          mediaType: newPortfolioForm.file?.type?.startsWith("video/") ? "video" : "image",
+          aspectRatio: newPortfolioForm.type === "reel" || newPortfolioForm.type === "story" ? "9:16" : "1:1",
+        },
+      });
+
+      setPortfolioRefreshKey((c) => c + 1);
+      toast.success(`Published ${newPortfolioForm.type.toUpperCase()} to your portfolio!`);
+      setShowAddPortfolioModal(false);
+      setNewPortfolioForm({
+        type: "post",
+        file: null,
+        filePreview: null,
+        caption: "",
+        brandTag: "",
+        likesCount: 120,
+        viewsCount: 1500,
+      });
+    } catch (err) {
+      console.error("Create portfolio item error:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to publish portfolio item");
+    } finally {
+      setUploadingPortfolioItem(false);
+    }
+  };
+
+  const handleTogglePortfolioLike = async (post) => {
+    if (!post?._id) return;
+    try {
+      const res = await togglePortfolioLike(post._id);
+      const isLiked = res?.data?.isLiked;
+      const likesCount = res?.data?.likesCount;
+
+      // Update in active modal if open
+      if (selectedPortfolioPost?._id === post._id) {
+        setSelectedPortfolioPost((prev) => ({
+          ...prev,
+          likesCount,
+          isLiked,
+        }));
+      }
+      setPortfolioRefreshKey((c) => c + 1);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddPortfolioComment = async () => {
+    if (!selectedPortfolioPost?._id || !portfolioCommentText.trim()) return;
+    setSubmittingPortfolioComment(true);
+    try {
+      const res = await addPortfolioComment(selectedPortfolioPost._id, {
+        text: portfolioCommentText.trim(),
+        userName: displayName || profile?.fullName || "Creator",
+        userAvatar: resolveImageUrl(profile?.avatarUrl) || "",
+      });
+
+      const updatedComments = res?.data || [];
+      setSelectedPortfolioPost((prev) => ({
+        ...prev,
+        comments: Array.isArray(updatedComments) ? updatedComments : [...(prev.comments || []), {
+          userName: displayName || "Creator",
+          text: portfolioCommentText.trim(),
+          createdAt: new Date(),
+        }],
+        commentsCount: (prev.commentsCount || 0) + 1,
+      }));
+      setPortfolioCommentText("");
+      setPortfolioRefreshKey((c) => c + 1);
+      toast.success("Comment posted!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to post comment");
+    } finally {
+      setSubmittingPortfolioComment(false);
+    }
+  };
+
+  const handleSharePortfolioItem = (post) => {
+    const url = `${window.location.origin}/creator/${mongoProfileId}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+      toast.success("Portfolio link copied to clipboard!");
+    } else {
+      toast.info(`Link: ${url}`);
+    }
+  };
+
+  const handleRemovePortfolioImage = async (idxOrId) => {
+    try {
+      const targetImage = Array.isArray(portfolioImages) ? portfolioImages[idxOrId] || portfolioImages.find(img => img._id === idxOrId) : null;
+      const idToDelete = targetImage?._id || idxOrId;
+      await removePortfolioImage({ id: idToDelete });
+      if (selectedPortfolioPost?._id === idToDelete) {
+        setSelectedPortfolioPost(null);
+      }
+      setPortfolioRefreshKey((current) => current + 1);
+      toast.success("Portfolio item removed");
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to remove item");
+    }
   };
 
   const onUpload = async (e) => {
@@ -1331,41 +1684,79 @@ const CAMPAIGNS_PER_PAGE = 6;
     </h1>
   </div>
 
-  {(() => {
-    if (status === "verified") {
-      return (
-        <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 font-semibold text-sm cursor-default">
-          <ShieldCheck className="h-4 w-4" /> Verified Creator
-        </div>
-      );
-    }
-    if (status === "pending") {
-      return (
-        <Button disabled className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 px-6 font-semibold opacity-70 cursor-not-allowed">
-          Verification Pending
-        </Button>
-      );
-    }
-    if (status === "rejected") {
+  <div className="flex flex-wrap items-center gap-2">
+    <Link to={`/influencer/${profile?._id}`}>
+      <Button
+        variant="outline"
+        className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+      >
+        <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
+      </Button>
+    </Link>
+    <Button
+      variant="outline"
+      onClick={() => openFollowModal("followers")}
+      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
+    >
+      <Users className="h-3.5 w-3.5 text-primary" />
+      <span>{followCounts.followers}</span> Followers
+    </Button>
+    <Button
+      variant="outline"
+      onClick={() => openFollowModal("following")}
+      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
+    >
+      <Users className="h-3.5 w-3.5 text-indigo-500" />
+      <span>{followCounts.following}</span> Following
+    </Button>
+    <Button
+      variant="outline"
+      onClick={() => {
+        const url = `${window.location.origin}/influencer/${profile?._id}`;
+        navigator.clipboard.writeText(url);
+        toast.success("Profile link copied to clipboard!");
+      }}
+      className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+    >
+      <Share2 className="h-3.5 w-3.5 text-primary" /> Share Link
+    </Button>
+
+    {(() => {
+      if (status === "verified") {
+        return (
+          <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 font-semibold text-sm cursor-default">
+            <ShieldCheck className="h-4 w-4" /> Verified Creator
+          </div>
+        );
+      }
+      if (status === "pending") {
+        return (
+          <Button disabled className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 px-6 font-semibold opacity-70 cursor-not-allowed">
+            Verification Pending
+          </Button>
+        );
+      }
+      if (status === "rejected") {
+        return (
+          <Button
+            onClick={submitVerificationRequest}
+            className="rounded-full bg-red-600 hover:bg-red-700 text-white px-6 font-semibold shadow-sm"
+          >
+            Verification Failed (Try Again)
+          </Button>
+        );
+      }
+      // Default: unverified
       return (
         <Button
           onClick={submitVerificationRequest}
-          className="rounded-full bg-red-600 hover:bg-red-700 text-white px-6 font-semibold shadow-sm"
+          className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-6 font-semibold shadow-sm"
         >
-          Verification Failed (Try Again)
+          Get Verified
         </Button>
       );
-    }
-    // Default: unverified
-    return (
-      <Button
-        onClick={submitVerificationRequest}
-        className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-6 font-semibold shadow-sm"
-      >
-        Get Verified
-      </Button>
-    );
-  })()}
+    })()}
+  </div>
 
   <Dialog open={showPostSaveDialog} onOpenChange={setShowPostSaveDialog}>
     <DialogContent className="sm:max-w-md rounded-3xl">
@@ -1462,6 +1853,39 @@ const CAMPAIGNS_PER_PAGE = 6;
               Dashboard
             </button>
             <button
+              onClick={() => setActiveTab("tasks")}
+              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
+                activeTab === "tasks"
+                  ? "gradient-sunset text-white shadow-glow"
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Deals & Tasks
+            </button>
+            <button
+              onClick={() => setActiveTab("campaigns")}
+              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
+                activeTab === "campaigns"
+                  ? "gradient-sunset text-white shadow-glow"
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+              }`}
+            >
+              <Megaphone className="h-4 w-4" />
+              Find Campaigns
+            </button>
+            <button
+              onClick={() => setActiveTab("payments")}
+              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
+                activeTab === "payments"
+                  ? "gradient-sunset text-white shadow-glow"
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+              }`}
+            >
+              <CreditCard className="h-4 w-4" />
+              Payments & Bank
+            </button>
+            <button
               onClick={() => setActiveTab("wallet")}
               className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
                 activeTab === "wallet"
@@ -1484,6 +1908,17 @@ const CAMPAIGNS_PER_PAGE = 6;
               ⭐ Packages
             </button>
             <button
+              onClick={() => setActiveTab("offers")}
+              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
+                activeTab === "offers"
+                  ? "gradient-sunset text-white shadow-glow"
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+              }`}
+            >
+              <Sparkles className="h-4 w-4 text-amber-400" />
+              Offers
+            </button>
+            <button
               onClick={() => setActiveTab("referrals")}
               className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
                 activeTab === "referrals"
@@ -1494,1851 +1929,2105 @@ const CAMPAIGNS_PER_PAGE = 6;
               <Gift className="h-4 w-4 text-emerald-400" />
               Refer & Earn
               <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 text-[10px] font-extrabold border border-emerald-500/30">
-                5% Recurring
+                5% - 10% Tiered
               </span>
             </button>
           </div>
-
-          {/* Sub-Section Quick Navigator to prevent long scrolling */}
-          {activeTab === "dashboard" && (
-            <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 rounded-2xl bg-secondary/30 border border-border/40 no-scrollbar">
-              <span className="text-[10px] font-bold text-muted-foreground/80 px-2.5 uppercase tracking-wider hidden sm:inline">
-                Jump to:
-              </span>
-              {[
-                { id: "all", label: "✨ All" },
-                { id: "profile", label: "🎨 Profile & Portfolio" },
-                { id: "collaborations", label: "🤝 Deals & Tasks" },
-                { id: "discover", label: "🔍 Find Campaigns" },
-                { id: "payments", label: "💰 Escrow & Bank" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setCreatorSubSection(tab.id)}
-                  className={cn(
-                    "pill-cute px-3 py-1.5 text-xs font-semibold whitespace-nowrap",
-                    creatorSubSection === tab.id
-                      ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/30"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/70"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="mt-6 font-jakarta">
           <div className="w-full">
             {activeTab === "dashboard" ? (
-              <>
-                <div className="grid gap-6 lg:grid-cols-3 items-start">
-          {(creatorSubSection === "all" || creatorSubSection === "profile") && (
-          <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 lg:col-span-2 shadow-sm">
-            <h2 className="font-outfit text-xl font-bold">Edit Profile</h2>
-            <div className="mt-5">
-              <div className="flex flex-col sm:flex-row items-center gap-4">
-                <img src={
-                    resolveImageUrl(profile?.avatarUrl) ||
-                    profile?.avatar ||
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      profile?.fullName || user?.email || "User"
-                    )}&background=random`
-                  }
-                  alt=""
-                  className="h-20 w-20 rounded-full border border-border object-cover bg-muted"
-                 onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
-                    <Camera className="h-4 w-4" />
-                    {uploadingAvatar ? "Uploading..." : "Upload profile photo"}
-                    <input
-                      ref={avatarFileRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={onAvatarUpload}
-                      disabled={uploadingAvatar}
-                    />
-                  </label>
-                  <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
-                    <ImageIcon className="h-4 w-4" />
-                    {uploadingCover ? "Uploading..." : "Upload banner"}
-                    <input
-                      ref={coverFileRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={onCoverUpload}
-                      disabled={uploadingCover}
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label>Display name</Label>
-                <Input
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1.5"
-                />
-              </div>
-              <div>
-                <Label>Handle</Label>
-                <Input
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder="@yourname"
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Category</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
-                    >
-                      <div className="flex flex-wrap gap-1">
-                        {selectedCategories.length === 0 ? (
-                          <span className="text-muted-foreground">
-                            Select categories...
-                          </span>
-                        ) : (
-                          selectedCategories.map((cat) => (
-                            <Badge
-                              key={cat}
-                              variant="secondary"
-                              className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
-                            >
-                              {cat}
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                className="rounded-full outline-none hover:bg-muted p-0.5 cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSelectCategory(cat);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.stopPropagation();
-                                    handleSelectCategory(cat);
-                                  }
-                                }}
-                              >
-                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                              </span>
-                            </Badge>
-                          ))
-                        )}
+              <div className="w-full max-w-5xl mx-auto space-y-8">
+                <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
+                  <h2 className="font-outfit text-xl font-bold">Edit Profile</h2>
+                  <div className="mt-5">
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <img src={
+                          resolveImageUrl(profile?.avatarUrl) ||
+                          profile?.avatar ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                            profile?.fullName || user?.email || "User"
+                          )}&background=random`
+                        }
+                        alt=""
+                        className="h-20 w-20 rounded-full border border-border object-cover bg-muted"
+                       onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                          <Camera className="h-4 w-4" />
+                          {uploadingAvatar ? "Uploading..." : "Upload profile photo"}
+                          <input
+                            ref={avatarFileRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={onAvatarUpload}
+                            disabled={uploadingAvatar}
+                          />
+                        </label>
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
+                          <ImageIcon className="h-4 w-4" />
+                          {uploadingCover ? "Uploading..." : "Upload banner"}
+                          <input
+                            ref={coverFileRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={onCoverUpload}
+                            disabled={uploadingCover}
+                          />
+                        </label>
                       </div>
-                      <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                    align="start"
-                  >
-                    <Command className="w-full">
-                      <CommandInput
-                        placeholder="Search categories..."
-                        className="h-9"
-                      />
-                      <CommandList className="max-h-[300px] overflow-y-auto">
-                        <CommandEmpty>No category found.</CommandEmpty>
-                        <CommandGroup>
-                          {CATEGORY_OPTIONS.map((cat) => {
-                            const isSelected = selectedCategories.includes(cat);
-                            return (
-                              <CommandItem
-                                key={cat}
-                                value={cat}
-                                onSelect={() => handleSelectCategory(cat)}
-                                className="flex items-center justify-between cursor-pointer"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={cn(
-                                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                      isSelected
-                                        ? "bg-primary text-primary-foreground"
-                                        : "opacity-50 [&_svg]:invisible",
-                                    )}
-                                  >
-                                    <Check className="h-3 w-3" />
-                                  </div>
-                                  <span>{cat}</span>
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Location</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
-                    >
-                      <div className="flex flex-wrap gap-1">
-                        {selectedLocations.length === 0 ? (
-                          <span className="text-muted-foreground">
-                            Select locations...
-                          </span>
-                        ) : (
-                          selectedLocations.map((loc) => (
-                            <Badge
-                              key={loc}
-                              variant="secondary"
-                              className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
-                            >
-                              {loc}
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                className="rounded-full outline-none hover:bg-muted p-0.5 cursor-pointer"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSelectLocation(loc);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.stopPropagation();
-                                    handleSelectLocation(loc);
-                                  }
-                                }}
-                              >
-                                <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                              </span>
-                            </Badge>
-                          ))
-                        )}
-                      </div>
-                      <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-[var(--radix-popover-trigger-width)] p-0"
-                    align="start"
-                  >
-                    <Command className="w-full">
-                      <CommandInput
-                        placeholder="Search locations..."
-                        className="h-9"
-                      />
-                      <CommandList className="max-h-[300px] overflow-y-auto">
-                        <CommandEmpty>No location found.</CommandEmpty>
-                        <CommandGroup>
-                          {LOCATION_OPTIONS.map((loc) => {
-                            const isSelected = selectedLocations.includes(loc);
-                            return (
-                              <CommandItem
-                                key={loc}
-                                value={loc}
-                                onSelect={() => handleSelectLocation(loc)}
-                                className="flex items-center justify-between cursor-pointer"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <div
-                                    className={cn(
-                                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                      isSelected
-                                        ? "bg-primary text-primary-foreground"
-                                        : "opacity-50 [&_svg]:invisible",
-                                    )}
-                                  >
-                                    <Check className="h-3 w-3" />
-                                  </div>
-                                  <span>{loc}</span>
-                                </div>
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label>Phone number</Label>
-                <Input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="mt-1.5"
-                  placeholder="e.g. +91 9876543210"
-                />
-              </div>
-              <div>
-                <Label>Starting price (₹)</Label>
-                <Input
-                  type="text"
-                  value={startingPrice}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    setStartingPrice(val === "" ? "" : Number(val));
-                  }}
-                  className="mt-1.5"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label>Bio</Label>
-                <Textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  className="mt-1.5"
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <Button
-                onClick={saveProfileDetails}
-                disabled={saving}
-                className="rounded-full gradient-sunset border-0 text-white shadow-glow"
-              >
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            </div>
-
-            <h3 className="mt-8 font-display text-base font-semibold">
-              KYC Documents
-            </h3>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Upload and save your Aadhaar card, PAN card, or both. At least one document is required for verification.
-            </p>
-            <div className="grid gap-6 grid-cols-1 md:grid-cols-2 bg-muted/10 p-4 rounded-2xl border border-border">
-              {/* Aadhar Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Aadhar Card (PDF, JPG, PNG)</Label>
-                <div className="flex items-center gap-3">
-                  <label className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-secondary/40 px-4 py-4 text-sm font-medium transition-colors">
-                    <Upload className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground truncate">
-                      {aadharFileName || (profile?.aadharUrl ? "Aadhar Uploaded ✓" : "Upload Aadhar")}
-                    </span>
-                    <input type="file" className="hidden" accept=".pdf,image/*" onChange={onAadharUpload} />
-                  </label>
-                  {(profile?.aadharUrl || aadharFile) && (
-                    <Button type="button" variant="outline" size="icon" className="shrink-0 h-12 w-12 rounded-xl"
-                      onClick={() => profile?.aadharUrl ? window.open(resolveImageUrl(profile.aadharUrl), "_blank") : toast.info("File selected but not yet uploaded")}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* PAN Upload */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">PAN Card (PDF, JPG, PNG)</Label>
-                <div className="flex items-center gap-3">
-                  <label className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-secondary/40 px-4 py-4 text-sm font-medium transition-colors">
-                    <Upload className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground truncate">
-                      {panFileName || (profile?.panUrl ? "PAN Uploaded ✓" : "Upload PAN")}
-                    </span>
-                    <input type="file" className="hidden" accept=".pdf,image/*" onChange={onPanUpload} />
-                  </label>
-                  {(profile?.panUrl || panFile) && (
-                    <Button type="button" variant="outline" size="icon" className="shrink-0 h-12 w-12 rounded-xl"
-                      onClick={() => profile?.panUrl ? window.open(resolveImageUrl(profile.panUrl), "_blank") : toast.info("File selected but not yet uploaded")}>
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="md:col-span-2 flex justify-end">
-                <Button onClick={handleVerificationSubmit} disabled={submittingVerification || (!aadharFile && !panFile)} className="rounded-full bg-primary text-primary-foreground px-6 font-semibold">
-                  {submittingVerification ? "Uploading..." : "Save Documents"}
-                </Button>
-              </div>
-            </div>
-
-            <h3 className="mt-8 font-display text-base font-semibold">
-              Social presence
-            </h3>
-            <p className="mb-4 text-xs text-muted-foreground">
-              Verify your accounts using official OAuth platforms or update them manually.
-            </p>
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  id: "instagram",
-                  name: "Instagram",
-                  icon: FaInstagram,
-                  iconClass: "text-pink-600",
-                  handle: instaHandle,
-                  setHandle: setInstaHandle,
-                  followers: instaFollowers,
-                  setFollowers: setInstaFollowers,
-                  oauth: true,
-                },
-                {
-                  id: "facebook",
-                  name: "Facebook",
-                  icon: FaFacebook,
-                  iconClass: "text-blue-600",
-                  handle: fbHandle,
-                  setHandle: setFbHandle,
-                  followers: fbFollowers,
-                  setFollowers: setFbFollowers,
-                  oauth: true,
-                },
-                {
-                  id: "linkedin",
-                  name: "LinkedIn",
-                  icon: FaLinkedin,
-                  iconClass: "text-blue-800",
-                  handle: liHandle,
-                  setHandle: setLiHandle,
-                  followers: liFollowers,
-                  setFollowers: setLiFollowers,
-                  oauth: true,
-                },
-                {
-                  id: "youtube",
-                  name: "YouTube",
-                  icon: FaYoutube,
-                  iconClass: "text-red-600",
-                  handle: ytHandle,
-                  setHandle: setYtHandle,
-                  followers: ytFollowers,
-                  setFollowers: setYtFollowers,
-                  oauth: true,
-                },
-                {
-                  id: "quora",
-                  name: "Quora",
-                  icon: QuoraIcon,
-                  iconClass: "text-red-700",
-                  handle: quoraHandle,
-                  setHandle: setQuoraHandle,
-                  followers: quoraFollowers,
-                  setFollowers: setQuoraFollowers,
-                  oauth: false,
-                },
-                {
-                  id: "twitter",
-                  name: "X (Twitter)",
-                  icon: FaTwitter,
-                  iconClass: "text-sky-500",
-                  handle: twHandle,
-                  setHandle: setTwHandle,
-                  followers: twFollowers,
-                  setFollowers: setTwFollowers,
-                  oauth: true,
-                },
-              ].map((plat) => {
-                const conn = connections?.find((c) => c.platform === plat.id);
-                const isVerified = conn?.verified;
-                const Icon = plat.icon;
-
-                return (
-                  <div
-                    key={plat.id}
-                    className={cn(
-                      "space-y-3 rounded-2xl border p-3 sm:p-4 bg-muted/20 relative transition-all duration-200",
-                      isVerified ? "border-primary/40 bg-primary/5 shadow-sm" : "border-border"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                          <a
-                            href={
-                              plat.handle 
-                                ? (plat.id === "linkedin" ? `https://linkedin.com/${plat.handle}` : plat.id === "quora" ? `https://quora.com/profile/${plat.handle}` : `https://${plat.id}.com/${plat.handle.replace('@', '')}`)
-                                : `https://${plat.id}.com`
-                            }
-                            target="_blank"
-                            rel="noreferrer"
-                            className="hover:opacity-80 transition-opacity cursor-pointer"
-                          >
-                            <Icon className={cn("h-4 w-4 shrink-0", plat.iconClass)} />
-                          </a>
-                        <span className="text-sm font-semibold truncate">
-                          {plat.name}
-                        </span>
-                        {isVerified && (
-                          <span title="OAuth Verified">
-                            <ShieldCheck className="h-4 w-4 text-primary fill-primary/10 shrink-0" />
-                          </span>
-                        )}
-                      </div>
-                      {plat.oauth && (
-                        <div className="flex items-center gap-1.5">
-                          {isVerified && (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleManualSync(conn._id, plat.id)}
-                                disabled={syncingPlatform !== null}
-                                className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded hover:bg-secondary cursor-pointer"
-                                title="Force sync now"
-                              >
-                                <RotateCw className={cn("h-3.5 w-3.5", syncingPlatform === plat.id && "animate-spin")} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDisconnect(conn._id, plat.id)}
-                                className="text-xs text-destructive hover:underline font-medium cursor-pointer"
-                              >
-                                Disconnect
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
                     </div>
-
-                    {isVerified ? (
-                      <div className="space-y-2 pt-1">
-                        <div className="flex items-center justify-between text-xs border-b border-border/40 pb-1.5">
-                          <span className="text-muted-foreground">Handle:</span>
-                          <span className="font-semibold text-foreground truncate max-w-[120px]">
-                            {conn.handle}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs border-b border-border/40 pb-1.5">
-                          <span className="text-muted-foreground">Followers:</span>
-                          <span className="font-semibold text-foreground flex items-center gap-1">
-                            <Lock className="h-3 w-3 text-muted-foreground/60" />
-                            {conn.followers?.toLocaleString() || "0"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Sync Status:</span>
-                          <span className="flex items-center gap-1.5 font-medium">
-                            <span
-                              className={cn(
-                                "h-2 w-2 rounded-full",
-                                conn.syncStatus === "success" && "bg-emerald-500",
-                                conn.syncStatus === "syncing" && "bg-amber-500 animate-pulse",
-                                conn.syncStatus === "failed" && "bg-destructive"
-                              )}
-                            />
-                            <span className="text-[10px] capitalize text-muted-foreground">
-                              {conn.syncStatus}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Handle
-                          </Label>
-                          <Input
-                            size={1}
-                            value={plat.handle}
-                            onChange={(e) => plat.setHandle(e.target.value)}
-                            placeholder={plat.id === "linkedin" ? "in/username" : plat.id === "quora" ? "username" : "@username"}
-                            className="h-8 text-xs mt-0.5"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            Followers
-                          </Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={plat.followers}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === "") {
-                                plat.setFollowers("");
-                              } else {
-                                const num = Number(val);
-                                if (num >= 0) plat.setFollowers(num);
-                              }
-                            }}
-                            className="h-8 text-xs mt-0.5"
-                          />
-                        </div>
-                      </>
-                    )}
                   </div>
-                );
-              })}
-            </div>
-            
-            <div className="mt-4 flex justify-end">
-              <Button
-                onClick={() => saveSocialPresence()}
-                disabled={saving}
-                size="sm"
-                className="rounded-full gradient-sunset border-0 text-white shadow-glow"
-              >
-                {saving ? "Saving…" : "Save Social Presence"}
-              </Button>
-            </div>
-
-            {/* Growth trends charts if verified accounts exist */}
-            {connections && connections.some((c) => c.verified) && (
-              <div className="mt-6 border border-border rounded-2xl p-4 bg-muted/5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-semibold flex items-center gap-1.5">
-                      <Activity className="h-4 w-4 text-primary" /> Verified Analytics Trends
-                    </h4>
-                    <p className="text-[10px] text-muted-foreground">
-                      Growth analytics fetched from official platform endpoints.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">Platform:</span>
-                    <select
-                      value={selectedChartPlatform}
-                      onChange={(e) => setSelectedChartPlatform(e.target.value)}
-                      className="rounded-full border border-border bg-background px-3 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                    >
-                      {connections
-                        .filter((c) => c.verified)
-                        .map((c) => (
-                          <option key={c._id} value={c.platform}>
-                            {c.platform.toUpperCase()}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                </div>
-
-                {chartData.length > 0 ? (
-                  <div className="h-48 w-full mt-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorFollowers" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                        <XAxis dataKey="date" stroke="#94a3b8" fontSize={9} />
-                        <YAxis stroke="#94a3b8" fontSize={9} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            borderColor: "hsl(var(--border))",
-                            borderRadius: "12px",
-                          }}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="followers"
-                          stroke="#f43f5e"
-                          strokeWidth={2}
-                          fillOpacity={1}
-                          fill="url(#colorFollowers)"
-                          name="Followers"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-32 flex items-center justify-center border border-dashed border-border rounded-xl text-xs text-muted-foreground">
-                    No historical sync metrics logged for this account yet. Sync runs automatically every 12 hours.
-                  </div>
-                )}
-              </div>
-            )}
-
-            <h3 className="mt-8 font-outfit text-lg font-bold">
-              Portfolio
-            </h3>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {portfolioImages?.map((img) => (
-                <div
-                  key={img._id}
-                  className="group relative aspect-square overflow-hidden rounded-2xl border border-border/70 hover:shadow-md transition-all"
-                >
-                  {img.url && (
-                    <img
-                      src={resolveImageUrl(img.url)}
-                      alt=""
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }}
-                    />
-                  )}
-                  <button
-                    onClick={() => removeImage(img._id)}
-                    className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 opacity-0 shadow-soft transition-opacity group-hover:opacity-100 hover:scale-110"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </button>
-                </div>
-              ))}
-              <label className="btn-bouncy flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border/80 text-xs font-semibold text-muted-foreground hover:bg-secondary/70 hover:border-primary/50 transition-all">
-                <Upload className="h-5 w-5 text-primary" />
-                {uploading ? "Uploading…" : "Upload"}
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={onUpload}
-                  disabled={uploading}
-                />
-              </label>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <Button
-                onClick={saveProfile}
-                disabled={saving}
-                className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow px-7 font-bold text-xs h-10"
-              >
-                {saving ? "Saving..." : "Save Profile"}
-              </Button>
-            </div>
-
-            {/* LIMITED-TIME OFFERS LAUNCH & MANAGEMENT */}
-            <div className="mt-8">
-              <CreatorOfferForm profileId={profile?._id} role="creator" />
-            </div>
-
-            {/* PRICING */}
-            <div className="mt-8 rounded-3xl border border-border bg-card p-6">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg font-semibold">Pricing</h2>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() =>
-                    setTiers([
-                      ...tiers,
-                      { name: "New tier", price: 0, sortOrder: tiers.length },
-                    ])
-                  }
-                >
-                  <Plus className="mr-1 h-3 w-3" /> Add
-                </Button>
-              </div>
-              <div className="mt-5 space-y-3">
-                {tiers.map((t, idx) => (
-                  <div key={idx} className="rounded-2xl border border-border p-4">
-                    <div className="flex items-center justify-between gap-2">
+                  <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label>Display name</Label>
                       <Input
-                        value={t.name}
-                        onChange={(e) => {
-                          const next = [...tiers];
-                          next[idx] = { ...t, name: e.target.value };
-                          setTiers(next);
-                        }}
-                        className="h-8 max-w-[60%] font-display font-semibold"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="mt-1.5"
                       />
-                      <span className="font-display font-bold">
-                        {formatINR(t.price)}
-                      </span>
-                      <button
-                        onClick={() => removeTier(idx)}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                     </div>
-                    <Input
-                      type="number"
-                      value={t.price}
-                      onChange={(e) => {
-                        const next = [...tiers];
-                        next[idx] = { ...t, price: Number(e.target.value) };
-                        setTiers(next);
-                      }}
-                      className="mt-3"
-                    />
-                  </div>
-                ))}
-              </div>
-              <Button
-                onClick={savePricing}
-                variant="secondary"
-                className="btn-bouncy mt-5 w-full rounded-full font-bold text-xs h-9"
-              >
-                Update pricing
-              </Button>
-            </div>
-          </div>
-          )}
-
-          {(creatorSubSection === "all" || creatorSubSection === "collaborations") && (
-          <div className="space-y-6 lg:col-span-1">
-            {/* ASSIGNED TASKS */}
-            <div className="rounded-3xl border border-border bg-card p-6">
-              <h2 className="font-display text-lg font-semibold">Assigned Tasks</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Manage your active campaign deliverables.
-              </p>
-              <div className="mt-5 space-y-4">
-                {!myTasks ? (
-                  <p className="text-xs text-muted-foreground">Loading tasks...</p>
-                ) : myTasks.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No tasks assigned yet.</p>
-                ) : (
-                  myTasks.map((task) => (
-                    <div
-                      key={task._id}
-                      className="rounded-2xl border border-border p-4 space-y-3 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200"
-                    >
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-foreground truncate">
-                            {task.title}
-                          </h4>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            Campaign: {task.campaign?.title || "General"}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            Brand: {task.brand?.fullName}
-                          </p>
-                        </div>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "rounded-full text-[9px] uppercase px-1.5 py-0.5 font-semibold shrink-0",
-                            task.status === "approved" && "bg-emerald-500/10 text-emerald-600",
-                            task.status === "completed" && "bg-blue-500/10 text-blue-500",
-                            task.status === "in_progress" && "bg-primary/10 text-primary",
-                            task.status === "revision_requested" && "bg-red-500/10 text-red-500",
-                            task.status === "assigned" && "bg-amber/10 text-amber"
-                          )}
+                    <div>
+                      <Label>Handle</Label>
+                      <Input
+                        value={handle}
+                        onChange={(e) => setHandle(e.target.value)}
+                        placeholder="@yourname"
+                        className="mt-1.5"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Category</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
+                          >
+                            <div className="flex flex-wrap gap-1">
+                              {selectedCategories.length === 0 ? (
+                                <span className="text-muted-foreground">
+                                  Select categories...
+                                </span>
+                              ) : (
+                                selectedCategories.map((cat) => (
+                                  <Badge
+                                    key={cat}
+                                    variant="secondary"
+                                    className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
+                                  >
+                                    {cat}
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      className="rounded-full outline-none hover:bg-muted p-0.5 cursor-pointer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelectCategory(cat);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.stopPropagation();
+                                          handleSelectCategory(cat);
+                                        }
+                                      }}
+                                    >
+                                      <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    </span>
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-[var(--radix-popover-trigger-width)] p-0"
+                          align="start"
                         >
-                          {task.status.replace("_", " ")}
-                        </Badge>
+                          <Command className="w-full">
+                            <CommandInput
+                              placeholder="Search categories..."
+                              className="h-9"
+                            />
+                            <CommandList>
+                              <CommandEmpty>No category found.</CommandEmpty>
+                              <CommandGroup className="max-h-64 overflow-auto">
+                                {CATEGORY_OPTIONS.map((cat) => {
+                                  const isSelected =
+                                    selectedCategories.includes(cat);
+                                  return (
+                                    <CommandItem
+                                      key={cat}
+                                      value={cat}
+                                      onSelect={() => handleSelectCategory(cat)}
+                                      className="cursor-pointer"
+                                    >
+                                      <div
+                                        className={cn(
+                                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                          isSelected
+                                            ? "bg-primary text-primary-foreground"
+                                            : "opacity-50 [&_svg]:invisible",
+                                        )}
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </div>
+                                      <span>{cat}</span>
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Location</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
+                          >
+                            <div className="flex flex-wrap gap-1">
+                              {selectedLocations.length === 0 ? (
+                                <span className="text-muted-foreground">
+                                  Select locations...
+                                </span>
+                              ) : (
+                                selectedLocations.map((loc) => (
+                                  <Badge
+                                    key={loc}
+                                    variant="secondary"
+                                    className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
+                                  >
+                                    {loc}
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      className="rounded-full outline-none hover:bg-muted p-0.5 cursor-pointer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelectLocation(loc);
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                          e.stopPropagation();
+                                          handleSelectLocation(loc);
+                                        }
+                                      }}
+                                    >
+                                      <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    </span>
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-[var(--radix-popover-trigger-width)] p-0"
+                          align="start"
+                        >
+                          <Command className="w-full">
+                            <CommandInput
+                              placeholder="Search locations..."
+                              className="h-9"
+                            />
+                            <CommandList>
+                              <CommandEmpty>No location found.</CommandEmpty>
+                              <CommandGroup className="max-h-64 overflow-auto">
+                                {LOCATION_OPTIONS.map((loc) => {
+                                  const isSelected =
+                                    selectedLocations.includes(loc);
+                                  return (
+                                    <CommandItem
+                                      key={loc}
+                                      value={loc}
+                                      onSelect={() => handleSelectLocation(loc)}
+                                      className="cursor-pointer"
+                                    >
+                                      <div
+                                        className={cn(
+                                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                          isSelected
+                                            ? "bg-primary text-primary-foreground"
+                                            : "opacity-50 [&_svg]:invisible",
+                                        )}
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </div>
+                                      <span>{loc}</span>
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label>Phone number</Label>
+                      <Input
+                        type="text"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="mt-1.5"
+                        placeholder="e.g. +91 9876543210"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <Label>Starting price (₹)</Label>
+                        <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-primary select-none">
+                          <input
+                            type="checkbox"
+                            checked={isBarterAllowed}
+                            onChange={(e) => setIsBarterAllowed(e.target.checked)}
+                            className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                          />
+                          <span>🤝 Barter Allowed</span>
+                        </label>
                       </div>
-
-                      <div className="text-xs space-y-1 bg-background/50 border border-border/40 rounded-xl p-2.5">
-                        <p className="text-muted-foreground">
-                          <strong>Deliverables:</strong> {task.deliverables}
+                      <Input
+                        type="text"
+                        value={startingPrice}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "");
+                          setStartingPrice(val === "" ? "" : Number(val));
+                        }}
+                        placeholder={isBarterAllowed ? "0 (Barter accepted)" : "e.g. 5000"}
+                        className="mt-1.5"
+                      />
+                      {isBarterAllowed && (
+                        <p className="text-[11px] text-emerald-600 font-medium mt-1">
+                          ✓ Open to product perks, gifting, or service exchange (Barter deals).
                         </p>
-                        <p className="text-muted-foreground">
-                          <strong>Due:</strong> {new Date(task.dueDate).toLocaleString()}
-                        </p>
-                        <p className="text-muted-foreground capitalize">
-                          <strong>Priority:</strong> {task.priority}
-                        </p>
-                      </div>
-
-                      {/* Live Countdown for In Progress / Revision Requested */}
-                      {(task.status === "in_progress" || task.status === "revision_requested") && (
-                        <div className="flex items-center justify-between text-xs border-t border-border/40 pt-2.5">
-                          <span className="text-muted-foreground">Time Left:</span>
-                          <CountdownTimer dueDate={task.dueDate} />
-                        </div>
                       )}
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>Bio</Label>
+                      <Textarea
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        className="mt-1.5"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
 
-                      <div className="flex items-center gap-2 pt-1">
-                        {task.status === "assigned" ? (
-                          <Button
-                            size="sm"
-                            className="flex-1 rounded-full gradient-sunset border-0 text-white text-[11px] font-semibold h-8"
-                            onClick={async () => {
-                              try {
-                                await startTask({ taskId: task._id });
-                                toast.success("Task started! Countdown active.");
-                              } catch (e) {
-                                toast.error((e).message);
-                              }
-                            }}
-                          >
-                            Start Task
-                          </Button>
-                        ) : (task.status === "in_progress" || task.status === "revision_requested") ? (
-                          <Button
-                            size="sm"
-                            className="flex-1 rounded-full gradient-sunset border-0 text-white text-[11px] font-semibold h-8"
-                            onClick={() => {
-                              setSubmitTargetTask(task);
-                              setSubmissionLink("");
-                              setSubmissionNotes("");
-                              setSubmissionAttachment("");
-                            }}
-                          >
-                            Submit Task
-                          </Button>
-                        ) : null}
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      onClick={saveProfileDetails}
+                      disabled={saving}
+                      className="rounded-full gradient-sunset border-0 text-white shadow-glow"
+                    >
+                      {saving ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
 
-                        <Link
-                          to={`/messages?conversationId=${task.conversationId}`}
-                          className="flex-1"
-                        >
+                  <div className="mt-8 rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all">
+                    <button
+                      type="button"
+                      onClick={() => setOpenKycSection(!openKycSection)}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors"
+                    >
+                      <div>
+                        <h3 className="font-display text-base font-bold flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-primary" /> KYC Documents
+                          {(profile?.aadharUrl || profile?.panUrl) && (
+                            <Badge variant="secondary" className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10">
+                              Uploaded ✓
+                            </Badge>
+                          )}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Click to {openKycSection ? "collapse" : "view and upload Aadhaar or PAN card"}
+                        </p>
+                      </div>
+                      <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openKycSection && "rotate-90 text-primary")} />
+                    </button>
+
+                    {openKycSection && (
+                      <div className="p-4 pt-0 border-t border-border/40 mt-3">
+                        <p className="mb-4 text-xs text-muted-foreground">
+                          Upload and save your Aadhaar card, PAN card, or both. At least one document is required for verification.
+                        </p>
+                        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 bg-muted/10 p-4 rounded-2xl border border-border">
+                          {/* Aadhar Upload */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold">Aadhar Card (PDF, JPG, PNG)</Label>
+                            <div className="flex items-center gap-3">
+                              <label className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-secondary/40 px-4 py-4 text-sm font-medium transition-colors">
+                                <Upload className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground truncate">
+                                  {aadharFileName || (profile?.aadharUrl ? "Aadhar Uploaded ✓" : "Upload Aadhar")}
+                                </span>
+                                <input type="file" className="hidden" accept=".pdf,image/*" onChange={onAadharUpload} />
+                              </label>
+                              {(profile?.aadharUrl || aadharFile) && (
+                                <Button type="button" variant="outline" size="icon" className="shrink-0 h-12 w-12 rounded-xl"
+                                  onClick={() => profile?.aadharUrl ? window.open(resolveImageUrl(profile.aadharUrl), "_blank") : toast.info("File selected but not yet uploaded")}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* PAN Upload */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-semibold">PAN Card (PDF, JPG, PNG)</Label>
+                            <div className="flex items-center gap-3">
+                              <label className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-secondary/40 px-4 py-4 text-sm font-medium transition-colors">
+                                <Upload className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-muted-foreground truncate">
+                                  {panFileName || (profile?.panUrl ? "PAN Uploaded ✓" : "Upload PAN")}
+                                </span>
+                                <input type="file" className="hidden" accept=".pdf,image/*" onChange={onPanUpload} />
+                              </label>
+                              {(profile?.panUrl || panFile) && (
+                                <Button type="button" variant="outline" size="icon" className="shrink-0 h-12 w-12 rounded-xl"
+                                  onClick={() => profile?.panUrl ? window.open(resolveImageUrl(profile.panUrl), "_blank") : toast.info("File selected but not yet uploaded")}>
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="md:col-span-2 flex justify-end">
+                            <Button onClick={handleVerificationSubmit} disabled={submittingVerification || (!aadharFile && !panFile)} className="rounded-full bg-primary text-primary-foreground px-6 font-semibold">
+                              {submittingVerification ? "Uploading..." : "Save Documents"}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* SOCIAL PRESENCE COLLAPSIBLE SECTION */}
+                  <div className="mt-6 rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all">
+                    <button
+                      type="button"
+                      onClick={() => setOpenSocialSection(!openSocialSection)}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors"
+                    >
+                      <div>
+                        <h3 className="font-display text-base font-bold flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" /> Social Presence
+                          {connections && connections.some((c) => c.verified) && (
+                            <Badge variant="secondary" className="text-[10px] font-bold text-sky-500 bg-sky-500/10">
+                              Verified ✓
+                            </Badge>
+                          )}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Click to {openSocialSection ? "collapse" : "view and connect Instagram, YouTube, LinkedIn, Facebook, X, etc."}
+                        </p>
+                      </div>
+                      <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openSocialSection && "rotate-90 text-primary")} />
+                    </button>
+
+                    {openSocialSection && (
+                      <div className="p-4 pt-2 border-t border-border/40">
+                        <p className="mb-4 text-xs text-muted-foreground">
+                          Verify your accounts using official OAuth platforms or update them manually.
+                        </p>
+                        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                          {[
+                            {
+                              id: "instagram",
+                              name: "Instagram",
+                              icon: FaInstagram,
+                              iconClass: "text-pink-600",
+                              handle: instaHandle,
+                              setHandle: setInstaHandle,
+                              followers: instaFollowers,
+                              setFollowers: setInstaFollowers,
+                              oauth: true,
+                            },
+                            {
+                              id: "youtube",
+                              name: "YouTube",
+                              icon: FaYoutube,
+                              iconClass: "text-red-600",
+                              handle: ytHandle,
+                              setHandle: setYtHandle,
+                              followers: ytFollowers,
+                              setFollowers: setYtFollowers,
+                              oauth: true,
+                            },
+                            {
+                              id: "linkedin",
+                              name: "LinkedIn",
+                              icon: FaLinkedin,
+                              iconClass: "text-blue-600",
+                              handle: liHandle,
+                              setHandle: setLiHandle,
+                              followers: liFollowers,
+                              setFollowers: setLiFollowers,
+                              oauth: false,
+                            },
+                            {
+                              id: "facebook",
+                              name: "Facebook",
+                              icon: FaFacebook,
+                              iconClass: "text-blue-500",
+                              handle: fbHandle,
+                              setHandle: setFbHandle,
+                              followers: fbFollowers,
+                              setFollowers: setFbFollowers,
+                              oauth: true,
+                            },
+                            {
+                              id: "twitter",
+                              name: "Twitter / X",
+                              icon: FaTwitter,
+                              iconClass: "text-sky-500",
+                              handle: xHandle,
+                              setHandle: setXHandle,
+                              followers: xFollowers,
+                              setFollowers: setXFollowers,
+                              oauth: false,
+                            },
+                            {
+                              id: "snapchat",
+                              name: "Snapchat",
+                              icon: Sparkles,
+                              iconClass: "text-yellow-500",
+                              handle: snapHandle,
+                              setHandle: setSnapHandle,
+                              followers: snapFollowers,
+                              setFollowers: setSnapFollowers,
+                              oauth: false,
+                            },
+                            {
+                              id: "pinterest",
+                              name: "Pinterest",
+                              icon: Sparkles,
+                              iconClass: "text-red-500",
+                              handle: pinHandle,
+                              setHandle: setPinHandle,
+                              followers: pinFollowers,
+                              setFollowers: setPinFollowers,
+                              oauth: false,
+                            },
+                            {
+                              id: "quora",
+                              name: "Quora",
+                              icon: Sparkles,
+                              iconClass: "text-red-700",
+                              handle: quoraHandle,
+                              setHandle: setQuoraHandle,
+                              followers: quoraFollowers,
+                              setFollowers: setQuoraFollowers,
+                              oauth: false,
+                            },
+                          ].map((plat) => {
+                            const Icon = plat.icon;
+                            const conn = connections?.find((c) => c.platform === plat.id);
+                            const isVerified = conn?.verified;
+
+                            return (
+                              <div
+                                key={plat.id}
+                                className="rounded-2xl border border-border/80 bg-background/50 p-4 space-y-3 relative overflow-hidden flex flex-col justify-between"
+                              >
+                                <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                      <a
+                                        href={
+                                          plat.handle 
+                                            ? (plat.id === "linkedin" ? `https://linkedin.com/${plat.handle}` : plat.id === "quora" ? `https://quora.com/profile/${plat.handle}` : `https://${plat.id}.com/${plat.handle.replace('@', '')}`)
+                                            : `https://${plat.id}.com`
+                                        }
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="hover:opacity-80 transition-opacity cursor-pointer"
+                                      >
+                                        <Icon className={cn("h-4 w-4 shrink-0", plat.iconClass)} />
+                                      </a>
+                                    <span className="text-sm font-semibold truncate">
+                                      {plat.name}
+                                    </span>
+                                  </div>
+                                  {isVerified ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] bg-sky-500/10 text-sky-500 hover:bg-sky-500/20 border-0 flex items-center gap-1 shrink-0"
+                                    >
+                                      <CheckCircle2 className="h-3 w-3" />
+                                      Verified
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] text-muted-foreground border-border shrink-0"
+                                    >
+                                      Unverified
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                <div className="space-y-2 text-xs">
+                                  <div>
+                                    <label className="text-muted-foreground text-[10px] font-medium block mb-0.5">Handle / Profile URL</label>
+                                    <Input
+                                      value={plat.handle}
+                                      onChange={(e) => plat.setHandle(e.target.value)}
+                                      placeholder={`@${plat.id}`}
+                                      className="h-8 text-xs bg-background/50 border-border"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-muted-foreground text-[10px] font-medium block mb-0.5">Followers / Audience Count</label>
+                                    <Input
+                                      type="number"
+                                      value={plat.followers}
+                                      onChange={(e) => plat.setFollowers(e.target.value)}
+                                      placeholder="e.g. 50000"
+                                      className="h-8 text-xs bg-background/50 border-border"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
+                                  {plat.oauth ? (
+                                    <Button
+                                      size="sm"
+                                      variant={isVerified ? "ghost" : "outline"}
+                                      className="w-full text-[11px] h-7 rounded-lg border-border"
+                                      onClick={() => handleOAuthConnect(plat.id)}
+                                    >
+                                      {isVerified ? "Reconnect OAuth" : "OAuth Verify"}
+                                    </Button>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground italic w-full text-center">
+                                      Manual Verification
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="mt-4 flex justify-end">
+                          <Button
+                            onClick={() => saveSocialPresence()}
+                            disabled={saving}
+                            size="sm"
+                            className="rounded-full gradient-sunset border-0 text-white shadow-glow"
+                          >
+                            {saving ? "Saving…" : "Save Social Presence"}
+                          </Button>
+                        </div>
+
+                        {/* Growth trends charts if verified accounts exist */}
+                        {connections && connections.some((c) => c.verified) && (
+                          <div className="mt-6 border border-border rounded-2xl p-4 bg-muted/5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+                                  <Activity className="h-4 w-4 text-primary" /> Verified Analytics Trends
+                                </h4>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Audited growth and engagement metrics updated every 12 hours.
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={selectedChartPlatform}
+                                  onChange={(e) => setSelectedChartPlatform(e.target.value)}
+                                  className="bg-background border border-border text-xs rounded-lg px-2.5 py-1 font-medium focus:ring-1 focus:ring-primary outline-none"
+                                >
+                                  {connections
+                                    .filter((c) => c.verified)
+                                    .map((c) => (
+                                      <option key={c._id} value={c.platform}>
+                                        {c.platform.toUpperCase()}
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {chartData.length > 0 ? (
+                              <div className="h-48 w-full mt-2">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                    <defs>
+                                      <linearGradient id="colorFollowers" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                                      </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                    <XAxis dataKey="date" stroke="#94a3b8" fontSize={9} />
+                                    <YAxis stroke="#94a3b8" fontSize={9} />
+                                    <Tooltip
+                                      contentStyle={{
+                                        backgroundColor: "hsl(var(--card))",
+                                        borderColor: "hsl(var(--border))",
+                                        borderRadius: "12px",
+                                      }}
+                                    />
+                                    <Area
+                                      type="monotone"
+                                      dataKey="followers"
+                                      stroke="#f43f5e"
+                                      strokeWidth={2}
+                                      fillOpacity={1}
+                                      fill="url(#colorFollowers)"
+                                      name="Followers"
+                                    />
+                                  </AreaChart>
+                                </ResponsiveContainer>
+                              </div>
+                            ) : (
+                              <div className="h-32 flex items-center justify-center border border-dashed border-border rounded-xl text-xs text-muted-foreground">
+                                No historical sync metrics logged for this account yet. Sync runs automatically every 12 hours.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* INSTAGRAM-STYLE PORTFOLIO COLLAPSIBLE SECTION */}
+                  <div className="mt-6 rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setOpenPortfolioSection(!openPortfolioSection)}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors"
+                    >
+                      <div>
+                        <h3 className="font-display text-base font-bold flex items-center gap-2">
+                          <span className="p-1 rounded-md bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white shadow-xs">
+                            <ImageIcon className="h-3.5 w-3.5" />
+                          </span>
+                          Creative Portfolio & Feed
+                          {portfolioImages?.length > 0 && (
+                            <Badge variant="secondary" className="text-[10px] font-bold bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                              {portfolioImages.length} {portfolioImages.length > 1 ? "deliverables" : "deliverable"}
+                            </Badge>
+                          )}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Showcase Posts, Reels, and Stories to brands with verified metrics, tags, and likes
+                        </p>
+                      </div>
+                      <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openPortfolioSection && "rotate-90 text-primary")} />
+                    </button>
+
+                    {openPortfolioSection && (
+                      <div className="p-4 pt-2 border-t border-border/40">
+                        {/* Format Tabs & Action Buttons */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                          <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => setPortfolioTab("all")}
+                              className={cn(
+                                "px-3 py-1 rounded-lg font-medium transition-all",
+                                portfolioTab === "all"
+                                  ? "bg-background text-foreground shadow-xs font-semibold"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              All ({portfolioImages?.length || 0})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPortfolioTab("post")}
+                              className={cn(
+                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                                portfolioTab === "post"
+                                  ? "bg-background text-foreground shadow-xs font-semibold"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              <Camera className="h-3.5 w-3.5 text-blue-500" /> Posts ({portfolioImages?.filter(i => (i.type || "post") === "post").length || 0})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPortfolioTab("reel")}
+                              className={cn(
+                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                                portfolioTab === "reel"
+                                  ? "bg-background text-foreground shadow-xs font-semibold"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              <Film className="h-3.5 w-3.5 text-pink-500" /> Reels ({portfolioImages?.filter(i => i.type === "reel").length || 0})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPortfolioTab("story")}
+                              className={cn(
+                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                                portfolioTab === "story"
+                                  ? "bg-background text-foreground shadow-xs font-semibold"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Stories ({portfolioImages?.filter(i => i.type === "story").length || 0})
+                            </button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => setShowAddPortfolioModal(true)}
+                              className="rounded-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white font-semibold text-xs shadow-sm hover:opacity-95"
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Post / Reel / Story
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Portfolio Feed / Grid */}
+                        {(() => {
+                          const filtered = (portfolioImages || []).filter((item) => {
+                            if (portfolioTab === "all") return true;
+                            const itemType = item.type || "post";
+                            return itemType === portfolioTab;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div className="text-center py-12 border border-dashed border-border/80 rounded-2xl bg-muted/10 p-6">
+                                <div className="mx-auto w-12 h-12 rounded-full bg-pink-500/10 flex items-center justify-center text-pink-500 mb-3">
+                                  <Camera className="h-6 w-6" />
+                                </div>
+                                <h4 className="font-semibold text-sm">No {portfolioTab === "all" ? "deliverables" : portfolioTab + "s"} added yet</h4>
+                                <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                                  Upload your Instagram/YouTube content, reels, stories, or campaign creatives to attract premium brands.
+                                </p>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => setShowAddPortfolioModal(true)}
+                                  className="mt-4 rounded-full gradient-sunset text-white text-xs"
+                                >
+                                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Deliverable
+                                </Button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+                              {filtered.map((item, idx) => {
+                                const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
+                                const isReel = item.type === "reel";
+                                const isStory = item.type === "story";
+                                const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
+                                const likes = item.likesCount || 0;
+                                const comments = item.commentsCount || (item.comments?.length || 0);
+                                const views = item.viewsCount || (isReel ? 1200 : 0);
+
+                                return (
+                                  <div
+                                    key={item._id || idx}
+                                    onClick={() => setSelectedPortfolioPost(item)}
+                                    className={cn(
+                                      "group relative rounded-2xl overflow-hidden border border-border/80 bg-black cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md",
+                                      (isReel || isStory) ? "aspect-[9/16]" : "aspect-square"
+                                    )}
+                                  >
+                                    {/* Media Thumbnail */}
+                                    {isVideo ? (
+                                      <video
+                                        src={imageSrc}
+                                        className="h-full w-full object-cover"
+                                        preload="metadata"
+                                        muted
+                                        playsInline
+                                      />
+                                    ) : (
+                                      <img
+                                        src={imageSrc}
+                                        alt={item.caption || "Portfolio item"}
+                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.src = "https://api.dicebear.com/9.x/shapes/svg?seed=Portfolio";
+                                        }}
+                                      />
+                                    )}
+
+                                    {/* Type Pill Badge (Top Left) */}
+                                    <div className="absolute top-2 left-2 z-10">
+                                      {isReel ? (
+                                        <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30 shadow-xs">
+                                          <Film className="h-2.5 w-2.5" /> Reel
+                                        </span>
+                                      ) : isStory ? (
+                                        <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 shadow-xs">
+                                          <Sparkles className="h-2.5 w-2.5" /> Story
+                                        </span>
+                                      ) : (
+                                        <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 shadow-xs">
+                                          <Camera className="h-2.5 w-2.5" /> Post
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Brand Tag Badge (Top Right) */}
+                                    {item.brandTag && (
+                                      <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
+                                        <span className="block truncate bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
+                                          {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* Delete Button (Visible on hover) */}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemovePortfolioImage(item._id || idx);
+                                      }}
+                                      className="absolute top-2 right-2 z-20 bg-destructive/90 hover:bg-destructive text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                                      title="Delete item"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+
+                                    {/* Reel Play / Views pill (Bottom Left) */}
+                                    {isReel && views > 0 && (
+                                      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                        <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
+                                      </div>
+                                    )}
+
+                                    {/* Hover Overlay with Likes & Comments */}
+                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
+                                      {item.caption && (
+                                        <p className="text-[11px] font-medium text-white/90 line-clamp-2 mb-2">
+                                          {item.caption}
+                                        </p>
+                                      )}
+                                      <div className="flex items-center gap-3 text-xs font-bold">
+                                        <span className="flex items-center gap-1">
+                                          <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                          <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* PRICING TIERS COLLAPSIBLE SECTION */}
+                  <div className="mt-6 rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all">
+                    <button
+                      type="button"
+                      onClick={() => setOpenPricingSection(!openPricingSection)}
+                      className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors"
+                    >
+                      <div>
+                        <h3 className="font-display text-base font-bold flex items-center gap-2">
+                          <IndianRupee className="h-4 w-4 text-primary" /> Pricing Tiers
+                          {tiers?.length > 0 && (
+                            <Badge variant="secondary" className="text-[10px] font-bold">
+                              {tiers.length} tier{tiers.length > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Click to {openPricingSection ? "collapse" : "view and customize your pricing packages"}
+                        </p>
+                      </div>
+                      <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openPricingSection && "rotate-90 text-primary")} />
+                    </button>
+
+                    {openPricingSection && (
+                      <div className="p-4 pt-2 border-t border-border/40">
+                        <div className="flex items-center justify-between mb-4">
+                          <p className="text-xs text-muted-foreground">Add and manage different collaboration packages.</p>
                           <Button
                             size="sm"
                             variant="outline"
-                            className="w-full rounded-full border-border hover:bg-secondary text-[11px] font-semibold h-8"
+                            className="rounded-full text-xs h-8"
+                            onClick={() =>
+                              setTiers([
+                                ...tiers,
+                                { name: "New tier", price: 0, sortOrder: tiers.length },
+                              ])
+                            }
                           >
-                            Open Chat
+                            <Plus className="mr-1 h-3 w-3" /> Add
                           </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* MY REQUESTS */}
-            <div className="rounded-3xl border border-border bg-card p-6">
-              <h2 className="font-display text-lg font-semibold">My Requests</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Track your active collaboration requests.
-              </p>
-              <div className="mt-5 space-y-3">
-                {!myRequests ? (
-                  <p className="text-xs text-muted-foreground">Loading requests...</p>
-                ) : myRequests.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No connection requests sent yet.</p>
-                ) : (
-                  myRequests.map((req) => (
-                    <div
-                      key={req._id}
-                      className="rounded-2xl border border-border p-3 space-y-2 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200"
-                    >
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="min-w-0">
-                          <h4 className="text-xs font-bold text-foreground truncate">
-                            {req.campaign?.title || "General Connection"}
-                          </h4>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            Brand: {req.brandProfile?.fullName || "Unknown"}
-                          </p>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "rounded-full text-[9px] uppercase px-1.5 py-0.5 font-semibold",
-                            req.status === "accepted" && "bg-emerald-500/10 text-emerald-600",
-                            req.status === "pending" && "bg-amber/10 text-amber",
-                            req.status === "rejected" && "bg-red-500/10 text-red-500"
-                          )}
-                        >
-                          {req.status}
-                        </Badge>
-                      </div>
-
-                      {req.status === "accepted" && (
-                        <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 text-[11px] space-y-2">
-                          <div className="flex items-center justify-between text-muted-foreground">
-                            <span>Payment Status:</span>
-                            {req.paymentStatus === "PAID" ? (
-                              <span className="font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[10px]">
-                                ✓ Paid to Pravixo (Secured)
-                              </span>
-                            ) : req.collaborationStatus === "AMOUNT_AGREED" ? (
-                              <span className="font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full text-[10px]">
-                                Awaiting Brand Payment
-                              </span>
-                            ) : (
-                              <span className="font-semibold text-muted-foreground">
-                                Negotiating
-                              </span>
-                            )}
-                          </div>
-                          {req.collaborationStatus === "AMOUNT_AGREED" && (
-                            <div className="flex items-center justify-between pt-1 border-t border-border/30 text-muted-foreground">
-                              <span>Agreed Payout:</span>
-                              <span className="font-bold text-foreground">₹{req.creatorAmount?.toLocaleString()}</span>
-                            </div>
-                          )}
-
-                          {/* Task 5: Campaign Deliverables Tracking */}
-                          {req.deliverablesTracking && req.deliverablesTracking.length > 0 && (
-                            <div className="pt-2 border-t border-border/40 space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-[10px] text-foreground uppercase tracking-wider">
-                                  Campaign Deliverables
+                        <div className="space-y-3">
+                          {tiers.map((t, idx) => (
+                            <div key={idx} className="rounded-2xl border border-border p-4 bg-background/50">
+                              <div className="flex items-center justify-between gap-2">
+                                <Input
+                                  value={t.name}
+                                  onChange={(e) => {
+                                    const next = [...tiers];
+                                    next[idx] = { ...t, name: e.target.value };
+                                    setTiers(next);
+                                  }}
+                                  className="h-8 max-w-[60%] font-display font-semibold text-xs"
+                                />
+                                <span className="font-display font-bold text-sm">
+                                  {formatINR(t.price)}
                                 </span>
-                                {req.paymentStatus === "PAID" ? (
-                                  (() => {
-                                    const totalReq = req.deliverablesTracking.reduce((acc, d) => acc + (d.requiredQuantity || 0), 0);
-                                    const totalComp = req.deliverablesTracking.reduce((acc, d) => acc + (d.completedQuantity || 0), 0);
-                                    const pct = totalReq > 0 ? Math.round((totalComp / totalReq) * 100) : 0;
-                                    return (
-                                      <span className="text-[10px] font-bold text-primary">
-                                        {totalComp}/{totalReq} ({pct}%)
-                                      </span>
-                                    );
-                                  })()
-                                ) : (
-                                  <span className="text-[9px] text-muted-foreground italic">
-                                    Activates upon payment
-                                  </span>
-                                )}
+                                <button
+                                  onClick={() => removeTier(idx)}
+                                  className="text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
                               </div>
+                              <Input
+                                type="number"
+                                value={t.price}
+                                onChange={(e) => {
+                                  const next = [...tiers];
+                                  next[idx] = { ...t, price: Number(e.target.value) };
+                                  setTiers(next);
+                                }}
+                                className="mt-3 h-8 text-xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          onClick={savePricing}
+                          variant="secondary"
+                          className="btn-bouncy mt-4 w-full rounded-full font-bold text-xs h-9"
+                        >
+                          Update pricing
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                              <div className="grid grid-cols-2 gap-1.5">
-                                {req.deliverablesTracking.map((deliv, dIdx) => {
-                                  const typeLabels = {
-                                    REEL: "Reels",
-                                    POST: "Posts",
-                                    STORY: "Stories",
-                                    VIDEO: "Videos",
-                                  };
-                                  const isDelivCompleted = (deliv.completedQuantity || 0) >= (deliv.requiredQuantity || 1);
-                                  return (
-                                    <div
-                                      key={dIdx}
-                                      className={cn(
-                                        "flex items-center justify-between rounded-lg px-2 py-1 text-[10px] border",
-                                        isDelivCompleted
-                                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
-                                          : req.paymentStatus === "PAID"
-                                          ? "bg-secondary/40 border-border/60 text-foreground"
-                                          : "bg-muted/20 border-border/30 opacity-70 text-muted-foreground"
-                                      )}
+                {/* Reviews Section */}
+                <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
+                  <div className="mb-6">
+                    <h2 className="font-outfit text-xl font-bold">
+                      Reviews & Feedback
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Manage reviews displayed on your public profile page.
+                    </p>
+                  </div>
+
+                  {!reviews ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      Loading reviews...
+                    </div>
+                  ) : reviews.length === 0 ? (
+                    <div className="py-12 text-center border border-dashed border-border rounded-2xl">
+                      <Star className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <p className="font-semibold text-sm text-muted-foreground font-outfit">
+                        No reviews received yet
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Reviews left by brands you collaborate with will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {reviews.map((review) => (
+                        <div
+                          key={review._id}
+                          className="card-3d flex flex-col md:flex-row md:items-center justify-between gap-4 border border-border/60 bg-background/70 rounded-2xl p-4 transition-all hover:border-primary/40"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <img src={
+                                  review.brandAvatar ||
+                                  `https://api.dicebear.com/9.x/avataaars/svg?seed=${review.brandName}`
+                                }
+                                alt=""
+                                className="h-10 w-10 rounded-full object-cover border border-border/50 shadow-sm aspect-square"
+                               onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-outfit text-sm font-bold text-foreground">
+                                    {review.brandName}
+                                  </h4>
+                                  {review.campaignRef && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-[10px] rounded-full font-bold"
                                     >
-                                      <span className="font-medium">
-                                        {typeLabels[deliv.type] || deliv.type}
-                                      </span>
-                                      <span className="font-bold flex items-center gap-1">
-                                        {deliv.completedQuantity || 0} / {deliv.requiredQuantity}
-                                        {isDelivCompleted && <Check className="h-3 w-3 text-emerald-600" />}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
+                                      Campaign: {review.campaignRef}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <div className="flex items-center">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <Star
+                                        key={star}
+                                        className={`h-3 w-3 ${
+                                          star <= review.rating
+                                            ? "fill-amber text-amber"
+                                            : "text-muted-foreground/30"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {new Date(review.createdAt).toLocaleDateString(
+                                      undefined,
+                                      {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      },
+                                    )}
+                                  </span>
+                                </div>
                               </div>
+                            </div>
 
-                              {/* Task 6, 7, 8, 9: Deliverables Actions & Work Completion Status */}
-                              {req.paymentStatus === "PAID" && (
-                                <div className="pt-1 flex flex-col gap-1.5">
-                                  {(() => {
-                                    const allCompleted =
-                                      req.allDeliverablesCompleted ||
-                                      req.deliverablesTracking.every(
-                                        (d) => (d.completedQuantity || 0) >= (d.requiredQuantity || 1)
-                                      );
+                            <div className="mt-3 text-xs text-foreground/90">
+                              {review.comment && (
+                                <p className="font-medium text-foreground">
+                                  "{review.comment}"
+                                </p>
+                              )}
+                              <p className="text-muted-foreground mt-1">
+                                {review.text}
+                              </p>
+                            </div>
+                          </div>
 
-                                    if (allCompleted) {
-                                      const isReleased = req.paymentReleaseStatus === "RELEASED";
-                                      const nowTime = Date.now();
-                                      const targetEligible = req.paymentReleaseEligibleAt || (req.approvalCompletedAt ? req.approvalCompletedAt + 72 * 60 * 60 * 1000 : null);
-                                      const isEligible = targetEligible ? nowTime >= targetEligible : false;
-                                      const remainingMs = targetEligible ? Math.max(0, targetEligible - nowTime) : 0;
-                                      const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-                                      const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                          <div className="flex items-center gap-2 self-start md:self-center border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto justify-between md:justify-start">
+                            <div className="text-right">
+                              <span className="block text-xs font-semibold text-foreground">
+                                Public Display
+                              </span>
+                              <span className="block text-[10px] text-muted-foreground">
+                                {review.visible
+                                  ? "Shown on public profile"
+                                  : "Hidden from public"}
+                              </span>
+                            </div>
+                            <Switch
+                              checked={review.visible}
+                              onCheckedChange={() => handleToggleVisibility(review._id)}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : activeTab === "tasks" ? (
+              /* DEALS & TASKS TAB */
+              <div className="w-full max-w-5xl mx-auto space-y-8">
+                <div className="grid gap-6 md:grid-cols-2 items-start">
+                  {/* ASSIGNED TASKS */}
+                  <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                    <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" /> Assigned Tasks
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Manage your active campaign deliverables.
+                    </p>
+                    <div className="mt-5 space-y-4">
+                      {!myTasks ? (
+                        <p className="text-xs text-muted-foreground">Loading tasks...</p>
+                      ) : myTasks.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No tasks assigned yet.</p>
+                      ) : (
+                        myTasks.map((task) => (
+                          <div
+                            key={task._id}
+                            className="rounded-2xl border border-border p-4 space-y-3 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200"
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="min-w-0">
+                                <h4 className="text-sm font-bold text-foreground truncate">
+                                  {task.title}
+                                </h4>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  Campaign: {task.campaignId?.title || "General"}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Brand: {task.brandId?.fullName || "Brand"}
+                                </p>
+                              </div>
+                              <Badge
+                                variant="secondary"
+                                className={cn(
+                                  "rounded-full text-[10px] uppercase font-semibold",
+                                  task.status === "completed" && "bg-emerald-500/10 text-emerald-600",
+                                  task.status === "in_progress" && "bg-amber/10 text-amber",
+                                  task.status === "pending" && "bg-blue-500/10 text-blue-600",
+                                  task.status === "under_review" && "bg-purple-500/10 text-purple-600",
+                                  task.status === "overdue" && "bg-red-500/10 text-red-500"
+                                )}
+                              >
+                                {task.status.replace("_", " ")}
+                              </Badge>
+                            </div>
 
-                                      return (
-                                        <div className="space-y-1.5">
-                                          <div className="text-[10px] text-center font-bold text-emerald-600 bg-emerald-500/15 rounded-xl py-1.5 px-2 border border-emerald-500/30 flex items-center justify-center gap-1.5">
-                                            <CheckCircle2 className="h-3.5 w-3.5" /> Campaign Work: COMPLETED (All Deliverables Approved)
-                                          </div>
-                                          
-                                          {/* Task 10 & 11: 72-Hour Payment Release & Payout Status */}
-                                          <div className="rounded-xl border border-border/60 bg-secondary/20 p-2 text-[10px] space-y-1">
-                                            <div className="flex items-center justify-between font-bold">
-                                              <span className="text-muted-foreground uppercase text-[9px] tracking-wider flex items-center gap-1">
-                                                <Landmark className="h-3 w-3 text-primary" /> Payout Status
-                                              </span>
-                                              {isReleased ? (
-                                                <span className="text-emerald-600 font-bold flex items-center gap-1">
-                                                  ✓ Payout Released
-                                                </span>
-                                              ) : isEligible ? (
-                                                <span className="text-emerald-600 font-bold">
-                                                  ✓ Review Completed · Eligible for Release
-                                                </span>
-                                              ) : (
-                                                <span className="text-amber-600 font-bold">
-                                                  ⏳ Under Review ({remainingHours}h {remainingMins}m remaining)
-                                                </span>
-                                              )}
-                                            </div>
-                                            <p className="text-muted-foreground text-[10px]">
-                                              {isReleased ? (
-                                                <span className="text-emerald-700 font-semibold block">
-                                                  Payment of <strong>₹{req.creatorAmount?.toLocaleString()}</strong> was successfully released to your account.
-                                                </span>
-                                              ) : isEligible ? (
-                                                <span className="text-foreground">
-                                                  Payment of <strong>₹{req.creatorAmount?.toLocaleString()}</strong> is eligible for Admin release.
-                                                </span>
-                                              ) : targetEligible ? (
-                                                <span>
-                                                  Payment release available after: <strong>{new Date(targetEligible).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</strong>
-                                                </span>
-                                              ) : (
-                                                <span>Under 72-hour review period. Funds held securely in escrow.</span>
-                                              )}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      );
-                                    }
+                            <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 text-xs space-y-1">
+                              <p className="text-muted-foreground">
+                                <span className="font-semibold text-foreground">Deliverable:</span>{" "}
+                                {task.deliverableType}
+                              </p>
+                              {task.dueDate && (
+                                <p className="text-muted-foreground">
+                                  <span className="font-semibold text-foreground">Due:</span>{" "}
+                                  {new Date(task.dueDate).toLocaleDateString()}
+                                </p>
+                              )}
+                              <p className="text-muted-foreground">
+                                <span className="font-semibold text-foreground">Priority:</span>{" "}
+                                <span className="capitalize">{task.priority}</span>
+                              </p>
+                            </div>
 
-                                    const hasPendingDeliverables = req.deliverablesTracking.some(
-                                      (d) => (d.completedQuantity || 0) < d.requiredQuantity
-                                    );
-                                    if (hasPendingDeliverables) {
-                                      return (
-                                        <Button
-                                          size="sm"
-                                          className="w-full h-8 rounded-full gradient-sunset border-0 text-white text-[10px] font-bold shadow-glow flex items-center justify-center gap-1 cursor-pointer"
-                                          onClick={() => {
-                                            setSelectedCollabForSubmission(req);
-                                            // Pre-select first deliverable that needs submission
-                                            const firstIncomplete = req.deliverablesTracking.find(
-                                              (d) => (d.completedQuantity || 0) < d.requiredQuantity
-                                            );
-                                            setSubmissionDeliverableType(firstIncomplete ? firstIncomplete.type : req.deliverablesTracking[0]?.type || "REEL");
-                                            setSubmissionFile(null);
-                                            setSubmissionFilePreview(null);
-                                            setSubmissionCaption("");
-                                          }}
-                                        >
-                                          <Upload className="h-3.5 w-3.5" /> Submit Work
-                                        </Button>
-                                      );
-                                    } else {
-                                      return (
-                                        <div className="text-[10px] text-center font-bold text-amber-600 bg-amber-500/10 rounded-full py-1 border border-amber-500/20">
-                                          ⏳ Submissions Awaiting Brand Review
-                                        </div>
-                                      );
-                                    }
-                                  })()}
+                            <div className="flex items-center justify-between text-xs pt-1">
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Time Left: {getTimeRemaining(task.dueDate)}</span>
+                              </div>
+                              {task.status === "overdue" && (
+                                <Badge variant="destructive" className="text-[10px]">
+                                  Task Overdue
+                                </Badge>
+                              )}
+                            </div>
 
-                                  {/* View Submissions & Review History Button for Creator */}
+                            <div className="pt-2 flex gap-2">
+                              {task.status !== "completed" && (
+                                <Button
+                                  size="sm"
+                                  className="flex-1 rounded-full gradient-sunset border-0 text-white text-xs font-semibold shadow-glow"
+                                  onClick={() => {
+                                    setSelectedTask(task);
+                                    setTaskProofUrl(task.proofUrl || "");
+                                    setTaskNotes(task.creatorNotes || "");
+                                    setShowSubmitTaskModal(true);
+                                  }}
+                                >
+                                  Submit Task
+                                </Button>
+                              )}
+                              {task.conversationId && (
+                                <Link
+                                  to={`/messages?conversationId=${task.conversationId}`}
+                                  className="flex-1"
+                                >
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="w-full h-7 rounded-full border-border hover:bg-secondary text-foreground text-[10px] font-medium flex items-center justify-center gap-1 cursor-pointer"
-                                    onClick={async () => {
-                                      setSelectedCollabForHistory(req);
-                                      setLoadingCreatorSubmissions(true);
-                                      try {
-                                        const res = await api.get(`/api/submissions/${req._id}/submissions`);
-                                        const data = res.data?.data || res.data;
-                                        setCreatorSubmissionsList(data.submissions || []);
-                                      } catch (err) {
-                                        console.error("Fetch creator submissions error:", err);
-                                        toast.error(err?.response?.data?.message || "Failed to load submission history.");
-                                      } finally {
-                                        setLoadingCreatorSubmissions(false);
-                                      }
-                                    }}
+                                    className="w-full rounded-full border-border hover:bg-secondary text-foreground text-xs"
                                   >
-                                    <Eye className="h-3 w-3" /> View Submissions & Feedback
+                                    Open Chat
                                   </Button>
-                                </div>
+                                </Link>
                               )}
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        ))
                       )}
+                    </div>
+                  </div>
 
-                      {req.status === "accepted" && req.conversationId ? (
-                        <Link
-                          to={`/messages?conversationId=${req.conversationId}`}
-                          className="block w-full"
-                        >
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full h-8 rounded-full border-border hover:bg-secondary text-foreground text-[10px] font-semibold cursor-pointer"
+                  {/* MY REQUESTS */}
+                  <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                    <h2 className="font-display text-lg font-semibold flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" /> My Requests
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Track your active collaboration requests.
+                    </p>
+                    <div className="mt-5 space-y-4">
+                      {!myRequests ? (
+                        <p className="text-xs text-muted-foreground">Loading requests...</p>
+                      ) : myRequests.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No requests yet.</p>
+                      ) : (
+                        myRequests.map((req) => (
+                          <div
+                            key={req._id}
+                            className="rounded-2xl border border-border p-3 space-y-2 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200"
                           >
-                            Open Chat
-                          </Button>
-                        </Link>
-                      ) : req.status === "pending" ? (
-                        <div className="text-[10px] text-center text-amber bg-amber/5 rounded-full py-1 font-semibold border border-amber/10">
-                          Waiting for Brand Approval
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-center text-red-500 bg-red-500/5 rounded-full py-1 font-semibold border border-red-500/10">
-                          Request Rejected
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="min-w-0">
+                                <h4 className="text-xs font-bold text-foreground truncate">
+                                  {req.campaign?.title || "General Connection"}
+                                </h4>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  Brand: {req.brandProfile?.fullName || "Unknown"}
+                                </p>
+                              </div>
+                              <Badge
+                                variant="secondary"
+                                className={cn(
+                                  "rounded-full text-[9px] uppercase px-1.5 py-0.5 font-semibold",
+                                  req.status === "accepted" && "bg-emerald-500/10 text-emerald-600",
+                                  req.status === "pending" && "bg-amber/10 text-amber",
+                                  req.status === "rejected" && "bg-red-500/10 text-red-500"
+                                )}
+                              >
+                                {req.status}
+                              </Badge>
+                            </div>
 
-            {/* LIVE BRAND OPPORTUNITIES & INCENTIVES (Visible to creators) */}
-            <CreatorOffersSidebarWidget audience="creator" />
-          </div>
-          )}
-        </div>
+                            {req.status === "accepted" && (
+                              <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 text-[11px] space-y-2">
+                                <div className="flex items-center justify-between text-muted-foreground">
+                                  <span>Payment Status:</span>
+                                  {req.paymentStatus === "PAID" ? (
+                                    <span className="font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[10px]">
+                                      ✓ Paid to Pravixo (Secured)
+                                    </span>
+                                  ) : req.collaborationStatus === "AMOUNT_AGREED" ? (
+                                    <span className="font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full text-[10px]">
+                                      Awaiting Brand Payment
+                                    </span>
+                                  ) : (
+                                    <span className="font-semibold text-muted-foreground">
+                                      Negotiating
+                                    </span>
+                                  )}
+                                </div>
+                                {req.collaborationStatus === "AMOUNT_AGREED" && (
+                                  <div className="flex items-center justify-between pt-1 border-t border-border/30 text-muted-foreground">
+                                    <span>Agreed Payout:</span>
+                                    <span className="font-bold text-foreground">₹{req.creatorAmount?.toLocaleString()}</span>
+                                  </div>
+                                )}
 
-        {/* CAMPAIGN DISCOVERY SECTION FOR CREATORS */}
-        {(creatorSubSection === "all" || creatorSubSection === "discover") && (
-        <div className="card-3d mt-8 rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
-            <div>
-              <h2 className="font-outfit text-xl font-bold flex items-center gap-2">
-                <Megaphone className="h-5 w-5 text-primary" /> Discover Campaigns
-              </h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Explore brand-funded, verified campaigns open for creators.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-full text-xs self-start sm:self-auto"
-              onClick={() => setDiscoverRefreshKey((k) => k + 1)}
-            >
-              Refresh Listings
-            </Button>
-          </div>
+                                {req.deliverablesTracking && req.deliverablesTracking.length > 0 && (
+                                  <div className="pt-2 border-t border-border/40 space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-[10px] text-foreground uppercase tracking-wider">
+                                        Campaign Deliverables
+                                      </span>
+                                      {req.paymentStatus === "PAID" ? (
+                                        (() => {
+                                          const totalReq = req.deliverablesTracking.reduce((acc, d) => acc + (d.requiredQuantity || 0), 0);
+                                          const totalDone = req.deliverablesTracking.reduce((acc, d) => acc + (d.completedQuantity || 0), 0);
+                                          return (
+                                            <span className="text-[10px] font-bold text-primary">
+                                              {totalDone}/{totalReq} Completed
+                                            </span>
+                                          );
+                                        })()
+                                      ) : (
+                                        <span className="text-[9px] text-amber-600 font-semibold">
+                                          Locked (Payment Pending)
+                                        </span>
+                                      )}
+                                    </div>
 
-          {!discoverableCampaigns ? (
-            <div className="py-12 text-center text-xs text-muted-foreground">
-              Loading available campaigns...
-            </div>
-          ) : discoverableCampaigns.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-12 text-center">
-              <Megaphone className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
-              <p className="font-semibold text-sm text-foreground">
-                No active campaigns available right now
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
-                New verified brand campaigns will appear here once approved by admin. Check back soon!
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {discoverableCampaigns
-                  .slice((discoverPage - 1) * CAMPAIGNS_PER_PAGE, discoverPage * CAMPAIGNS_PER_PAGE)
-                  .map((camp) => (
-                  <div
-                    key={camp._id}
-                    className="rounded-2xl border border-border bg-background p-4 flex flex-col justify-between hover:border-primary/50 hover:shadow-sm transition-all group"
-                  >
-                    <div className="space-y-3">
-                      {/* Brand Header */}
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={
-                            camp.brand?.avatarUrl ||
-                            `https://api.dicebear.com/9.x/avataaars/svg?seed=${camp.brand?.fullName || "Brand"}`
-                          }
-                          alt=""
-                          className="h-10 w-10 rounded-xl object-cover border border-border shrink-0"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback";
-                          }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <span className="font-semibold text-xs text-foreground truncate block">
-                            {camp.brand?.fullName || "Verified Brand"}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                            {camp.brand?.rating > 0 && (
-                              <span className="flex items-center gap-0.5 text-amber font-semibold">
-                                <Star className="h-3 w-3 fill-amber" /> {camp.brand.rating}
-                              </span>
+                                    <div className="space-y-1">
+                                      {req.deliverablesTracking.map((deliv, dIdx) => {
+                                        const isDelivCompleted = (deliv.completedQuantity || 0) >= deliv.requiredQuantity;
+                                        const typeLabels = {
+                                          REEL: "Instagram Reel",
+                                          POST: "Feed Post",
+                                          STORY: "Story",
+                                          VIDEO: "YouTube Video",
+                                          SHORT: "YouTube Short",
+                                        };
+
+                                        return (
+                                          <div
+                                            key={dIdx}
+                                            className={cn(
+                                              "flex items-center justify-between px-2 py-1 rounded-lg border text-[10px]",
+                                              isDelivCompleted
+                                                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700"
+                                                : req.paymentStatus === "PAID"
+                                                ? "bg-secondary/40 border-border/60 text-foreground"
+                                                : "bg-muted/20 border-border/30 opacity-70 text-muted-foreground"
+                                            )}
+                                          >
+                                            <span className="font-medium">
+                                              {typeLabels[deliv.type] || deliv.type}
+                                            </span>
+                                            <span className="font-bold flex items-center gap-1">
+                                              {deliv.completedQuantity || 0} / {deliv.requiredQuantity}
+                                              {isDelivCompleted && <Check className="h-3 w-3 text-emerald-600" />}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {req.paymentStatus === "PAID" && (
+                                      <div className="pt-1 flex flex-col gap-1.5">
+                                        {(() => {
+                                          const allCompleted =
+                                            req.allDeliverablesCompleted ||
+                                            req.deliverablesTracking.every(
+                                              (d) => (d.completedQuantity || 0) >= (d.requiredQuantity || 1)
+                                            );
+
+                                          if (allCompleted) {
+                                            const isReleased = req.paymentReleaseStatus === "RELEASED";
+                                            const nowTime = Date.now();
+                                            const targetEligible = req.paymentReleaseEligibleAt || (req.approvalCompletedAt ? req.approvalCompletedAt + 72 * 60 * 60 * 1000 : null);
+                                            const isEligible = targetEligible ? nowTime >= targetEligible : false;
+                                            const remainingMs = targetEligible ? Math.max(0, targetEligible - nowTime) : 0;
+                                            const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+                                            const remainingMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                                            return (
+                                              <div className="space-y-1.5">
+                                                <div className="text-[10px] text-center font-bold text-emerald-600 bg-emerald-500/15 rounded-xl py-1.5 px-2 border border-emerald-500/30 flex items-center justify-center gap-1.5">
+                                                  <CheckCircle2 className="h-3.5 w-3.5" /> Campaign Work: COMPLETED (All Deliverables Approved)
+                                                </div>
+                                                
+                                                <div className="rounded-xl border border-border/60 bg-secondary/20 p-2 text-[10px] space-y-1">
+                                                  <div className="flex items-center justify-between font-bold">
+                                                    <span className="text-muted-foreground uppercase text-[9px] tracking-wider flex items-center gap-1">
+                                                      <Landmark className="h-3 w-3 text-primary" /> Payout Status
+                                                    </span>
+                                                    {isReleased ? (
+                                                      <span className="text-emerald-600 font-bold flex items-center gap-1">
+                                                        ✓ Payout Released
+                                                      </span>
+                                                    ) : isEligible ? (
+                                                      <span className="text-emerald-600 font-bold">
+                                                        ✓ Review Completed · Eligible for Release
+                                                      </span>
+                                                    ) : (
+                                                      <span className="text-amber-600 font-bold">
+                                                        ⏳ Under Review ({remainingHours}h {remainingMins}m remaining)
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          }
+
+                                          const hasPendingDeliverables = req.deliverablesTracking.some(
+                                            (d) => (d.completedQuantity || 0) < d.requiredQuantity
+                                          );
+                                          if (hasPendingDeliverables) {
+                                            return (
+                                              <Button
+                                                size="sm"
+                                                className="w-full h-8 rounded-full gradient-sunset border-0 text-white text-[10px] font-bold shadow-glow flex items-center justify-center gap-1 cursor-pointer"
+                                                onClick={() => {
+                                                  setSelectedCollabForSubmission(req);
+                                                  const firstIncomplete = req.deliverablesTracking.find(
+                                                    (d) => (d.completedQuantity || 0) < d.requiredQuantity
+                                                  );
+                                                  setSubmissionDeliverableType(firstIncomplete ? firstIncomplete.type : req.deliverablesTracking[0]?.type || "REEL");
+                                                  setSubmissionFile(null);
+                                                  setSubmissionFilePreview(null);
+                                                  setSubmissionCaption("");
+                                                }}
+                                              >
+                                                <Upload className="h-3.5 w-3.5" /> Submit Work
+                                              </Button>
+                                            );
+                                          } else {
+                                            return (
+                                              <div className="text-[10px] text-center font-bold text-amber-600 bg-amber-500/10 rounded-full py-1 border border-amber-500/20">
+                                                ⏳ Submissions Awaiting Brand Review
+                                              </div>
+                                            );
+                                          }
+                                        })()}
+
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full h-7 rounded-full border-border hover:bg-secondary text-foreground text-[10px] font-medium flex items-center justify-center gap-1 cursor-pointer"
+                                          onClick={async () => {
+                                            setSelectedCollabForHistory(req);
+                                            setLoadingCreatorSubmissions(true);
+                                            try {
+                                              const res = await api.get(`/api/submissions/${req._id}/submissions`);
+                                              const data = res.data?.data || res.data;
+                                              setCreatorSubmissionsList(data.submissions || []);
+                                            } catch (err) {
+                                              console.error("Fetch creator submissions error:", err);
+                                              toast.error(err?.response?.data?.message || "Failed to load submission history.");
+                                            } finally {
+                                              setLoadingCreatorSubmissions(false);
+                                            }
+                                          }}
+                                        >
+                                          <Eye className="h-3 w-3" /> View Submissions & Feedback
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             )}
-                            <span>·</span>
-                            <span className="truncate">{camp.location || "Pan India"}</span>
+
+                            {req.status === "accepted" && req.conversationId ? (
+                              <Link
+                                to={`/messages?conversationId=${req.conversationId}`}
+                                className="block w-full"
+                              >
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full h-8 rounded-full border-border hover:bg-secondary text-foreground text-[10px] font-semibold cursor-pointer"
+                                >
+                                  Open Chat
+                                </Button>
+                              </Link>
+                            ) : req.status === "pending" ? (
+                              <div className="text-[10px] text-center text-amber bg-amber/5 rounded-full py-1 font-semibold border border-amber/10">
+                                Waiting for Brand Approval
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-center text-red-500 bg-red-500/5 rounded-full py-1 font-semibold border border-red-500/10">
+                                Request Rejected
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Campaign Title & Description */}
-                      <div>
-                        <h4 className="font-display text-sm font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
-                          {camp.title}
-                        </h4>
-                        {camp.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                            {camp.description}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Budget & Timeline */}
-                      <div className="bg-secondary/15 rounded-xl p-2.5 space-y-1 text-xs border border-border/40">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground text-[11px]">Creator Budget:</span>
-                          <span className="font-bold text-foreground">
-                            ₹{Number(camp.minBudgetPerCreator || 0).toLocaleString("en-IN")} - ₹{Number(camp.maxBudgetPerCreator || 0).toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-muted-foreground">Total Budget:</span>
-                          <span className="text-muted-foreground font-medium">
-                            ₹{Number(camp.totalBudget || 0).toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-border/30">
-                          <span className="text-muted-foreground">Timeline:</span>
-                          <span className="text-muted-foreground font-medium">
-                            {new Date(camp.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })} - {new Date(camp.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Deliverables tags */}
-                      {camp.deliverables && (
-                        <div className="flex flex-wrap gap-1">
-                          {camp.deliverables.reels > 0 && (
-                            <span className="text-[10px] bg-secondary/30 text-foreground px-2 py-0.5 rounded-md font-medium">
-                              🎬 {camp.deliverables.reels} Reels
-                            </span>
-                          )}
-                          {camp.deliverables.posts > 0 && (
-                            <span className="text-[10px] bg-secondary/30 text-foreground px-2 py-0.5 rounded-md font-medium">
-                              📸 {camp.deliverables.posts} Posts
-                            </span>
-                          )}
-                          {camp.deliverables.stories > 0 && (
-                            <span className="text-[10px] bg-secondary/30 text-foreground px-2 py-0.5 rounded-md font-medium">
-                              📱 {camp.deliverables.stories} Stories
-                            </span>
-                          )}
-                          {camp.deliverables.videos > 0 && (
-                            <span className="text-[10px] bg-secondary/30 text-foreground px-2 py-0.5 rounded-md font-medium">
-                              🎥 {camp.deliverables.videos} Videos
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full text-xs h-8 flex-1"
-                        onClick={() => {
-                          setSelectedCampaignForDiscovery(camp);
-                          setJoinPitch(`Hi ${camp.brand?.fullName || "there"}! I'm excited to collaborate on your "${camp.title}" campaign.`);
-                        }}
-                      >
-                        View Details
-                      </Button>
-
-                      {camp.isParticipating ? (
-                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 rounded-full text-[10px] h-8 px-3 font-semibold">
-                          Participating
-                        </Badge>
-                      ) : camp.isRequested ? (
-                        <Badge className="bg-amber/10 text-amber border-amber/20 rounded-full text-[10px] h-8 px-3 font-semibold">
-                          Request Pending
-                        </Badge>
-                      ) : camp.requestStatus === "rejected" ? (
-                        <Badge className="bg-red-500/10 text-red-500 border-red-500/20 rounded-full text-[10px] h-8 px-3 font-semibold">
-                          Declined
-                        </Badge>
-                      ) : (
-                        <Button
-                          size="sm"
-                          className="rounded-full gradient-sunset border-0 text-white shadow-glow text-xs h-8 px-4 font-semibold"
-                          onClick={() => {
-                            setSelectedCampaignForDiscovery(camp);
-                            setJoinPitch(`Hi ${camp.brand?.fullName || "there"}! I'm excited to collaborate on your "${camp.title}" campaign.`);
-                          }}
-                        >
-                          Request to Join
-                        </Button>
+                        ))
                       )}
                     </div>
                   </div>
-                ))}
-              </div>
-
-              {/* Pagination Controls for smooth & fast responsiveness */}
-              {discoverableCampaigns.length > CAMPAIGNS_PER_PAGE && (
-                <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border/50 text-xs">
-                  <span className="text-muted-foreground">
-                    Showing {(discoverPage - 1) * CAMPAIGNS_PER_PAGE + 1} to{" "}
-                    {Math.min(discoverPage * CAMPAIGNS_PER_PAGE, discoverableCampaigns.length)} of{" "}
-                    {discoverableCampaigns.length} campaigns
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={discoverPage === 1}
-                      onClick={() => setDiscoverPage((p) => Math.max(1, p - 1))}
-                      className="rounded-full h-8 px-3 text-xs"
-                    >
-                      Previous
-                    </Button>
-                    {Array.from({ length: Math.ceil(discoverableCampaigns.length / CAMPAIGNS_PER_PAGE) }).map((_, i) => (
-                      <Button
-                        key={i}
-                        size="sm"
-                        variant={discoverPage === i + 1 ? "default" : "outline"}
-                        className={cn(
-                          "rounded-full h-8 w-8 p-0 text-xs",
-                          discoverPage === i + 1 && "gradient-sunset text-white border-0"
-                        )}
-                        onClick={() => setDiscoverPage(i + 1)}
-                      >
-                        {i + 1}
-                      </Button>
-                    ))}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={discoverPage >= Math.ceil(discoverableCampaigns.length / CAMPAIGNS_PER_PAGE)}
-                      onClick={() => setDiscoverPage((p) => p + 1)}
-                      className="rounded-full h-8 px-3 text-xs font-bold"
-                    >
-                      Next
-                    </Button>
-                  </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-        )}
 
-        {/* Payments Section */}
-        {(creatorSubSection === "all" || creatorSubSection === "payments") && (
-        <>
-        <div className="card-3d mt-8 rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <div className="mb-6">
-            <h2 className="font-outfit text-xl font-bold">
-              My Escrow Payments
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Track your earnings, secure holdings, and escrow release status.
-            </p>
-          </div>
-
-          {!creatorPayments ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              Loading payments...
-            </div>
-          ) : creatorPayments.length === 0 ? (
-            <div className="py-12 text-center border border-dashed border-border rounded-2xl bg-secondary/5">
-              <CreditCard className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
-              <p className="font-semibold text-sm text-muted-foreground">
-                No payment payouts tracked yet
-              </p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-[280px] mx-auto">
-                Once a brand approves your task and pays, the held funds will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left text-xs">
-                <thead>
-                  <tr className="border-b border-border/40 text-muted-foreground font-semibold">
-                    <th className="pb-3 pr-2">Campaign</th>
-                    <th className="pb-3 px-2">Brand</th>
-                    <th className="pb-3 px-2">Gross Amount</th>
-                    <th className="pb-3 px-2">Platform Fee (20%)</th>
-                    <th className="pb-3 px-2">Your Earnings (80%)</th>
-                    <th className="pb-3 px-2">Payment Status</th>
-                    <th className="pb-3 px-2">Hold / Release Status</th>
-                    <th className="pb-3 pl-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30">
-                  {creatorPayments.map((pay) => (
-                    <tr key={pay._id} className="hover:bg-secondary/10">
-                      <td className="py-3 pr-2 font-medium max-w-[150px] truncate">
-                        {pay.campaign?.title || "General"}
-                      </td>
-                      <td className="py-3 px-2 max-w-[120px] truncate">
-                        {pay.brand?.fullName || "Brand"}
-                      </td>
-                      <td className="py-3 px-2 text-muted-foreground">
-                        ₹{pay.grossAmount.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-2 text-muted-foreground">
-                        ₹{pay.platformCommissionAmount.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-2 font-bold text-foreground">
-                        ₹{pay.creatorAmount.toLocaleString()}
-                      </td>
-                      <td className="py-3 px-2">
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            "rounded-full text-[9px] uppercase px-2 py-0.5 font-bold shrink-0",
-                            pay.paymentStatus === "completed" && "bg-emerald-500/10 text-emerald-600",
-                            pay.paymentStatus === "holding" && "bg-blue-500/10 text-blue-500",
-                            pay.paymentStatus === "invoice_generated" && "bg-amber/10 text-amber",
-                            pay.paymentStatus === "disputed" && "bg-red-500/10 text-red-500",
-                            pay.paymentStatus === "refunded" && "bg-slate-500/10 text-slate-500",
-                            pay.paymentStatus === "pending" && "bg-amber/10 text-amber"
-                          )}
-                        >
-                          {pay.paymentStatus.replace("_", " ")}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-2">
-                        {pay.paymentStatus === "invoice_generated" ? (
-                          <span className="text-amber text-[10px] font-semibold italic">
-                            Awaiting Brand Payment
-                          </span>
-                        ) : pay.paymentStatus === "holding" && pay.holdingEndsAt ? (
-                          <div className="flex flex-col items-start gap-0.5">
-                            <span className="inline-flex items-center gap-1 text-primary bg-primary/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-primary/20 animate-pulse">
-                              Payment Secured
-                            </span>
-                            <span className="text-[9px] text-muted-foreground whitespace-nowrap">
-                              Releasing in: <CountdownTimer dueDate={pay.holdingEndsAt} />
-                            </span>
-                          </div>
-                        ) : pay.paymentStatus === "disputed" ? (
-                          <span className="inline-flex items-center gap-1 text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-500/20">
-                            Payment On Hold (Disputed)
-                          </span>
-                        ) : pay.paymentStatus === "completed" ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-emerald-500/20">
-                            Released
-                          </span>
-                        ) : pay.paymentStatus === "refunded" ? (
-                          <span className="inline-flex items-center gap-1 text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-slate-500/20">
-                            Refunded to Brand
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-[10px]">
-                            —
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 pl-2 text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 rounded-full text-[10px] px-2.5"
-                          onClick={() => setSelectedAuditLogPayment(pay)}
-                        >
-                          View Logs
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Payment Settings Card */}
-        <div className="mt-8 rounded-3xl border border-border bg-card p-6">
-          <div className="mb-6">
-            <h2 className="font-display text-lg font-semibold flex items-center gap-1.5">
-              <CreditCard className="h-5 w-5 text-primary" /> Payment Settings
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Manage your bank details and payout preferences securely. (Only you can edit)
-            </p>
-          </div>
-
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (bankNumber !== bankNumberConfirm) {
-                toast.error("Bank account numbers do not match");
-                return;
-              }
-              if (bankIfsc.length !== 11) {
-                toast.error("IFSC must be exactly 11 characters");
-                return;
-              }
-              if (bankPan.length !== 10) {
-                toast.error("PAN number must be exactly 10 characters");
-                return;
-              }
-
-              setSavingBank(true);
-              try {
-                await saveBankDetails({
-                  fullName: bankFullName,
-                  phone: bankPhone,
-                  email: bankEmail,
-                  bankName,
-                  accountHolderName: bankHolderName,
-                  accountNumber: bankNumber,
-                  confirmAccountNumber: bankNumberConfirm,
-                  ifsc: bankIfsc,
-                  upiId: bankUpi,
-                  panNumber: bankPan,
-                });
-                toast.success("Payment details saved securely!");
-              } catch (err) {
-                toast.error((err).message);
-              } finally {
-                setSavingBank(false);
-              }
-            }}
-            className="space-y-4 max-w-2xl"
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="bankFullName" className="text-xs font-semibold">Full Name *</Label>
-                <Input
-                  id="bankFullName"
-                  placeholder="Your legal full name"
-                  required
-                  value={bankFullName}
-                  onChange={(e) => setBankFullName(e.target.value)}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="bankPhone" className="text-xs font-semibold">Phone *</Label>
-                  <Input
-                    id="bankPhone"
-                    placeholder="10 digit phone number"
-                    required
-                    value={bankPhone}
-                    onChange={(e) => setBankPhone(e.target.value)}
-                    className="rounded-xl border-border bg-background text-xs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="bankEmail" className="text-xs font-semibold">Email *</Label>
-                  <Input
-                    id="bankEmail"
-                    type="email"
-                    placeholder="name@domain.com"
-                    required
-                    value={bankEmail}
-                    onChange={(e) => setBankEmail(e.target.value)}
-                    className="rounded-xl border-border bg-background text-xs"
-                  />
+                {/* LIVE BRAND OPPORTUNITIES & INCENTIVES */}
+                <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                  <CreatorOffersSidebarWidget audience="creator" />
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="bankName" className="text-xs font-semibold">Bank Name *</Label>
-                <Input
-                  id="bankName"
-                  placeholder="e.g. HDFC Bank"
-                  required
-                  value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="bankHolderName" className="text-xs font-semibold">Account Holder Name *</Label>
-                <Input
-                  id="bankHolderName"
-                  placeholder="Name as on bank passbook"
-                  required
-                  value={bankHolderName}
-                  onChange={(e) => setBankHolderName(e.target.value)}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="bankNumber" className="text-xs font-semibold">Account Number *</Label>
-                <Input
-                  id="bankNumber"
-                  type="password"
-                  placeholder="Enter bank account number"
-                  required
-                  value={bankNumber}
-                  onChange={(e) => setBankNumber(e.target.value)}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="bankNumberConfirm" className="text-xs font-semibold">Confirm Account Number *</Label>
-                <Input
-                  id="bankNumberConfirm"
-                  placeholder="Re-enter bank account number"
-                  required
-                  value={bankNumberConfirm}
-                  onChange={(e) => setBankNumberConfirm(e.target.value)}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="bankIfsc" className="text-xs font-semibold">IFSC Code *</Label>
-                <Input
-                  id="bankIfsc"
-                  placeholder="11 characters IFSC (e.g. HDFC0001234)"
-                  required
-                  value={bankIfsc}
-                  onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="bankPan" className="text-xs font-semibold">PAN Card Number *</Label>
-                <Input
-                  id="bankPan"
-                  placeholder="10 character PAN"
-                  required
-                  value={bankPan}
-                  onChange={(e) => setBankPan(e.target.value.toUpperCase())}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="bankUpi" className="text-xs font-semibold">UPI ID (Optional)</Label>
-                <Input
-                  id="bankUpi"
-                  placeholder="username@bank"
-                  value={bankUpi}
-                  onChange={(e) => setBankUpi(e.target.value)}
-                  className="rounded-xl border-border bg-background text-xs"
-                />
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              disabled={savingBank}
-              className="btn-bouncy rounded-full px-8 gradient-sunset border-0 text-white shadow-glow text-xs h-10 font-bold"
-            >
-              {savingBank ? "Saving Settings..." : "Save Payment Details"}
-            </Button>
-          </form>
-        </div>
-        </>
-        )}
-
-        {/* Reviews Section */}
-        {(creatorSubSection === "all" || creatorSubSection === "profile") && (
-        <div className="card-3d mt-8 rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-          <div className="mb-6">
-            <h2 className="font-outfit text-xl font-bold">
-              Reviews & Feedback
-            </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Manage reviews displayed on your public profile page.
-            </p>
-          </div>
-
-          {!reviews ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              Loading reviews...
-            </div>
-          ) : reviews.length === 0 ? (
-            <div className="py-12 text-center border border-dashed border-border rounded-2xl">
-              <Star className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
-              <p className="font-semibold text-sm text-muted-foreground font-outfit">
-                No reviews received yet
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Reviews left by brands you collaborate with will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {reviews.map((review) => (
-                <div
-                  key={review._id}
-                  className="card-3d flex flex-col md:flex-row md:items-center justify-between gap-4 border border-border/60 bg-background/70 rounded-2xl p-4 transition-all hover:border-primary/40"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <img src={
-                          review.brandAvatar ||
-                          `https://api.dicebear.com/9.x/avataaars/svg?seed=${review.brandName}`
-                        }
-                        alt=""
-                        className="h-10 w-10 rounded-full object-cover border border-border/50 shadow-sm aspect-square"
-                       onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-outfit text-sm font-bold text-foreground">
-                            {review.brandName}
-                          </h4>
-                          {review.campaignRef && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] rounded-full font-bold"
-                            >
-                              Campaign: {review.campaignRef}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <div className="flex items-center">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`h-3 w-3 ${
-                                  star <= review.rating
-                                    ? "fill-amber text-amber"
-                                    : "text-muted-foreground/30"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground">
-                            {new Date(review.createdAt).toLocaleDateString(
-                              undefined,
-                              {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              },
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-xs text-foreground/90">
-                      {review.comment && (
-                        <p className="font-medium text-foreground">
-                          "{review.comment}"
-                        </p>
-                      )}
-                      <p className="text-muted-foreground mt-1">
-                        {review.text}
+            ) : activeTab === "campaigns" ? (
+              /* DISCOVER CAMPAIGNS TAB */
+              <div className="w-full max-w-5xl mx-auto space-y-8">
+                <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+                    <div>
+                      <h2 className="font-outfit text-xl font-bold flex items-center gap-2">
+                        <Megaphone className="h-5 w-5 text-primary" /> Discover Campaigns
+                      </h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Explore brand-funded, verified campaigns open for creators.
                       </p>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full text-xs self-start sm:self-auto flex items-center gap-1.5"
+                      disabled={isRefreshingDiscover}
+                      onClick={handleRefreshDiscover}
+                    >
+                      <RotateCw className={cn("h-3.5 w-3.5", isRefreshingDiscover && "animate-spin")} />
+                      Refresh Listings
+                    </Button>
                   </div>
 
-                  <div className="flex items-center gap-2 self-start md:self-center border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto justify-between md:justify-start">
-                    <div className="text-right">
-                      <span className="block text-xs font-semibold text-foreground">
-                        Public Display
-                      </span>
-                      <span className="block text-[10px] text-muted-foreground">
-                        {review.visible
-                          ? "Shown on public profile"
-                          : "Hidden from public"}
-                      </span>
+                  {!discoverableCampaigns ? (
+                    <div className="py-12 text-center text-xs text-muted-foreground">
+                      Loading available campaigns...
                     </div>
-                    <Switch
-                      checked={review.visible}
-                      onCheckedChange={() => handleToggleVisibility(review._id)}
-                    />
-                  </div>
+                  ) : discoverableCampaigns.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-12 text-center">
+                      <Megaphone className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <p className="font-semibold text-sm text-foreground">
+                        No active campaigns available right now
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
+                        New verified brand campaigns will appear here once approved by admin. Check back soon!
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {discoverableCampaigns
+                          .slice((discoverPage - 1) * CAMPAIGNS_PER_PAGE, discoverPage * CAMPAIGNS_PER_PAGE)
+                          .map((camp) => {
+                            const hasTiers = Array.isArray(camp.tiers) && camp.tiers.length > 0;
+                            const sortedTiers = hasTiers
+                              ? [...camp.tiers].sort((a, b) => (Number(a.minFollowers) || 0) - (Number(b.minFollowers) || 0))
+                              : [];
+                            const minRequiredAcrossTiers = hasTiers ? (sortedTiers[0]?.minFollowers || 0) : 0;
+                            const reqFollowers = Number(camp.minFollowers || 0);
+
+                            // Qualification check: either tiered minimum or flat minFollowers
+                            const meetsFollowerCriteria = hasTiers
+                              ? creatorTotalFollowers >= minRequiredAcrossTiers
+                              : (reqFollowers === 0 || creatorTotalFollowers >= reqFollowers);
+
+                            // Find best matched tier if tiered
+                            const matchedTier = hasTiers
+                              ? [...sortedTiers].reverse().find(t => creatorTotalFollowers >= (Number(t.minFollowers) || 0))
+                              : null;
+
+                            const creatorMinBudget = camp.minBudgetPerCreator ?? camp.budget?.min ?? 0;
+                            const creatorMaxBudget = camp.maxBudgetPerCreator ?? camp.budget?.max ?? 0;
+
+                            return (
+                              <div
+                                key={camp._id}
+                                className="rounded-2xl border border-border bg-background p-4 flex flex-col justify-between hover:border-primary/50 hover:shadow-sm transition-all group relative"
+                              >
+                                <div className="space-y-3">
+                                  {/* Brand Header & Share Action */}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <img
+                                        src={
+                                          camp.brand?.avatarUrl ||
+                                          `https://api.dicebear.com/9.x/avataaars/svg?seed=${camp.brand?.fullName || "Brand"}`
+                                        }
+                                        alt=""
+                                        className="h-10 w-10 rounded-xl object-cover border border-border shrink-0"
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback";
+                                        }}
+                                      />
+                                      <div className="min-w-0">
+                                        <h4 className="text-xs font-bold text-foreground truncate">
+                                          {camp.brand?.fullName || "Brand Partner"}
+                                        </h4>
+                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                          <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                                          <span>5.0</span>
+                                          <span>•</span>
+                                          <span>{camp.location || "Pan India"}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 w-7 p-0 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                                      title="Share / Refer this Campaign"
+                                      onClick={() => handleShareCampaign(camp)}
+                                    >
+                                      <Share2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+
+                                  <div>
+                                    <h3 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                      {camp.title}
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                      {camp.description}
+                                    </p>
+                                  </div>
+
+                                  {/* Condition-Based Tiers / Options Preview */}
+                                  {hasTiers ? (
+                                    <div className="space-y-1.5 pt-0.5">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                                          <Sparkles className="h-3 w-3 text-amber-500" /> Perk Options ({sortedTiers.length})
+                                        </span>
+                                        {matchedTier ? (
+                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                            ✓ You Qualify ({matchedTier.minFollowers >= 1000 ? `${(matchedTier.minFollowers/1000).toFixed(0)}k+` : matchedTier.minFollowers})
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                                            🔒 Min {minRequiredAcrossTiers >= 1000 ? `${(minRequiredAcrossTiers/1000).toFixed(0)}k+` : minRequiredAcrossTiers}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="space-y-1 bg-secondary/15 p-2 rounded-xl border border-border/40">
+                                        {sortedTiers.slice(0, 3).map((tier, idx) => {
+                                          const isThisTierQualified = creatorTotalFollowers >= (Number(tier.minFollowers) || 0);
+                                          const isHighestMatched = matchedTier && matchedTier.minFollowers === tier.minFollowers;
+                                          return (
+                                            <div
+                                              key={idx}
+                                              className={cn(
+                                                "text-[10px] flex items-center justify-between p-1.5 rounded-lg transition-colors",
+                                                isHighestMatched
+                                                  ? "bg-primary/10 text-foreground font-semibold border border-primary/20"
+                                                  : isThisTierQualified
+                                                  ? "bg-secondary/40 text-foreground"
+                                                  : "text-muted-foreground opacity-70"
+                                              )}
+                                            >
+                                              <span className="font-bold flex items-center gap-1">
+                                                {tier.minFollowers >= 1000 ? `${(tier.minFollowers / 1000).toFixed(0)}k+` : tier.minFollowers}
+                                              </span>
+                                              <span className="truncate max-w-[140px] text-right">
+                                                {tier.reward || ""}{tier.reward && tier.cashAmount ? " + " : ""}{tier.cashAmount ? `₹${tier.cashAmount}` : ""}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  ) : reqFollowers > 0 ? (
+                                    /* Single Min Follower Condition */
+                                    <div className="pt-0.5">
+                                      <span
+                                        className={cn(
+                                          "inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border",
+                                          meetsFollowerCriteria
+                                            ? "text-emerald-600 bg-emerald-500/10 border-emerald-500/20"
+                                            : "text-amber-500 bg-amber-500/10 border-amber-500/30"
+                                        )}
+                                      >
+                                        {meetsFollowerCriteria ? (
+                                          <Check className="h-3 w-3" />
+                                        ) : (
+                                          <Lock className="h-3 w-3" />
+                                        )}
+                                        {reqFollowers >= 1000
+                                          ? `${(reqFollowers / 1000).toFixed(0)}k+`
+                                          : reqFollowers.toLocaleString()}{" "}
+                                        Followers Required
+                                      </span>
+                                    </div>
+                                  ) : null}
+
+                                  <div className="bg-secondary/20 rounded-xl p-2.5 space-y-1 text-[11px] border border-border/40">
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Creator Budget:</span>
+                                      <span className="font-bold text-foreground">
+                                        ₹{creatorMinBudget.toLocaleString()} - ₹{creatorMaxBudget.toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Total Budget:</span>
+                                      <span className="font-medium text-muted-foreground">
+                                        ₹{Number(camp.totalBudget || 0).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Timeline:</span>
+                                      <span className="font-medium text-foreground">
+                                        {camp.startDate ? new Date(camp.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Any"} - {camp.endDate ? new Date(camp.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Open"}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {camp.deliverables && typeof camp.deliverables === "object" && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {Array.isArray(camp.deliverables) ? (
+                                        camp.deliverables.map((d, i) => (
+                                          <span
+                                            key={i}
+                                            className="text-[9px] font-semibold bg-secondary/50 text-foreground px-2 py-0.5 rounded-md border border-border/60"
+                                          >
+                                            {d.quantity}x {d.type}
+                                          </span>
+                                        ))
+                                      ) : (
+                                        <>
+                                          {camp.deliverables.reels > 0 && <span className="text-[9px] font-semibold bg-secondary/50 text-foreground px-2 py-0.5 rounded-md border border-border/60">{camp.deliverables.reels}x Reel</span>}
+                                          {camp.deliverables.posts > 0 && <span className="text-[9px] font-semibold bg-secondary/50 text-foreground px-2 py-0.5 rounded-md border border-border/60">{camp.deliverables.posts}x Post</span>}
+                                          {camp.deliverables.stories > 0 && <span className="text-[9px] font-semibold bg-secondary/50 text-foreground px-2 py-0.5 rounded-md border border-border/60">{camp.deliverables.stories}x Story</span>}
+                                          {camp.deliverables.videos > 0 && <span className="text-[9px] font-semibold bg-secondary/50 text-foreground px-2 py-0.5 rounded-md border border-border/60">{camp.deliverables.videos}x Video</span>}
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="pt-4 mt-3 border-t border-border/40 flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1 rounded-full text-xs h-8"
+                                    onClick={() => setSelectedCampaignDetail(camp)}
+                                  >
+                                    View Details
+                                  </Button>
+                                  {userRequestedCampaignIds.has(camp._id) ? (
+                                    <Button
+                                      size="sm"
+                                      disabled
+                                      className="flex-1 rounded-full text-xs h-8 bg-secondary text-muted-foreground"
+                                    >
+                                      Applied ✓
+                                    </Button>
+                                  ) : !meetsFollowerCriteria ? (
+                                    <Button
+                                      size="sm"
+                                      disabled
+                                      className="flex-1 rounded-full text-[11px] h-8 bg-secondary/80 text-muted-foreground cursor-not-allowed border border-border/60 flex items-center justify-center gap-1"
+                                      title={hasTiers
+                                        ? `Requires at least ${minRequiredAcrossTiers >= 1000 ? `${(minRequiredAcrossTiers / 1000).toFixed(0)}k+` : minRequiredAcrossTiers} followers. Your profile has ${creatorTotalFollowers.toLocaleString()} followers.`
+                                        : `Requires ${reqFollowers >= 1000 ? `${(reqFollowers / 1000).toFixed(0)}k+` : reqFollowers} followers. Your profile has ${creatorTotalFollowers.toLocaleString()} followers.`}
+                                    >
+                                      <Lock className="h-3 w-3 text-muted-foreground/60" />
+                                      Apply ({hasTiers ? (minRequiredAcrossTiers >= 1000 ? `${(minRequiredAcrossTiers / 1000).toFixed(0)}k+` : minRequiredAcrossTiers) : (reqFollowers >= 1000 ? `${(reqFollowers / 1000).toFixed(0)}k+` : reqFollowers)} req)
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      className="flex-1 rounded-full text-xs h-8 gradient-sunset text-white border-0 shadow-glow font-semibold"
+                                      onClick={() => {
+                                        setSelectedCampaignForDiscovery(camp);
+                                        setSelectedTierForJoin(matchedTier || null);
+                                        setJoinPitch(`Hi ${camp.brand?.fullName || "there"}! I'm excited to collaborate on your "${camp.title}" campaign.`);
+                                      }}
+                                    >
+                                      Apply
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {discoverableCampaigns.length > CAMPAIGNS_PER_PAGE && (
+                        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border/50 text-xs">
+                          <span className="text-muted-foreground">
+                            Showing {(discoverPage - 1) * CAMPAIGNS_PER_PAGE + 1} to{" "}
+                            {Math.min(discoverPage * CAMPAIGNS_PER_PAGE, discoverableCampaigns.length)} of{" "}
+                            {discoverableCampaigns.length} campaigns
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={discoverPage === 1}
+                              onClick={() => setDiscoverPage((p) => Math.max(1, p - 1))}
+                              className="rounded-full h-8 px-3 text-xs"
+                            >
+                              Previous
+                            </Button>
+                            {Array.from({ length: Math.ceil(discoverableCampaigns.length / CAMPAIGNS_PER_PAGE) }).map((_, i) => (
+                              <Button
+                                key={i}
+                                size="sm"
+                                variant={discoverPage === i + 1 ? "default" : "outline"}
+                                className={cn(
+                                  "rounded-full h-8 w-8 p-0 text-xs",
+                                  discoverPage === i + 1 && "gradient-sunset text-white border-0"
+                                )}
+                                onClick={() => setDiscoverPage(i + 1)}
+                              >
+                                {i + 1}
+                              </Button>
+                            ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={discoverPage >= Math.ceil(discoverableCampaigns.length / CAMPAIGNS_PER_PAGE)}
+                              onClick={() => setDiscoverPage((p) => p + 1)}
+                              className="rounded-full h-8 px-3 text-xs font-bold"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-        )}
-      </>
-          ) : activeTab === "wallet" ? (
+              </div>
+            ) : activeTab === "payments" ? (
+              /* PAYMENTS TAB */
+              <div className="w-full max-w-5xl mx-auto space-y-8">
+                <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
+                  <div className="mb-6">
+                    <h2 className="font-outfit text-xl font-bold">
+                      My Escrow Payments
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Track your earnings, secure holdings, and escrow release status.
+                    </p>
+                  </div>
+
+                  {!creatorPayments ? (
+                    <div className="py-8 text-center text-sm text-muted-foreground">
+                      Loading payments...
+                    </div>
+                  ) : creatorPayments.length === 0 ? (
+                    <div className="py-12 text-center border border-dashed border-border rounded-2xl bg-secondary/5">
+                      <CreditCard className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <p className="text-sm font-semibold text-foreground">
+                        No transactions recorded yet
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                        When brands deposit escrow funds for accepted collaborations, they will display here with live status.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-foreground">
+                        <thead className="border-b border-border/60 text-muted-foreground text-[10px] uppercase font-bold tracking-wider">
+                          <tr>
+                            <th className="py-3 pr-4 font-semibold">Campaign</th>
+                            <th className="py-3 px-4 font-semibold">Brand</th>
+                            <th className="py-3 px-4 font-semibold">Gross Amount</th>
+                            <th className="py-3 px-4 font-semibold">Platform Fee (20%)</th>
+                            <th className="py-3 px-4 font-semibold">Your Earnings (80%)</th>
+                            <th className="py-3 px-4 font-semibold">Payment Status</th>
+                            <th className="py-3 px-4 font-semibold">Hold / Release Status</th>
+                            <th className="py-3 pl-2 text-right font-semibold">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40 font-medium">
+                          {creatorPayments.map((pay) => (
+                            <tr key={pay._id} className="hover:bg-secondary/20 transition-colors">
+                              <td className="py-3 pr-4 font-semibold">
+                                {pay.campaignTitle || pay.campaignId?.title || "Custom Deal"}
+                              </td>
+                              <td className="py-3 px-4 text-muted-foreground">
+                                {pay.brandId?.fullName || "Brand"}
+                              </td>
+                              <td className="py-3 px-4 font-bold">
+                                {formatINR(pay.amount)}
+                              </td>
+                              <td className="py-3 px-4 text-muted-foreground">
+                                {formatINR(pay.platformFee || pay.amount * 0.2)}
+                              </td>
+                              <td className="py-3 px-4 font-bold text-emerald-600">
+                                {formatINR(pay.netCreatorAmount || pay.amount * 0.8)}
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge
+                                  variant="secondary"
+                                  className={cn(
+                                    "rounded-full text-[10px] uppercase font-bold",
+                                    pay.paymentStatus === "completed" && "bg-emerald-500/10 text-emerald-600",
+                                    pay.paymentStatus === "pending" && "bg-amber/10 text-amber",
+                                    pay.paymentStatus === "disputed" && "bg-red-500/10 text-red-500",
+                                    pay.paymentStatus === "refunded" && "bg-slate-500/10 text-slate-500"
+                                  )}
+                                >
+                                  {pay.paymentStatus}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4">
+                                {pay.escrowStatus === "held" ? (
+                                  <div className="space-y-0.5">
+                                    <span className="inline-flex items-center gap-1 text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-amber-500/20">
+                                      <Clock className="h-3 w-3" /> In Escrow
+                                    </span>
+                                    {pay.escrowHoldUntil && (
+                                      <p className="text-[9px] text-muted-foreground">
+                                        Release: {new Date(pay.escrowHoldUntil).toLocaleDateString()}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : pay.paymentStatus === "disputed" ? (
+                                  <span className="inline-flex items-center gap-1 text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-red-500/20">
+                                    Payment On Hold (Disputed)
+                                  </span>
+                                ) : pay.paymentStatus === "completed" ? (
+                                  <span className="inline-flex items-center gap-1 text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-emerald-500/20">
+                                    Released
+                                  </span>
+                                ) : pay.paymentStatus === "refunded" ? (
+                                  <span className="inline-flex items-center gap-1 text-slate-500 bg-slate-500/10 px-2 py-0.5 rounded-md text-[10px] font-bold border border-slate-500/20">
+                                    Refunded to Brand
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground text-[10px]">
+                                    —
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 pl-2 text-right">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 rounded-full text-[10px] px-2.5"
+                                  onClick={() => setSelectedAuditLogPayment(pay)}
+                                >
+                                  View Logs
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Settings Card */}
+                <div className="rounded-3xl border border-border bg-card p-6 sm:p-8 shadow-sm">
+                  <div className="mb-6">
+                    <h2 className="font-display text-lg font-semibold flex items-center gap-1.5">
+                      <CreditCard className="h-5 w-5 text-primary" /> Payment Settings
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Manage your bank details and payout preferences securely. (Only you can edit)
+                    </p>
+                  </div>
+
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (bankNumber !== bankNumberConfirm) {
+                        toast.error("Bank account numbers do not match");
+                        return;
+                      }
+                      if (bankIfsc.length !== 11) {
+                        toast.error("IFSC must be exactly 11 characters");
+                        return;
+                      }
+                      if (bankPan.length !== 10) {
+                        toast.error("PAN number must be exactly 10 characters");
+                        return;
+                      }
+
+                      setSavingBank(true);
+                      try {
+                        await api.put("/api/creators/profile/bank", {
+                          fullName: bankFullName,
+                          phone: bankPhone,
+                          email: bankEmail,
+                          accountNumber: bankNumber,
+                          ifscCode: bankIfsc,
+                          panNumber: bankPan,
+                          upiId: bankUpi,
+                        });
+                        toast.success("Bank details updated successfully");
+                      } catch (err) {
+                        console.error("Bank details update error:", err);
+                        toast.error(err?.response?.data?.message || "Failed to update bank details");
+                      } finally {
+                        setSavingBank(false);
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankFullName" className="text-xs font-semibold">Full Name *</Label>
+                        <Input
+                          id="bankFullName"
+                          placeholder="Your legal full name"
+                          required
+                          value={bankFullName}
+                          onChange={(e) => setBankFullName(e.target.value)}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankPhone" className="text-xs font-semibold">Phone *</Label>
+                        <Input
+                          id="bankPhone"
+                          placeholder="+91 9876543210"
+                          required
+                          value={bankPhone}
+                          onChange={(e) => setBankPhone(e.target.value)}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankEmail" className="text-xs font-semibold">Email *</Label>
+                        <Input
+                          id="bankEmail"
+                          type="email"
+                          placeholder="your.email@example.com"
+                          required
+                          value={bankEmail}
+                          onChange={(e) => setBankEmail(e.target.value)}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankNumber" className="text-xs font-semibold">Account Number *</Label>
+                        <Input
+                          id="bankNumber"
+                          type="password"
+                          placeholder="Enter bank account number"
+                          required
+                          value={bankNumber}
+                          onChange={(e) => setBankNumber(e.target.value)}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankNumberConfirm" className="text-xs font-semibold">Confirm Account Number *</Label>
+                        <Input
+                          id="bankNumberConfirm"
+                          placeholder="Re-enter bank account number"
+                          required
+                          value={bankNumberConfirm}
+                          onChange={(e) => setBankNumberConfirm(e.target.value)}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankIfsc" className="text-xs font-semibold">IFSC Code *</Label>
+                        <Input
+                          id="bankIfsc"
+                          placeholder="11 characters IFSC (e.g. HDFC0001234)"
+                          required
+                          value={bankIfsc}
+                          onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankPan" className="text-xs font-semibold">PAN Card Number *</Label>
+                        <Input
+                          id="bankPan"
+                          placeholder="10 character PAN"
+                          required
+                          value={bankPan}
+                          onChange={(e) => setBankPan(e.target.value.toUpperCase())}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="bankUpi" className="text-xs font-semibold">UPI ID (Optional)</Label>
+                        <Input
+                          id="bankUpi"
+                          placeholder="username@bank"
+                          value={bankUpi}
+                          onChange={(e) => setBankUpi(e.target.value)}
+                          className="rounded-xl border-border bg-background text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      disabled={savingBank}
+                      className="btn-bouncy rounded-full px-8 gradient-sunset border-0 text-white shadow-glow text-xs h-10 font-bold"
+                    >
+                      {savingBank ? "Saving Settings..." : "Save Payment Details"}
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            ) : activeTab === "wallet" ? (
             <div className="space-y-6">
               {/* WALLET HEADER / STATS */}
               <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
@@ -3651,17 +4340,36 @@ const CAMPAIGNS_PER_PAGE = 6;
               {/* REFERRAL HERO CARD */}
               <div className="rounded-3xl border border-border bg-gradient-to-br from-card via-card/90 to-primary/5 p-6 sm:p-8 shadow-sm relative overflow-hidden">
                 <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-                <div className="max-w-2xl relative z-10">
+                <div className="max-w-3xl relative z-10">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold mb-3">
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span>5% Recurring Commission • Lifetime & Uncapped</span>
+                    <span>Tiered Referral Income (5% - 10%) • Paid Directly by Pravixo</span>
                   </div>
                   <h2 className="font-display text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                    Invite creators & brands. <span className="text-gradient-sunset">Earn 5% recurring.</span>
+                    Invite creators & brands. <span className="text-gradient-sunset">Earn up to 10% on every deal.</span>
                   </h2>
                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                    Share your unique referral code or link. Whenever a creator you refer completes a project payout, you'll earn a recurring 5% commission credited directly into your wallet with zero earnings cap.
+                    Share your unique referral code or link. Whenever a creator you refer completes a brand collaboration, Pravixo pays you recurring referral income directly from our platform commission with zero deductions from the creator.
                   </p>
+
+                  {/* TIERED COMMISSION BADGES */}
+                  <div className="mt-4 grid grid-cols-3 gap-2.5 max-w-lg">
+                    <div className="p-2.5 rounded-xl border border-border/80 bg-background/60 text-center">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block">Starter Plan</span>
+                      <span className="text-base font-black text-foreground">5.0%</span>
+                      <span className="text-[10px] text-muted-foreground block">Free Tier</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center">
+                      <span className="text-[10px] font-bold text-amber-500 uppercase block">Pro Plan</span>
+                      <span className="text-base font-black text-amber-500">7.5%</span>
+                      <span className="text-[10px] text-muted-foreground block">Active Pro Sub</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl border border-purple-500/30 bg-purple-500/5 text-center">
+                      <span className="text-[10px] font-bold text-purple-500 uppercase block">Elite Plan</span>
+                      <span className="text-base font-black text-purple-500">10.0%</span>
+                      <span className="text-[10px] text-muted-foreground block">Active Elite Sub</span>
+                    </div>
+                  </div>
 
                   {/* CODE & LINK BOXES */}
                   <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4036,6 +4744,20 @@ const CAMPAIGNS_PER_PAGE = 6;
                 </DialogContent>
               </Dialog>
             </div>
+          ) : activeTab === "offers" ? (
+            <div className="space-y-6">
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <h2 className="font-display text-xl font-bold flex items-center gap-2">
+                  <Sparkles className="h-6 w-6 text-primary" /> Special Offers & Promotions
+                </h2>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Launch and manage exclusive, limited-time discount packages and custom collaboration offers for brands.
+                </p>
+                <div className="mt-6">
+                  <CreatorOfferForm profileId={profile?._id} role="creator" />
+                </div>
+              </div>
+            </div>
           ) : (
             <SubscriptionTab role="creator" profile={profile} />
           )}
@@ -4343,6 +5065,68 @@ const CAMPAIGNS_PER_PAGE = 6;
                 </div>
               </div>
 
+              {/* Condition-Based Tiers / Options in Application Pitch Dialog */}
+              {selectedCampaignForDiscovery.tiers && selectedCampaignForDiscovery.tiers.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border/40">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Select Your Qualified Option / Perk Tier
+                  </label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Based on your total reach ({creatorTotalFollowers.toLocaleString()} followers), select which perk option you are applying for:
+                  </p>
+                  <div className="space-y-2">
+                    {[...selectedCampaignForDiscovery.tiers]
+                      .sort((a, b) => (Number(a.minFollowers) || 0) - (Number(b.minFollowers) || 0))
+                      .map((tier, idx) => {
+                        const isQualified = creatorTotalFollowers >= (Number(tier.minFollowers) || 0);
+                        const isSelected = selectedTierForJoin?.minFollowers === tier.minFollowers;
+
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              if (isQualified) setSelectedTierForJoin(tier);
+                            }}
+                            className={cn(
+                              "p-3 rounded-xl border transition-all text-xs flex items-center justify-between gap-3",
+                              isQualified ? "cursor-pointer" : "opacity-50 cursor-not-allowed bg-secondary/10 border-border/40",
+                              isSelected
+                                ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/40"
+                                : isQualified
+                                ? "border-border/60 bg-secondary/20 hover:border-border"
+                                : ""
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className={cn(
+                                "h-4 w-4 rounded-full border flex items-center justify-center shrink-0",
+                                isSelected ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40"
+                              )}>
+                                {isSelected && <Check className="h-2.5 w-2.5" />}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-foreground">
+                                    {tier.minFollowers >= 1000 ? `${(tier.minFollowers / 1000).toFixed(0)}k+` : tier.minFollowers} Followers
+                                  </span>
+                                  {isQualified ? (
+                                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.2 rounded">Qualified</span>
+                                  ) : (
+                                    <span className="text-[10px] text-amber-600 bg-amber-500/10 px-1.5 py-0.2 rounded">Need +{((tier.minFollowers || 0) - creatorTotalFollowers).toLocaleString()} more</span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                  {tier.reward || "Custom Perk"}{tier.cashAmount ? ` + ₹${tier.cashAmount.toLocaleString("en-IN")} Cash` : ""}{tier.perks ? ` (${tier.perks})` : ""}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
               {/* Pitch Input */}
               {!selectedCampaignForDiscovery.isParticipating && !selectedCampaignForDiscovery.isRequested && (
                 <div className="space-y-1.5 pt-2 border-t border-border/40">
@@ -4374,7 +5158,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                   </Button>
                 ) : selectedCampaignForDiscovery.isRequested ? (
                   <Button disabled className="rounded-full flex-1 bg-amber/10 text-amber border border-amber/20 text-xs font-semibold">
-                    Request Pending
+                    Application Pending
                   </Button>
                 ) : (
                   <Button
@@ -4385,18 +5169,19 @@ const CAMPAIGNS_PER_PAGE = 6;
                       try {
                         const res = await apiPost(`/campaigns/${selectedCampaignForDiscovery._id}/join`, {
                           pitch: joinPitch.trim(),
+                          appliedTier: selectedTierForJoin || undefined,
                         });
-                        toast.success("Request to join campaign sent successfully!");
+                        toast.success("Application submitted successfully!");
                         setSelectedCampaignForDiscovery(null);
                         setDiscoverRefreshKey((k) => k + 1);
                       } catch (err) {
-                        toast.error(err.response?.data?.message || err.message || "Failed to join campaign");
+                        toast.error(err.response?.data?.message || err.message || "Failed to submit application");
                       } finally {
                         setJoiningCampaign(false);
                       }
                     }}
                   >
-                    {joiningCampaign ? "Submitting..." : "Send Request to Join"}
+                    {joiningCampaign ? "Submitting..." : "Submit Application"}
                   </Button>
                 )}
               </DialogFooter>
@@ -5308,6 +6093,792 @@ const CAMPAIGNS_PER_PAGE = 6;
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* FOLLOWERS / FOLLOWING LIST MODAL */}
+      <Dialog
+        open={!!followModalType}
+        onOpenChange={(open) => {
+          if (!open) setFollowModalType(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-card border-border/80">
+          <DialogHeader>
+            <DialogTitle className="font-outfit text-xl font-bold flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              {followModalType === "followers" ? "Followers" : "Following"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {followModalType === "followers"
+                ? "People and brands following your profile."
+                : "People and brands you are currently following."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 max-h-80 overflow-y-auto space-y-3 pr-1">
+            {loadingFollowList ? (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                Loading accounts...
+              </div>
+            ) : followListUsers.length === 0 ? (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No accounts found.
+              </div>
+            ) : (
+              followListUsers.map((u) => {
+                const userAvatar = resolveImageUrl(u.avatarUrl) || u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || "User")}&background=random`;
+                return (
+                  <div
+                    key={u._id}
+                    className="flex items-center justify-between gap-3 p-2.5 rounded-2xl border border-border/50 bg-secondary/10 hover:bg-secondary/20 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={userAvatar}
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover border border-border shrink-0"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback";
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-foreground truncate">
+                          {u.fullName || "User"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {u.handle ? `@${u.handle.replace("@", "")}` : (u.role ? u.role.toUpperCase() : "")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Link
+                        to={`/messages?recipientId=${u._id}`}
+                        onClick={() => setFollowModalType(null)}
+                      >
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 rounded-full text-muted-foreground hover:text-foreground"
+                          title="Send Message"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+
+                      {followModalType === "following" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 rounded-full text-[10px] px-2.5 border-border hover:border-destructive hover:text-destructive text-muted-foreground"
+                          onClick={() => handleUnfollowUser(u._id)}
+                        >
+                          <UserMinus className="h-3 w-3 mr-1" /> Unfollow
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* ===== SUBMIT TASK MODAL ===== */}
+      <Dialog open={showSubmitTaskModal} onOpenChange={(open) => { setShowSubmitTaskModal(open); if (!open) { setSelectedTask(null); setTaskProofUrl(""); setTaskNotes(""); } }}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold">Submit Task</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {selectedTask ? `"${selectedTask.title}" — paste your live content link below.` : "Submit your deliverable proof."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Proof / Content URL *</label>
+              <input
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
+                placeholder="https://www.instagram.com/p/..."
+                value={taskProofUrl}
+                onChange={(e) => setTaskProofUrl(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">Paste the public link to your published reel, post, story or video.</p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Additional Notes (optional)</label>
+              <textarea
+                rows={3}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground resize-none"
+                placeholder="Any notes for the brand..."
+                value={taskNotes}
+                onChange={(e) => setTaskNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Button variant="outline" className="flex-1 rounded-full" onClick={() => setShowSubmitTaskModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 rounded-full gradient-sunset text-white border-0 shadow-glow font-semibold"
+              disabled={submittingTaskProof || !taskProofUrl.trim()}
+              onClick={handleSubmitTaskProof}
+            >
+              {submittingTaskProof ? "Submitting..." : "Submit Task"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== CAMPAIGN DETAIL MODAL ===== */}
+      <Dialog open={!!selectedCampaignDetail} onOpenChange={(open) => { if (!open) setSelectedCampaignDetail(null); }}>
+        <DialogContent className="sm:max-w-lg rounded-3xl max-h-[90vh] overflow-y-auto">
+          {selectedCampaignDetail && (() => {
+            const hasTiers = Array.isArray(selectedCampaignDetail.tiers) && selectedCampaignDetail.tiers.length > 0;
+            const sortedTiers = hasTiers
+              ? [...selectedCampaignDetail.tiers].sort((a, b) => (Number(a.minFollowers) || 0) - (Number(b.minFollowers) || 0))
+              : [];
+            const minRequiredAcrossTiers = hasTiers ? (sortedTiers[0]?.minFollowers || 0) : 0;
+            const reqFollowers = Number(selectedCampaignDetail.minFollowers || 0);
+
+            const meetsFollowerCriteria = hasTiers
+              ? creatorTotalFollowers >= minRequiredAcrossTiers
+              : (reqFollowers === 0 || creatorTotalFollowers >= reqFollowers);
+
+            const matchedTier = hasTiers
+              ? [...sortedTiers].reverse().find(t => creatorTotalFollowers >= (Number(t.minFollowers) || 0))
+              : null;
+
+            const minBudVal = selectedCampaignDetail.minBudgetPerCreator ?? selectedCampaignDetail.budget?.min ?? 0;
+            const maxBudVal = selectedCampaignDetail.maxBudgetPerCreator ?? selectedCampaignDetail.budget?.max ?? 0;
+
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-start justify-between gap-2 pr-6">
+                    <div>
+                      <DialogTitle className="font-display text-lg font-bold leading-tight">
+                        {selectedCampaignDetail.title}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                        by {selectedCampaignDetail.brand?.fullName || "Brand Partner"}
+                      </DialogDescription>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full text-xs h-8 px-3 shrink-0 flex items-center gap-1.5"
+                      onClick={() => handleShareCampaign(selectedCampaignDetail)}
+                      title="Share / Refer this Campaign"
+                    >
+                      <Share2 className="h-3.5 w-3.5 text-primary" /> Share Link
+                    </Button>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-4 mt-2">
+                  {/* Follower / Tier Requirement Criteria Tag */}
+                  {hasTiers ? (
+                    <div className={cn(
+                      "p-3 rounded-2xl border text-xs flex items-center justify-between gap-3",
+                      meetsFollowerCriteria
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                        : "border-amber-500/30 bg-amber-500/10 text-amber-600"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        {meetsFollowerCriteria ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                        )}
+                        <div>
+                          <p className="font-bold">
+                            {meetsFollowerCriteria
+                              ? `You Qualify for ${matchedTier ? (matchedTier.minFollowers >= 1000 ? `${(matchedTier.minFollowers / 1000).toFixed(0)}k+ Tier` : `${matchedTier.minFollowers} Tier`) : 'Tiers'}!`
+                              : `Requires Min ${minRequiredAcrossTiers >= 1000 ? `${(minRequiredAcrossTiers / 1000).toFixed(0)}k+` : minRequiredAcrossTiers} Followers`}
+                          </p>
+                          <p className="text-[11px] opacity-90">
+                            {meetsFollowerCriteria
+                              ? `Your profile has ${creatorTotalFollowers.toLocaleString()} followers. You can apply and claim the qualified perk options.`
+                              : `Your profile has ${creatorTotalFollowers.toLocaleString()} followers. You can share this link with other creators.`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : reqFollowers > 0 ? (
+                    <div className={cn(
+                      "p-3 rounded-2xl border text-xs flex items-center justify-between gap-3",
+                      meetsFollowerCriteria
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+                        : "border-amber-500/30 bg-amber-500/10 text-amber-600"
+                    )}>
+                      <div className="flex items-center gap-2">
+                        {meetsFollowerCriteria ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        ) : (
+                          <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                        )}
+                        <div>
+                          <p className="font-bold">
+                            Min {reqFollowers >= 1000 ? `${(reqFollowers / 1000).toFixed(0)}k+` : reqFollowers.toLocaleString()} Followers Required
+                          </p>
+                          <p className="text-[11px] opacity-90">
+                            {meetsFollowerCriteria
+                              ? `You have ${creatorTotalFollowers.toLocaleString()} followers and are eligible to apply!`
+                              : `Your profile has ${creatorTotalFollowers.toLocaleString()} followers. You can refer this campaign to other creators.`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Condition-Based Tiers / Perk Options Breakdown */}
+                  {hasTiers && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Condition-Based Perk Options & Rewards
+                      </p>
+                      <div className="space-y-2">
+                        {sortedTiers.map((tier, idx) => {
+                          const isQualified = creatorTotalFollowers >= (Number(tier.minFollowers) || 0);
+                          const isHighest = matchedTier && matchedTier.minFollowers === tier.minFollowers;
+
+                          return (
+                            <div
+                              key={idx}
+                              className={cn(
+                                "p-3 rounded-xl border text-xs flex items-center justify-between gap-3 transition-colors",
+                                isHighest
+                                  ? "bg-primary/10 border-primary/40 ring-1 ring-primary/30"
+                                  : isQualified
+                                  ? "bg-emerald-500/5 border-emerald-500/20"
+                                  : "bg-secondary/15 border-border/40 opacity-70"
+                              )}
+                            >
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-foreground">
+                                    {tier.minFollowers >= 1000 ? `${(tier.minFollowers / 1000).toFixed(0)}k+` : tier.minFollowers} Followers Condition
+                                  </span>
+                                  {isHighest ? (
+                                    <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-full border border-primary/20">
+                                      ✨ Your Best Match
+                                    </span>
+                                  ) : isQualified ? (
+                                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-500/10 px-1.5 py-0.2 rounded">
+                                      Qualified ✓
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-amber-600 bg-amber-500/10 px-1.5 py-0.2 rounded">
+                                      Need {((tier.minFollowers || 0) - creatorTotalFollowers).toLocaleString()} more
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs font-medium text-foreground/90 mt-1">
+                                  🎁 {tier.reward || "Food Voucher / Product Perk"}
+                                  {tier.cashAmount ? ` + 💵 ₹${Number(tier.cashAmount).toLocaleString("en-IN")} Cash` : ""}
+                                </p>
+                                {tier.perks && (
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                                    Note: {tier.perks}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Brand info */}
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-secondary/20 border border-border/50">
+                    <img
+                      src={selectedCampaignDetail.brand?.avatarUrl || `https://api.dicebear.com/9.x/avataaars/svg?seed=${selectedCampaignDetail.brand?.fullName}`}
+                      alt=""
+                      className="h-10 w-10 rounded-xl object-cover border border-border"
+                      onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=brand"; }}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold truncate">{selectedCampaignDetail.brand?.fullName || "Brand Partner"}</p>
+                      <p className="text-xs text-muted-foreground">{selectedCampaignDetail.brand?.category || "Brand"} • {selectedCampaignDetail.location || "Pan India"}</p>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <p className="text-xs font-semibold text-foreground mb-1">Campaign Brief</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed bg-background/50 p-3 rounded-xl border border-border/40 whitespace-pre-wrap">{selectedCampaignDetail.description}</p>
+                  </div>
+
+                  {/* Budget & Timeline */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-border bg-secondary/10 p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Creator Budget</p>
+                      <p className="text-sm font-bold text-foreground">
+                        ₹{minBudVal.toLocaleString()} – ₹{maxBudVal.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-secondary/10 p-3">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Timeline</p>
+                      <p className="text-sm font-bold text-foreground">
+                        {selectedCampaignDetail.startDate ? new Date(selectedCampaignDetail.startDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Any"} – {selectedCampaignDetail.endDate ? new Date(selectedCampaignDetail.endDate).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "Open"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Deliverables */}
+                  {selectedCampaignDetail.deliverables && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground mb-2">Required Deliverables</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.isArray(selectedCampaignDetail.deliverables) ? (
+                          selectedCampaignDetail.deliverables.map((d, i) => (
+                            <span key={i} className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+                              {d.quantity}× {d.type}
+                            </span>
+                          ))
+                        ) : (
+                          <>
+                            {selectedCampaignDetail.deliverables.reels > 0 && <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">{selectedCampaignDetail.deliverables.reels}x Reel</span>}
+                            {selectedCampaignDetail.deliverables.posts > 0 && <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">{selectedCampaignDetail.deliverables.posts}x Post</span>}
+                            {selectedCampaignDetail.deliverables.stories > 0 && <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">{selectedCampaignDetail.deliverables.stories}x Story</span>}
+                            {selectedCampaignDetail.deliverables.videos > 0 && <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">{selectedCampaignDetail.deliverables.videos}x Video</span>}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Categories / niches */}
+                  {selectedCampaignDetail.targetNiches?.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-foreground mb-2">Target Niches</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedCampaignDetail.targetNiches.map((n, i) => (
+                          <span key={i} className="text-xs bg-secondary/40 text-foreground px-2.5 py-0.5 rounded-full border border-border/60">{n}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2 mt-4">
+                  <Button variant="outline" className="flex-1 rounded-full text-xs" onClick={() => setSelectedCampaignDetail(null)}>
+                    Close
+                  </Button>
+                  {userRequestedCampaignIds.has(selectedCampaignDetail._id) ? (
+                    <Button disabled className="flex-1 rounded-full bg-secondary text-muted-foreground text-xs">Applied ✓</Button>
+                  ) : !meetsFollowerCriteria ? (
+                    <Button
+                      className="flex-1 rounded-full gradient-sunset text-white border-0 shadow-glow font-semibold text-xs flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        handleShareCampaign(selectedCampaignDetail);
+                        setSelectedCampaignDetail(null);
+                      }}
+                    >
+                      <Share2 className="h-3.5 w-3.5" /> Refer Another Creator
+                    </Button>
+                  ) : (
+                    <Button
+                      className="flex-1 rounded-full gradient-sunset text-white border-0 shadow-glow font-semibold text-xs"
+                      onClick={() => {
+                        setSelectedCampaignForDiscovery(selectedCampaignDetail);
+                        setSelectedTierForJoin(matchedTier || null);
+                        setJoinPitch(`Hi ${selectedCampaignDetail.brand?.fullName || "there"}! I'm excited to collaborate on your "${selectedCampaignDetail.title}" campaign.`);
+                        setSelectedCampaignDetail(null);
+                      }}
+                    >
+                      Apply
+                    </Button>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================= */}
+      {/* 1. INSTAGRAM CREATE / PUBLISH DELIVERABLE MODAL */}
+      {/* ========================================================= */}
+      <Dialog open={showAddPortfolioModal} onOpenChange={setShowAddPortfolioModal}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-display text-lg">
+              <span className="p-1.5 rounded-lg bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white">
+                <Camera className="h-4 w-4" />
+              </span>
+              Add to Creator Portfolio
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Upload past campaign deliverables (Posts, Reels, Stories) to showcase to brands.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Format Selection */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Deliverable Format *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "post", label: "Post (1:1)", icon: Camera, color: "text-blue-500" },
+                  { id: "reel", label: "Reel / Video", icon: Film, color: "text-pink-500" },
+                  { id: "story", label: "Story", icon: Sparkles, color: "text-amber-500" },
+                ].map((fmt) => {
+                  const Icon = fmt.icon;
+                  const isSelected = newPortfolioForm.type === fmt.id;
+                  return (
+                    <button
+                      key={fmt.id}
+                      type="button"
+                      onClick={() => setNewPortfolioForm((f) => ({ ...f, type: fmt.id }))}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-semibold transition-all",
+                        isSelected
+                          ? "border-pink-500 bg-pink-500/10 text-foreground ring-1 ring-pink-500/50"
+                          : "border-border bg-card hover:bg-secondary/50 text-muted-foreground"
+                      )}
+                    >
+                      <Icon className={cn("h-5 w-5 mb-1.5", fmt.color)} />
+                      {fmt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Media Upload Box */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Media File (Photo or Video) *
+              </label>
+              {newPortfolioForm.filePreview ? (
+                <div className="relative rounded-xl overflow-hidden border border-border bg-black max-h-56 flex items-center justify-center group">
+                  {newPortfolioForm.file?.type?.startsWith("video/") ? (
+                    <video
+                      src={newPortfolioForm.filePreview}
+                      className="max-h-56 w-auto object-contain"
+                      controls
+                    />
+                  ) : (
+                    <img
+                      src={newPortfolioForm.filePreview}
+                      alt="Preview"
+                      className="max-h-56 w-auto object-contain"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setNewPortfolioForm((f) => ({ ...f, file: null, filePreview: null }))}
+                    className="absolute top-2 right-2 bg-destructive text-white p-1.5 rounded-full shadow-lg hover:opacity-90 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-6 cursor-pointer hover:bg-secondary/30 transition-colors">
+                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-xs font-semibold text-foreground">Click to upload photo or reel video</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">JPG, PNG, WEBP, MP4, MOV (up to 50MB)</span>
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const preview = URL.createObjectURL(file);
+                      setNewPortfolioForm((f) => ({ ...f, file, filePreview: preview }));
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Brand Collaboration Tag */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Brand Collaborator / Handle (Optional)
+              </label>
+              <Input
+                placeholder="e.g. @zara, @nike, @myntra"
+                value={newPortfolioForm.brandTag}
+                onChange={(e) => setNewPortfolioForm((f) => ({ ...f, brandTag: e.target.value }))}
+                className="text-xs rounded-xl"
+              />
+            </div>
+
+            {/* Caption & Hashtags */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Caption & Hashtags (Optional)
+              </label>
+              <Textarea
+                placeholder="Write a caption... e.g. 'Loved working with @zara on their summer launch! ✨ #fashion #sponsored'"
+                value={newPortfolioForm.caption}
+                onChange={(e) => setNewPortfolioForm((f) => ({ ...f, caption: e.target.value }))}
+                className="text-xs rounded-xl min-h-[70px]"
+              />
+            </div>
+
+            {/* Engagement Metrics Showcase */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  Likes Count
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={newPortfolioForm.likesCount}
+                  onChange={(e) => setNewPortfolioForm((f) => ({ ...f, likesCount: e.target.value }))}
+                  className="text-xs rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  Views / Reach Count
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={newPortfolioForm.viewsCount}
+                  onChange={(e) => setNewPortfolioForm((f) => ({ ...f, viewsCount: e.target.value }))}
+                  className="text-xs rounded-xl"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddPortfolioModal(false)}
+              className="rounded-full text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={uploadingPortfolioItem || !newPortfolioForm.file}
+              onClick={handleCreateInstagramPortfolioItem}
+              className="rounded-full gradient-sunset text-white border-0 text-xs font-semibold"
+            >
+              {uploadingPortfolioItem ? "Publishing..." : "Publish to Portfolio"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================= */}
+      {/* 2. INSTAGRAM-STYLE INTERACTIVE LIGHTBOX & POST VIEWER */}
+      {/* ========================================================= */}
+      {selectedPortfolioPost && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setSelectedPortfolioPost(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 transition-colors rounded-full hover:bg-white/10 z-50 cursor-pointer"
+            onClick={() => setSelectedPortfolioPost(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          <div
+            className="relative w-full max-w-4xl bg-card border border-border/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Left Side: Media Display */}
+            <div className="md:w-3/5 bg-black flex items-center justify-center relative min-h-[300px] md:min-h-[500px]">
+              {selectedPortfolioPost.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url || "") ? (
+                <video
+                  src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
+                  alt={selectedPortfolioPost.caption || "Portfolio post"}
+                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              )}
+
+              {/* Format Badge Overlay */}
+              <div className="absolute top-3 left-3">
+                {selectedPortfolioPost.type === "reel" ? (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-xs font-bold px-2.5 py-1 rounded-full border border-pink-500/30">
+                    <Film className="h-3 w-3" /> Reel
+                  </span>
+                ) : selectedPortfolioPost.type === "story" ? (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
+                    <Sparkles className="h-3 w-3" /> Story
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-500/30">
+                    <Camera className="h-3 w-3" /> Post
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right Side: Creator info, Brand tag, Caption, Live Comments & Actions */}
+            <div className="md:w-2/5 flex flex-col justify-between border-t md:border-t-0 md:border-l border-border bg-card">
+              {/* Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-full overflow-hidden border border-border bg-muted">
+                    <img
+                      src={resolveImageUrl(profile?.avatarUrl) || "https://api.dicebear.com/9.x/avataaars/svg?seed=Creator"}
+                      alt={displayName}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold leading-tight">{displayName}</h4>
+                    <p className="text-[10px] text-muted-foreground">@{handle?.replace(/^@+/, "") || "creator"}</p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemovePortfolioImage(selectedPortfolioPost._id)}
+                  className="text-destructive hover:bg-destructive/10 h-7 px-2 rounded-lg text-xs"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              {/* Scrollable Caption & Comments List */}
+              <div className="flex-1 p-4 overflow-y-auto max-h-[300px] md:max-h-[360px] space-y-3.5 text-xs">
+                {/* Brand Collab Partnership Tag */}
+                {selectedPortfolioPost.brandTag && (
+                  <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-500 font-semibold flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Paid partnership with <span className="underline">{selectedPortfolioPost.brandTag.startsWith("@") ? selectedPortfolioPost.brandTag : `@${selectedPortfolioPost.brandTag}`}</span></span>
+                  </div>
+                )}
+
+                {/* Main Creator Caption */}
+                {selectedPortfolioPost.caption ? (
+                  <div className="flex gap-2.5">
+                    <div className="h-7 w-7 rounded-full overflow-hidden shrink-0 border border-border">
+                      <img
+                        src={resolveImageUrl(profile?.avatarUrl) || "https://api.dicebear.com/9.x/avataaars/svg?seed=Creator"}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="leading-relaxed">
+                        <span className="font-bold mr-1.5">{displayName}</span>
+                        {selectedPortfolioPost.caption}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground mt-1 block">
+                        {new Date(selectedPortfolioPost.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground italic text-[11px]">No caption provided.</p>
+                )}
+
+                {/* Comments Section */}
+                <div className="border-t border-border/50 pt-3 space-y-2.5">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                    Comments ({selectedPortfolioPost.comments?.length || selectedPortfolioPost.commentsCount || 0})
+                  </p>
+
+                  {(selectedPortfolioPost.comments || []).map((comm, cIdx) => (
+                    <div key={cIdx} className="flex gap-2.5 items-start">
+                      <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
+                        <img
+                          src={resolveImageUrl(comm.userAvatar) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${comm.userName || 'Commenter'}`}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
+                        <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
+                        <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bottom Action Bar: Like, Share, Stats, Add Comment */}
+              <div className="p-4 border-t border-border bg-card space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePortfolioLike(selectedPortfolioPost)}
+                      className="text-foreground hover:text-rose-500 transition-colors cursor-pointer"
+                    >
+                      <Heart className={cn("h-5 w-5", selectedPortfolioPost.isLiked ? "fill-rose-500 text-rose-500" : "")} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById("portfolio-comment-input")?.focus()}
+                      className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSharePortfolioItem(selectedPortfolioPost)}
+                      className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] font-bold text-muted-foreground">
+                    {selectedPortfolioPost.viewsCount ? `${selectedPortfolioPost.viewsCount.toLocaleString()} views` : ""}
+                  </span>
+                </div>
+
+                <p className="text-xs font-bold text-foreground">
+                  {(selectedPortfolioPost.likesCount || 0).toLocaleString()} likes
+                </p>
+
+                {/* Add Comment Input */}
+                <div className="flex items-center gap-2 pt-1">
+                  <Input
+                    id="portfolio-comment-input"
+                    placeholder="Add a comment..."
+                    value={portfolioCommentText}
+                    onChange={(e) => setPortfolioCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddPortfolioComment();
+                    }}
+                    className="text-xs rounded-full h-8 px-3"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={submittingPortfolioComment || !portfolioCommentText.trim()}
+                    onClick={handleAddPortfolioComment}
+                    className="rounded-full h-8 px-3 gradient-sunset text-white border-0 text-xs font-semibold"
+                  >
+                    Post
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

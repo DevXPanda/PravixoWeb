@@ -13,11 +13,63 @@ import Notification from "../models/Notification.js";
 
 export const getPackages = async (req, res) => {
   try {
-    const packages = await SubscriptionPackage.find({
+    let packages = await SubscriptionPackage.find({
       active: true,
     })
       .sort({ sortOrder: 1 })
       .lean();
+
+    // If packages empty, seed standard Starter, Pro, Elite packages
+    if (!packages || packages.length === 0) {
+      await SubscriptionPackage.create([
+        {
+          name: "Starter",
+          price: 0,
+          billingPeriod: "year",
+          badge: "Free",
+          features: [
+            "Campaign Limits: 2/month",
+            "Chat Access: Limited",
+            "Support Tier: Standard",
+            "Refer Income: 5%"
+          ],
+          sortOrder: 1,
+          active: true,
+        },
+        {
+          name: "Pro",
+          price: 199,
+          billingPeriod: "year",
+          badge: "Popular",
+          features: [
+            "Campaign Limits: 10/month",
+            "Verified Badge & Unlimited Chat Access",
+            "Support Tier: Priority",
+            "Refer Income: 7.5%",
+            "Complimentary 3-Month Free Welcome Offer for New Users"
+          ],
+          sortOrder: 2,
+          active: true,
+        },
+        {
+          name: "Elite",
+          price: 2999,
+          billingPeriod: "year",
+          badge: "Best Value",
+          features: [
+            "Campaign Limits: 100/month",
+            "Verified Badge & Unlimited Chat Access",
+            "Support Tier: Priority",
+            "Refer Income: 10%",
+            "Dedicated Account Manager"
+          ],
+          sortOrder: 3,
+          active: true,
+        },
+      ]);
+
+      packages = await SubscriptionPackage.find({ active: true }).sort({ sortOrder: 1 }).lean();
+    }
 
     return res.status(200).json({
       success: true,

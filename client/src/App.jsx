@@ -33,6 +33,7 @@ import OAuthCallback from "./routes/OAuthCallback";
 
 import DashboardCustomer from "./routes/DashboardCustomer";
 import DashboardInfluencer from "./routes/DashboardInfluencer";
+import Unsubscribe from "./routes/Unsubscribe";
 import PayoutProcessedModal from "./components/collaboration/PayoutProcessedModal";
 
 function ScrollToTop() {
@@ -108,6 +109,7 @@ function Layout() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/terms-and-conditions" element={<Terms />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
 
           <Route
             path="/protection-info"

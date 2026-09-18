@@ -30,12 +30,12 @@ const generateAgreementTerms = (brandName, creatorName, campaignTitle, creatorAm
   {
     sectionNumber: 4,
     title: "4. Creator Compensation",
-    content: `Upon satisfactory completion and Brand approval of all required deliverables, Creator is entitled to receive full agreed compensation of ₹${Number(creatorAmount).toLocaleString("en-IN")}. No deductions for platform service fees shall be made from this Creator amount.`,
+    content: `Upon satisfactory completion and Brand approval of all required deliverables, Creator is entitled to receive full agreed net compensation of ₹${Number(creatorAmount).toLocaleString("en-IN")} (80% net payout after 20% Pravixo platform service fee deduction from total campaign budget).`,
   },
   {
     sectionNumber: 5,
     title: "5. Pravixo Platform Service Fee",
-    content: `Pravixo charges a 20% platform administration and escrow guarantee service fee of ₹${Number(pravixoFee).toLocaleString("en-IN")}, which is billed to and paid directly by the Brand on top of the Creator compensation.`,
+    content: `Pravixo charges a 20% platform administration and escrow guarantee service fee of ₹${Number(pravixoFee).toLocaleString("en-IN")}, deducted from the total campaign budget of ₹${Number(brandTotal).toLocaleString("en-IN")}.`,
   },
   {
     sectionNumber: 6,
@@ -172,16 +172,16 @@ export const generateAgreement = async (req, res) => {
     }
 
     // Financial calculations & validation
-    const creatorAmount = Number(connection.creatorAmount) || 0;
-    if (creatorAmount <= 0) {
+    const brandTotal = Number(connection.brandTotal) || (Number(connection.creatorAmount) ? Math.round(Number(connection.creatorAmount) / 0.8) : 0);
+    if (brandTotal <= 0) {
       return res.status(400).json({
         success: false,
-        message: "Cannot generate agreement: Creator compensation amount has not been agreed or is ₹0.",
+        message: "Cannot generate agreement: Collaboration budget amount has not been agreed or is ₹0.",
       });
     }
 
-    const pravixoFee = Math.round(creatorAmount * 0.20);
-    const brandTotal = creatorAmount + pravixoFee;
+    const pravixoFee = Number(connection.pravixoFee) || Math.round(brandTotal * 0.20);
+    const creatorAmount = Number(connection.creatorAmount) || (brandTotal - pravixoFee);
 
     // Deliverables snapshot preparation
     let deliverablesSnapshot = [];

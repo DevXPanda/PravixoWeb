@@ -26,6 +26,13 @@ const connectionSchema = new mongoose.Schema({
     required: true,
   },
 
+  appliedTier: {
+    minFollowers: { type: Number, default: 0 },
+    reward: { type: String, default: "" },
+    cashAmount: { type: Number, default: 0 },
+    perks: { type: String, default: "" },
+  },
+
   status: {
     type: String,
     enum: ["pending", "accepted", "rejected"],

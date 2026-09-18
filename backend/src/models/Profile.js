@@ -33,6 +33,12 @@ const profileSchema = new mongoose.Schema(
       required: true,
     },
 
+    gender: {
+      type: String,
+      enum: ["male", "female", "other", ""],
+      default: "",
+    },
+
     handle: {
       type: String,
       trim: true,
@@ -62,6 +68,11 @@ const profileSchema = new mongoose.Schema(
     startingPrice: {
       type: Number,
       default: 0,
+    },
+
+    isBarterAllowed: {
+      type: Boolean,
+      default: false,
     },
 
     avatarUrl: {
@@ -284,6 +295,16 @@ const profileSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    emailNotificationsEnabled: {
+      type: Boolean,
+      default: true,
+    },
+
+    unsubscribeToken: {
+      type: String,
+      default: () => crypto.randomBytes(24).toString("hex"),
     },
   },
   {

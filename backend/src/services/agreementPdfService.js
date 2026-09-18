@@ -113,7 +113,7 @@ export const buildAgreementPdfBuffer = (agreement) => {
       doc.rect(40, currentY, 165, 48).stroke(borderColor);
       doc.fillColor(grayColor).fontSize(7).font("Helvetica").text("CREATOR RECEIVES", 48, currentY + 8);
       doc.fillColor(greenColor).fontSize(13).font("Helvetica-Bold").text(`Rs. ${Number(fin.creatorAmount || 0).toLocaleString("en-IN")}`, 48, currentY + 20);
-      doc.fillColor(grayColor).fontSize(6.5).font("Helvetica").text("Full agreed payout (0% fee deduction)", 48, currentY + 36);
+      doc.fillColor(grayColor).fontSize(6.5).font("Helvetica").text("80% Net Creator Compensation", 48, currentY + 36);
 
       doc.rect(215, currentY, 165, 48).stroke(borderColor);
       doc.fillColor(grayColor).fontSize(7).font("Helvetica").text("PRAVIXO FEE (20%)", 223, currentY + 8);

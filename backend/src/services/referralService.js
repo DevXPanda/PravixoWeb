@@ -288,20 +288,48 @@ export const processReferralQualification = async ({
   }
 };
 
+import UserSubscription from "../models/UserSubscription.js";
+
+/**
+ * Helper to get referral commission rate based on referrer's subscription package
+ * Starter (or no active plan): 5%
+ * Pro: 7.5%
+ * Elite: 10%
+ */
+export const getReferrerCommissionRate = async (referrerProfileId) => {
+  try {
+    const userSub = await UserSubscription.findOne({
+      profileId: referrerProfileId,
+      status: "active",
+      $or: [
+        { expiryDate: { $exists: false } },
+        { expiryDate: null },
+        { expiryDate: { $gt: Date.now() } },
+      ],
+    }).populate("packageId");
+
+    if (userSub && userSub.packageId) {
+      const pkgName = (userSub.packageId.name || "").toLowerCase();
+      if (pkgName.includes("elite")) return 10.0;
+      if (pkgName.includes("pro")) return 7.5;
+      if (pkgName.includes("starter")) return 5.0;
+    }
+  } catch (err) {
+    console.error("[ReferralService] Error getting referrer commission rate:", err);
+  }
+  return 5.0; // Default Starter tier is 5%
+};
+
 /**
  * Hook into the project-payout pipeline for creators.
- * Flow:
- * 1. Look up creator.referred_by_user_id (or referredBy).
- * 2. If null, or the matching referral_relationships.status is not "active"
- *    -> skip referral commission, process normal payout (transaction_type = "project_payout").
- * 3. If active:
- *    - commission_amount = gross_payout_amount * (commission_percent / 100).
- *    - creator_net_amount = gross_payout_amount - platform_fee - commission_amount.
- *    - Credit creator with creator_net_amount (transaction_type = "project_payout").
- *    - Credit referrer with commission_amount (transaction_type = "referral_commission",
- *      related_transaction_id = creatorTx._id, related_referral_id = referralRelationship._id).
- *    - Both share common reference prefix for reconciliation.
- * 4. Emit internal event "payout.processed" with full breakdown.
+ * Business Rules:
+ * 1. Pravixo collects 20% platform commission from gross deal budget.
+ * 2. Creator receives the 80% net amount without referral deductions.
+ * 3. Referrer receives referral commission paid BY PRAVIXO out of Pravixo's 20% share:
+ *    - Starter / Free Tier: 5% of total deal
+ *    - Pro Tier: 7.5% of total deal
+ *    - Elite Tier: 10% of total deal
+ * 4. Transactions are recorded and emitted via "payout.processed".
  */
 export const processProjectPayoutWithReferral = async ({
   creatorId,
@@ -309,6 +337,7 @@ export const processProjectPayoutWithReferral = async ({
   campaignId = null,
   payoutId = null,
   gross_payout_amount,
+  total_deal_amount = null,
   platform_fee = 0,
   transactionReference,
   description = "Project payout",
@@ -332,9 +361,9 @@ export const processProjectPayoutWithReferral = async ({
     });
   }
 
-  // 2. If null or not active -> process normal payout
+  // If null or not active -> process normal payout
   if (!referrerUserId || !referralRelationship || referralRelationship.status !== "active") {
-    // creator net = gross_payout_amount - platform_fee
+    // Creator net amount is full gross_payout_amount (80% net earnings)
     const creator_net_amount = Math.max(0, gross_payout_amount - platform_fee);
 
     const creatorResult = await creditCreatorWallet({
@@ -368,7 +397,7 @@ export const processProjectPayoutWithReferral = async ({
       referral_relationship_id: null,
     };
 
-    // 4. Emit event
+    // Emit event
     appEvents.emit("payout.processed", breakdown);
 
     return {
@@ -378,13 +407,18 @@ export const processProjectPayoutWithReferral = async ({
     };
   }
 
-  // 3. If active:
-  const commissionPercent = typeof referralRelationship.commission_percent === "number"
-    ? referralRelationship.commission_percent
-    : 5.0;
+  // 3. Referral relationship is active:
+  // Determine tiered commission rate (Starter: 5%, Pro: 7.5%, Elite: 10%)
+  const commissionPercent = await getReferrerCommissionRate(referralRelationship.referrer_id);
 
-  const commission_amount = Number((gross_payout_amount * (commissionPercent / 100)).toFixed(2));
-  const creator_net_amount = Number(Math.max(0, gross_payout_amount - platform_fee - commission_amount).toFixed(2));
+  // Total deal budget (e.g., 1000)
+  const baseDealAmount = total_deal_amount && total_deal_amount > 0
+    ? total_deal_amount
+    : (gross_payout_amount > 0 ? (gross_payout_amount / 0.8) : gross_payout_amount);
+
+  const commission_amount = Number((baseDealAmount * (commissionPercent / 100)).toFixed(2));
+  // Creator receives their full 80% share without deduction (paid from Pravixo's platform share)
+  const creator_net_amount = Number(Math.max(0, gross_payout_amount - platform_fee).toFixed(2));
 
   // Create creator's wallet transaction (transaction_type = "project_payout")
   const creatorTxRef = commonRef;
@@ -395,7 +429,7 @@ export const processProjectPayoutWithReferral = async ({
     campaignId,
     payoutId,
     referenceId: creatorTxRef,
-    description: `${description} (Net after ${commissionPercent}% referral commission)`,
+    description: `${description} (Net creator earnings)`,
     transaction_type: "project_payout",
     related_referral_id: referralRelationship._id,
   });
@@ -422,11 +456,11 @@ export const processProjectPayoutWithReferral = async ({
   }
 
   // Create referrer's wallet transaction (transaction_type = "referral_commission")
-  // If referrer is suspended: hold in "PENDING" status until account is reinstated or revoked
+  // Referral income is paid by Pravixo from platform commission
   const commissionStatus = referrerIsSuspended ? "PENDING" : "COMPLETED";
   const commissionDesc = referrerIsSuspended
     ? `Referral commission (${commissionPercent}%) held in PENDING — referrer account suspended`
-    : `Referral commission (${commissionPercent}%) from project payout of ${creator.fullName || "creator"}`;
+    : `Referral income (${commissionPercent}%) paid by Pravixo for collaboration of ${creator.fullName || "creator"}`;
 
   const referrerTxRef = `${commonRef}-COMM`;
   const referrerResult = await creditCreatorWallet({
@@ -434,7 +468,7 @@ export const processProjectPayoutWithReferral = async ({
     amount: commission_amount,
     collaborationId,
     campaignId,
-    payoutId: null, // Payout doc belongs to creator, avoid unique sparse index collision on payoutId
+    payoutId: null,
     referenceId: referrerTxRef,
     description: commissionDesc,
     transaction_type: "referral_commission",
@@ -457,6 +491,7 @@ export const processProjectPayoutWithReferral = async ({
     campaign_id: campaignId,
     common_reference: commonRef,
     gross_payout_amount,
+    total_deal_amount: baseDealAmount,
     platform_fee,
     commission_percent: commissionPercent,
     commission_amount,

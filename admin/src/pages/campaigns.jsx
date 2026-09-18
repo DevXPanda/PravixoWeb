@@ -16,6 +16,9 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
+  Users,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -644,6 +647,72 @@ export function CampaignsPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Extra Campaign Details: Category, Location, Min Followers Requirement */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="bg-secondary/10 p-3 rounded-xl border border-border/40 space-y-1">
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-semibold">
+                    <Tag className="h-3 w-3 text-primary" /> Category
+                  </span>
+                  <p className="text-xs font-semibold text-foreground">
+                    {selectedCampaign.category || "All Categories"}
+                  </p>
+                </div>
+                <div className="bg-secondary/10 p-3 rounded-xl border border-border/40 space-y-1">
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-semibold">
+                    <MapPin className="h-3 w-3 text-primary" /> Location
+                  </span>
+                  <p className="text-xs font-semibold text-foreground">
+                    {selectedCampaign.location || "Pan India"}
+                  </p>
+                </div>
+                <div className="bg-secondary/10 p-3 rounded-xl border border-border/40 space-y-1 col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 font-semibold">
+                    <Users className="h-3 w-3 text-primary" /> Min Followers
+                  </span>
+                  <p className="text-xs font-semibold text-foreground">
+                    {selectedCampaign.minFollowers > 0
+                      ? `${selectedCampaign.minFollowers >= 1000 ? `${(selectedCampaign.minFollowers / 1000).toFixed(0)}k+` : selectedCampaign.minFollowers} followers`
+                      : "No minimum required"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Condition-Based Tiers / Perk Options Breakdown */}
+              {selectedCampaign.tiers && selectedCampaign.tiers.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-amber-500" /> Condition-Based Options & Perks ({selectedCampaign.tiers.length} Options)
+                  </label>
+                  <div className="space-y-2">
+                    {selectedCampaign.tiers.map((tier, tIdx) => (
+                      <div
+                        key={tIdx}
+                        className="p-3 bg-secondary/20 border border-border/60 rounded-xl flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold text-[10px] border border-primary/20">
+                            Option {tIdx + 1}
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {tier.minFollowers >= 1000 ? `${(tier.minFollowers / 1000).toFixed(0)}k+` : tier.minFollowers} Followers
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-foreground">
+                            {tier.reward || tier.perks || "Standard Reward"}
+                          </p>
+                          {tier.cashAmount > 0 && (
+                            <span className="text-[10px] text-emerald-600 font-bold block">
+                              + ₹{tier.cashAmount.toLocaleString("en-IN")} Cash
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Deliverables */}
               <div className="space-y-2">

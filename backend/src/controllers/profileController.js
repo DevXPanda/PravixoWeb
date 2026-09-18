@@ -24,10 +24,20 @@ export const listProfiles = async (req, res) => {
       filter.category = category;
     }
 
-    // Always exclude soft-deleted profiles
+    // Always exclude soft-deleted and suspended profiles
     filter.isDeleted = { $ne: true };
+    filter.isSuspended = { $ne: true };
+    filter.email = { $not: /@pravixo\.test|@test\.com/i };
 
-    let profiles = await Profile.find(filter).lean();
+    let profiles = await Profile.find(filter).sort({ createdAt: -1 }).lean();
+
+    // Filter out dummy/test profile names
+    profiles = profiles.filter(
+      (p) =>
+        !/task20|impostor|suspended|test brand|dummy|alice referrer|bob creator|charlie creator/i.test(
+          p.fullName || ""
+        )
+    );
 
     // Search fullName, handle and category
     if (search) {
@@ -115,9 +125,29 @@ export const getByUserId = async (req, res) => {
       });
     }
 
+    let brandCampaigns = [];
+    let hiredCount = 0;
+    if (profile.role === "brand") {
+      const Campaign = mongoose.model("Campaign");
+      const Connection = mongoose.model("Connection");
+      brandCampaigns = await Campaign.find({
+        brandId: profile._id,
+      }).sort({ createdAt: -1 }).lean();
+
+      hiredCount = await Connection.countDocuments({
+        brandId: profile._id,
+        status: { $in: ["accepted", "completed"] },
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      data: profile,
+      data: {
+        ...profile,
+        campaigns: brandCampaigns,
+        campaignsCount: brandCampaigns.length,
+        hiredCount,
+      },
     });
   } catch (error) {
     console.error("Get profile by user ID error:", error);
@@ -154,6 +184,22 @@ export const getById = async (req, res) => {
       });
     }
 
+    // If profile is a brand, attach live campaigns and counts
+    let brandCampaigns = [];
+    let hiredCount = 0;
+    if (profile.role === "brand") {
+      const Campaign = mongoose.model("Campaign");
+      const Connection = mongoose.model("Connection");
+      brandCampaigns = await Campaign.find({
+        brandId: profile._id,
+      }).sort({ createdAt: -1 }).lean();
+
+      hiredCount = await Connection.countDocuments({
+        brandId: profile._id,
+        status: { $in: ["accepted", "completed"] },
+      });
+    }
+
     const reviews = await Review.find({
       creatorId: profile._id,
       visible: true,
@@ -176,6 +222,9 @@ export const getById = async (req, res) => {
       success: true,
       data: {
         ...profile,
+        campaigns: brandCampaigns,
+        campaignsCount: brandCampaigns.length,
+        hiredCount,
         rating,
         reviewsCount: reviews.length,
       },
@@ -416,6 +465,7 @@ export const updateProfile = async (req, res) => {
     const allowedFields = [
       "fullName",
       "handle",
+      "gender",
       "phone",
       "category",
       "location",
@@ -461,6 +511,7 @@ export const updateProfile = async (req, res) => {
 
       "website",
       "companySize",
+      "isBarterAllowed",
     ];
 
     const updates = {};
@@ -708,6 +759,100 @@ export const uploadKycDocuments = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to upload KYC documents.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// UNSUBSCRIBE EMAIL NOTIFICATIONS
+// POST or GET /api/profiles/unsubscribe
+// =====================================================
+export const unsubscribeEmailNotifications = async (req, res) => {
+  try {
+    const { email, token } = req.query.email ? req.query : req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required to unsubscribe.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const query = { email: normalizedEmail };
+
+    if (token) {
+      query.$or = [{ unsubscribeToken: token }, { _id: mongoose.Types.ObjectId.isValid(token) ? token : null }];
+    }
+
+    const profile = await Profile.findOneAndUpdate(
+      query,
+      { $set: { emailNotificationsEnabled: false } },
+      { new: true }
+    );
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found or invalid token.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "You have been successfully unsubscribed from campaign email notifications.",
+      data: { email: profile.email, emailNotificationsEnabled: false },
+    });
+  } catch (error) {
+    console.error("Unsubscribe error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to process unsubscribe request.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// TOGGLE EMAIL NOTIFICATIONS PREFERENCE (Authenticated)
+// PATCH /api/profiles/email-notifications
+// =====================================================
+export const toggleEmailNotifications = async (req, res) => {
+  try {
+    const profileId = req.user?._id || req.user?.profileId;
+    const { enabled } = req.body;
+
+    if (!profileId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const profile = await Profile.findByIdAndUpdate(
+      profileId,
+      { $set: { emailNotificationsEnabled: Boolean(enabled) } },
+      { new: true }
+    );
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Campaign email notifications have been ${enabled ? "enabled" : "disabled"}.`,
+      data: { emailNotificationsEnabled: profile.emailNotificationsEnabled },
+    });
+  } catch (error) {
+    console.error("Toggle email notifications error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update notification settings.",
       error: error.message,
     });
   }

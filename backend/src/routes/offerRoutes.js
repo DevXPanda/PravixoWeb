@@ -23,6 +23,6 @@ router.get("/mine/:profileId", protect, getMyOffers);
 router.get("/admin/all", adminProtect, getAllOffersAdmin);
 router.put("/:offerId/approve", adminProtect, approveOffer);
 router.put("/:offerId/reject", adminProtect, rejectOffer);
-router.delete("/:offerId", adminProtect, deleteOffer);
+router.delete("/:offerId", protect, deleteOffer);
 
 export default router;

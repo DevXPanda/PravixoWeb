@@ -5,6 +5,7 @@ import Connection from "../models/Connection.js";
 import Notification from "../models/Notification.js";
 import Review from "../models/Review.js";
 import { sendPushToUsers, sendPushToUser } from "../utils/webPush.js";
+import { notifyCreatorsAboutNewCampaign } from "../services/emailService.js";
 
 // Helper: Calculate remaining budget for a campaign
 const calculateCampaignRemainingBudget = async (campaign) => {
@@ -55,6 +56,8 @@ export const createCampaign = async (req, res) => {
       totalBudget,
       minBudgetPerCreator,
       maxBudgetPerCreator,
+      minFollowers,
+      tiers,
       deliverables,
       budget,
       duration,
@@ -76,6 +79,18 @@ export const createCampaign = async (req, res) => {
     const totalBudgetInt = Number(totalBudget) || (budget ? Number(String(budget).replace(/[^0-9]/g, "")) : 0);
     const minBudgetInt = Number(minBudgetPerCreator) || 0;
     const maxBudgetInt = Number(maxBudgetPerCreator) || 0;
+    const minFollowersInt = Number(minFollowers) || 0;
+
+    const parsedTiers = Array.isArray(tiers)
+      ? tiers
+          .map((t) => ({
+            minFollowers: Number(t.minFollowers) || 0,
+            reward: String(t.reward || t.perks || "").trim(),
+            cashAmount: Number(t.cashAmount) || 0,
+            perks: String(t.perks || t.reward || "").trim(),
+          }))
+          .filter((t) => t.reward || t.minFollowers > 0 || t.cashAmount > 0)
+      : [];
 
     const formattedBudget = budget || `₹${totalBudgetInt.toLocaleString("en-IN")}`;
     const formattedDuration = duration || `${Math.max(1, Math.round((endTs - startTs) / (24 * 60 * 60 * 1000)))} days`;
@@ -107,6 +122,8 @@ export const createCampaign = async (req, res) => {
       totalBudget: totalBudgetInt,
       minBudgetPerCreator: minBudgetInt,
       maxBudgetPerCreator: maxBudgetInt,
+      minFollowers: minFollowersInt,
+      tiers: parsedTiers,
       deliverables: parsedDeliverables,
       budget: formattedBudget,
       duration: formattedDuration,
@@ -373,6 +390,55 @@ export const joinCampaignRequest = async (req, res) => {
       }
     }
 
+    // Check follower requirement & tiered compensation eligibility if set by brand
+    const creatorProfile = await Profile.findById(creatorId);
+    const totalFollowers =
+      Number(creatorProfile?.instagramFollowers || 0) +
+      Number(creatorProfile?.youtubeFollowers || 0) +
+      Number(creatorProfile?.facebookFollowers || 0) +
+      Number(creatorProfile?.twitterFollowers || 0) +
+      Number(creatorProfile?.linkedinFollowers || 0) +
+      Number(creatorProfile?.quoraFollowers || 0);
+
+    let matchedTier = null;
+
+    if (Array.isArray(campaign.tiers) && campaign.tiers.length > 0) {
+      const sortedTiers = [...campaign.tiers].sort(
+        (a, b) => (Number(a.minFollowers) || 0) - (Number(b.minFollowers) || 0)
+      );
+      const minRequiredAcrossTiers = sortedTiers[0]?.minFollowers || 0;
+
+      if (totalFollowers < minRequiredAcrossTiers) {
+        return res.status(400).json({
+          success: false,
+          message: `This campaign requires at least ${minRequiredAcrossTiers.toLocaleString()} followers to apply for available options.`,
+        });
+      }
+
+      if (req.body.appliedTier && req.body.appliedTier.minFollowers !== undefined) {
+        const selectedMin = Number(req.body.appliedTier.minFollowers) || 0;
+        if (totalFollowers < selectedMin) {
+          return res.status(400).json({
+            success: false,
+            message: `You need at least ${selectedMin.toLocaleString()} followers for the selected option.`,
+          });
+        }
+        matchedTier = req.body.appliedTier;
+      } else {
+        const eligibleTiers = sortedTiers.filter(
+          (t) => totalFollowers >= (Number(t.minFollowers) || 0)
+        );
+        matchedTier = eligibleTiers[eligibleTiers.length - 1] || sortedTiers[0];
+      }
+    } else if (campaign.minFollowers && campaign.minFollowers > 0) {
+      if (totalFollowers < campaign.minFollowers) {
+        return res.status(400).json({
+          success: false,
+          message: `This campaign requires a minimum of ${campaign.minFollowers.toLocaleString()} followers to apply.`,
+        });
+      }
+    }
+
     // Check remaining budget
     const totalBudget = Number(campaign.totalBudget) || 0;
     const minBudget = Number(campaign.minBudgetPerCreator) || 0;
@@ -400,6 +466,7 @@ export const joinCampaignRequest = async (req, res) => {
       brandId: campaign.brandId,
       campaignId: campaign._id,
       pitch: pitch || `Hi! I would love to collaborate on your "${campaign.title}" campaign.`,
+      appliedTier: matchedTier,
       status: "pending",
       creatorNotificationSeen: false,
       createdAt: Date.now(),
@@ -574,6 +641,8 @@ export const updateCampaign = async (req, res) => {
       totalBudget,
       minBudgetPerCreator,
       maxBudgetPerCreator,
+      minFollowers,
+      tiers,
       deliverables,
       budget,
       duration,
@@ -592,6 +661,19 @@ export const updateCampaign = async (req, res) => {
     if (totalBudget !== undefined) updates.totalBudget = Number(totalBudget);
     if (minBudgetPerCreator !== undefined) updates.minBudgetPerCreator = Number(minBudgetPerCreator);
     if (maxBudgetPerCreator !== undefined) updates.maxBudgetPerCreator = Number(maxBudgetPerCreator);
+    if (minFollowers !== undefined) updates.minFollowers = Number(minFollowers);
+    if (tiers !== undefined) {
+      updates.tiers = Array.isArray(tiers)
+        ? tiers
+            .map((t) => ({
+              minFollowers: Number(t.minFollowers) || 0,
+              reward: String(t.reward || t.perks || "").trim(),
+              cashAmount: Number(t.cashAmount) || 0,
+              perks: String(t.perks || t.reward || "").trim(),
+            }))
+            .filter((t) => t.reward || t.minFollowers > 0 || t.cashAmount > 0)
+        : [];
+    }
     if (deliverables) updates.deliverables = deliverables;
     if (budget) updates.budget = budget;
     if (duration) updates.duration = duration;
@@ -648,6 +730,13 @@ export const updateCampaign = async (req, res) => {
           icon: brand?.avatarUrl || "/logo192.png",
           url: `/campaigns/${campaign._id}`,
         });
+
+        // 3. Email Notification to all creators with direct link to campaign & unsubscribe option
+        notifyCreatorsAboutNewCampaign({
+          campaign,
+          brand,
+          frontendOrigin: req.headers.origin,
+        }).catch((err) => console.error("Email notification error:", err));
       }
     }
 

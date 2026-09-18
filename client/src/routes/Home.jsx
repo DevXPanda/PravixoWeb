@@ -35,6 +35,18 @@ import { cn } from "@/lib/utils";
 import heroBanner from "@/assets/hero-banner.jpg";
 import pravixoFlow from "@/assets/pravixo-flow.jpeg";
 
+const resolveImageUrl = (url) => {
+  if (!url || url === "undefined" || url === "null" || typeof url !== "string") return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:") || url.startsWith("blob:")) {
+    return url;
+  }
+  let base = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  if (base.endsWith("/api")) base = base.slice(0, -4);
+  const cleanBase = base.replace(/\/$/, "");
+  const cleanPath = url.startsWith("/") ? url : `/${url}`;
+  return `${cleanBase}${cleanPath}`;
+};
+
 function FeaturedProfileCard({ inf, user, handleCardClick }) {
   const isBrand = inf.role === "brand";
   const targetUrl = isBrand ? `/brand/${inf.id}` : `/influencer/${inf.id}`;
@@ -46,23 +58,26 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
     }
   };
 
+  const bannerImg = resolveImageUrl(inf.cover || inf.coverUrl || inf.bannerUrl) || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80";
+  const avatarImg = resolveImageUrl(inf.avatar || inf.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.name || "User")}&background=random&color=fff&bold=true`;
+
   return (
     <Link
       to={targetUrl}
       onClick={handleClick}
       className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated"
     >
-      {/* COVER */}
+      {/* COVER / BANNER */}
       <div className="relative aspect-[1361/450] w-full overflow-hidden bg-muted">
         <img
-          src={inf.cover}
+          src={bannerImg}
           alt={inf.name}
           loading="lazy"
           referrerPolicy="no-referrer"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&q=80";
+            e.target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80";
           }}
         />
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
@@ -86,16 +101,21 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
 
       {/* PROFILE CONTENT */}
       <div className="-mt-7 flex flex-1 flex-col px-3 pb-3 sm:-mt-10 sm:px-5 sm:pb-5">
-        <img src={inf.avatar}
+        <img
+          src={avatarImg}
           alt={inf.name}
           loading="lazy"
           referrerPolicy="no-referrer"
           className="relative z-10 h-14 w-14 rounded-full border-4 border-card bg-muted object-cover shadow-elevated sm:h-20 sm:w-20"
-         onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.name || "User")}&background=random&color=fff&bold=true`;
+          }}
+        />
 
         <div className="mt-2.5 flex items-start justify-between gap-2 sm:mt-3">
           <div className="min-w-0">
-            <h3 className="truncate font-display text-xs font-semibold sm:text-base">
+            <h3 className="truncate font-display text-xs font-semibold sm:text-base text-foreground">
               {inf.name}
             </h3>
             <p className="truncate text-[10px] text-muted-foreground sm:text-xs">
@@ -318,41 +338,48 @@ export default function Home() {
     fetchLiveProfiles();
   }, []);
 
+  const isTestOrDummyProfile = (p) => {
+    if (!p) return true;
+    if (p.isSuspended) return true;
+    const name = (p.fullName || p.name || "").toLowerCase().trim();
+    const email = (p.email || "").toLowerCase().trim();
+    if (email.includes("@pravixo.test") || email.includes("@test.com")) return true;
+    return /task20|impostor|suspended|test brand|alice referrer|bob creator|charlie creator|^test$|^ppp$|^llalla$/i.test(name);
+  };
+
   const featuredCreators = useMemo(() => {
-    const live = (liveCreators || []).map((p) => ({
-      id: p._id || p.id,
-      name: p.fullName || p.name || "Creator",
-      handle:
-        p.handle ||
-        `@${(p.fullName || p.name || "creator")
-          .toLowerCase()
-          .replace(/\s/g, "")}`,
-      category: p.category || "General",
-      followers:
-        (p.instagramFollowers || 0) +
-        (p.facebookFollowers || 0) +
-        (p.linkedinFollowers || 0) +
-        (p.youtubeFollowers || 0) +
-        (p.quoraFollowers || 0) +
-        (p.twitterFollowers || 0),
-      startingPrice: p.startingPrice || 0,
-      location: p.location || "India",
-      rating: p.rating ?? 5.0,
-      reviews: p.reviewsCount ?? 0,
-      available: true,
-      avatar:
-        (p.avatarUrl && p.avatarUrl !== "undefined" && p.avatarUrl !== "null")
-          ? (p.avatarUrl.startsWith("/") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace("/api", "")}${p.avatarUrl}` : p.avatarUrl)
-          : `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
-              p.fullName || p.name || "creator"
-            )}`,
-      cover:
-        (p.coverUrl && p.coverUrl !== "undefined" && p.coverUrl !== "null")
-          ? (p.coverUrl.startsWith("/") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace("/api", "")}${p.coverUrl}` : p.coverUrl)
-          : `https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&q=80`,
-      bio: p.bio || "",
-      role: p.role || "creator",
-    }));
+    const live = (liveCreators || [])
+      .filter((p) => !isTestOrDummyProfile(p))
+      .map((p) => ({
+        id: p._id || p.id,
+        name: p.fullName || p.name || "Creator",
+        handle:
+          p.handle ||
+          `@${(p.fullName || p.name || "creator")
+            .toLowerCase()
+            .replace(/\s/g, "")}`,
+        category: p.category || "General",
+        followers:
+          (p.instagramFollowers || 0) +
+          (p.facebookFollowers || 0) +
+          (p.linkedinFollowers || 0) +
+          (p.youtubeFollowers || 0) +
+          (p.quoraFollowers || 0) +
+          (p.twitterFollowers || 0),
+        startingPrice: p.startingPrice || 0,
+        location: p.location || "India",
+        rating: p.rating ?? 5.0,
+        reviews: p.reviewsCount ?? 0,
+        available: true,
+        avatar: resolveImageUrl(p.avatarUrl || p.avatar || p.profileImage) ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            p.fullName || p.name || "Creator"
+          )}&background=random&color=fff&bold=true`,
+        cover: resolveImageUrl(p.coverUrl || p.cover || p.bannerUrl) ||
+          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
+        bio: p.bio || "",
+        role: p.role || "creator",
+      }));
 
     const orderedLive = [...live].sort((a, b) => {
       if (profile?.role === "creator") {
@@ -362,40 +389,38 @@ export default function Home() {
       return 0;
     });
 
-    return [...orderedLive, ...influencers].slice(0, 6);
+    return orderedLive.length > 0 ? orderedLive.slice(0, 12) : influencers.slice(0, 6);
   }, [liveCreators, profile]);
 
   const featuredBrands = useMemo(() => {
-    const live = (liveBrands || []).map((p) => ({
-      id: p._id || p.id,
-      name: p.fullName || p.name || "Brand",
-      handle:
-        p.handle ||
-        `@${(p.fullName || p.name || "brand")
-          .toLowerCase()
-          .replace(/\s/g, "")}`,
-      category: p.category || "General",
-      followers: 0,
-      startingPrice: p.startingPrice || 0,
-      location: p.location || "India",
-      rating: p.rating ?? 5.0,
-      reviews: p.reviewsCount ?? 0,
-      available: true,
-      avatar:
-        (p.avatarUrl && p.avatarUrl !== "undefined" && p.avatarUrl !== "null")
-          ? (p.avatarUrl.startsWith("/") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace("/api", "")}${p.avatarUrl}` : p.avatarUrl)
-          : `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
-              p.fullName || p.name || "brand"
-            )}`,
-      cover:
-        (p.coverUrl && p.coverUrl !== "undefined" && p.coverUrl !== "null")
-          ? (p.coverUrl.startsWith("/") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace("/api", "")}${p.coverUrl}` : p.coverUrl)
-          : `https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&q=80`,
-      bio: p.bio || "",
-      role: p.role || "brand",
-    }));
+    const live = (liveBrands || [])
+      .filter((p) => !isTestOrDummyProfile(p))
+      .map((p) => ({
+        id: p._id || p.id,
+        name: p.fullName || p.name || "Brand",
+        handle:
+          p.handle ||
+          `@${(p.fullName || p.name || "brand")
+            .toLowerCase()
+            .replace(/\s/g, "")}`,
+        category: p.category || "General",
+        followers: 0,
+        startingPrice: p.startingPrice || 0,
+        location: p.location || "India",
+        rating: p.rating ?? 5.0,
+        reviews: p.reviewsCount ?? 0,
+        available: true,
+        avatar: resolveImageUrl(p.avatarUrl || p.avatar || p.profileImage) ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            p.fullName || p.name || "Brand"
+          )}&background=random&color=fff&bold=true`,
+        cover: resolveImageUrl(p.coverUrl || p.cover || p.bannerUrl) ||
+          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
+        bio: p.bio || "",
+        role: p.role || "brand",
+      }));
 
-    return [...live, ...mockBrands].slice(0, 6);
+    return live.length > 0 ? live.slice(0, 12) : mockBrands.slice(0, 6);
   }, [liveBrands]);
 
   const handleProfileCardClick = (profileId, role) => {

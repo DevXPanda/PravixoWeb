@@ -21,6 +21,7 @@ export const authApi = {
     email,
     name,
     password,
+    gender,
     otp,
     referralCode,
   }) => {
@@ -29,6 +30,7 @@ export const authApi = {
       email,
       name,
       password,
+      gender,
       otp,
       referralCode,
     });

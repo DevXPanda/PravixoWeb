@@ -89,39 +89,40 @@ export function PayoutProcessedModal() {
 
         {/* Ordered Breakdown Rows */}
         <div className="my-2 divide-y divide-border/60 rounded-xl border border-border/70 bg-muted/30 p-4 space-y-3">
-          {/* Row 1: Gross project payment */}
+          {/* Row 1: Total Brand Budget */}
           <div className="flex items-center justify-between text-sm pt-1">
             <span className="text-muted-foreground font-medium">
-              Gross project payment
+              Gross campaign budget
             </span>
             <span className="font-semibold text-foreground">
-              {formatINR ? formatINR(breakdown.gross_amount) : `₹${Number(breakdown.gross_amount || 0).toLocaleString("en-IN")}`}
+              {formatINR ? formatINR(breakdown.total_deal_amount || breakdown.gross_amount) : `₹${Number(breakdown.total_deal_amount || breakdown.gross_amount || 0).toLocaleString("en-IN")}`}
             </span>
           </div>
 
-          {/* Row 2: Platform fee */}
+          {/* Row 2: Pravixo Platform Fee */}
           <div className="flex items-center justify-between text-sm pt-3">
             <span className="text-muted-foreground font-medium">
-              Platform fee
+              Pravixo platform fee (20%)
             </span>
-            <span className="font-medium text-muted-foreground">
-              - {formatINR ? formatINR(breakdown.platform_fee) : `₹${Number(breakdown.platform_fee || 0).toLocaleString("en-IN")}`}
+            <span className="font-medium text-rose-500">
+              - {formatINR ? formatINR(breakdown.platform_fee || (Number(breakdown.total_deal_amount || breakdown.gross_amount || 0) * 0.2)) : `₹${(Number(breakdown.total_deal_amount || breakdown.gross_amount || 0) * 0.2).toLocaleString("en-IN")}`}
             </span>
           </div>
 
-          {/* Row 3: Referral commission (ONLY if present/non-null) */}
+          {/* Row 3: Referral commission note (Paid by Pravixo) */}
           {hasReferralCommission && (
             <div className="pt-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground font-medium flex items-center gap-1.5">
-                  Referral commission (5%)
+                  Referral bonus ({breakdown.commission_percent || 5}%)
+                  <span className="text-[10px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded font-bold border border-emerald-500/20">Paid by Pravixo</span>
                 </span>
-                <span className="font-medium text-amber-500">
-                  - {formatINR ? formatINR(breakdown.referral_commission) : `₹${Number(breakdown.referral_commission).toLocaleString("en-IN")}`}
+                <span className="font-medium text-emerald-600">
+                  + {formatINR ? formatINR(breakdown.referral_commission) : `₹${Number(breakdown.referral_commission).toLocaleString("en-IN")}`}
                 </span>
               </div>
               <p className="text-[12px] text-muted-foreground/80 mt-0.5">
-                credited to <span className="font-medium text-foreground">{breakdown.referrer_name || "Referrer"}</span>
+                credited to <span className="font-medium text-foreground">{breakdown.referrer_name || "Referrer"}</span> from Pravixo platform commission.
               </p>
             </div>
           )}
@@ -129,10 +130,10 @@ export function PayoutProcessedModal() {
           {/* Row 4: Net amount added to your wallet (bold / emphasized) */}
           <div className="flex items-center justify-between pt-3 text-base">
             <span className="font-bold text-foreground">
-              Net amount added to your wallet
+              Net amount added to your wallet (80%)
             </span>
             <span className="text-lg font-extrabold text-emerald-500">
-              {formatINR ? formatINR(breakdown.net_credited) : `₹${Number(breakdown.net_credited || 0).toLocaleString("en-IN")}`}
+              {formatINR ? formatINR(breakdown.net_credited || breakdown.creator_net_amount) : `₹${Number(breakdown.net_credited || breakdown.creator_net_amount || 0).toLocaleString("en-IN")}`}
             </span>
           </div>
         </div>

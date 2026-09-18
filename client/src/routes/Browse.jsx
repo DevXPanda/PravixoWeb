@@ -7,6 +7,7 @@ import {
   Star,
   MapPin,
   Check,
+  Sparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -151,81 +152,82 @@ export default function Browse() {
     );
   }, [searchParams]);
 
-  /* =========================
-     CONVERT LIVE PROFILES
-  ========================= */
+  const resolveImageUrl = (url) => {
+    if (!url || url === "undefined" || url === "null" || typeof url !== "string") return "";
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:") || url.startsWith("blob:")) {
+      return url;
+    }
+    let base = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+    if (base.endsWith("/api")) base = base.slice(0, -4);
+    const cleanBase = base.replace(/\/$/, "");
+    const cleanPath = url.startsWith("/") ? url : `/${url}`;
+    return `${cleanBase}${cleanPath}`;
+  };
 
   const formattedLiveProfiles = useMemo(() => {
-    return (liveProfiles || []).map((p) => {
-      const name =
-        p.fullName ||
-        p.name ||
-        (role === "brand" ? "Brand" : "Creator");
+    return (liveProfiles || [])
+      .filter((p) => {
+        if (!p || p.isSuspended) return false;
+        const name = (p.fullName || p.name || "").toLowerCase().trim();
+        const email = (p.email || "").toLowerCase().trim();
+        if (email.includes("@pravixo.test") || email.includes("@test.com")) return false;
+        return !/task20|impostor|suspended|test brand|alice referrer|bob creator|charlie creator|^test$|^ppp$|^llalla$/i.test(name);
+      })
+      .map((p) => {
+        const name =
+          p.fullName ||
+          p.name ||
+          (role === "brand" ? "Brand" : "Creator");
 
-      const followers =
-        Number(p.instagramFollowers || 0) +
-        Number(p.facebookFollowers || 0) +
-        Number(p.linkedinFollowers || 0) +
-        Number(p.youtubeFollowers || 0) +
-        Number(p.quoraFollowers || 0) +
-        Number(p.twitterFollowers || 0);
+        const followers =
+          Number(p.instagramFollowers || 0) +
+          Number(p.facebookFollowers || 0) +
+          Number(p.linkedinFollowers || 0) +
+          Number(p.youtubeFollowers || 0) +
+          Number(p.quoraFollowers || 0) +
+          Number(p.twitterFollowers || 0);
 
-      return {
-        id: p._id || p.id,
-
-        name,
-
-        handle:
-          p.handle ||
-          `@${name
-            .toLowerCase()
-            .replace(/\s+/g, "")}`,
-
-        category:
-          p.category ||
-          "Other",
-
-        followers,
-
-        startingPrice:
-          Number(p.startingPrice || 0),
-
-        location:
-          p.location ||
-          "India",
-
-        rating:
-          p.rating ?? 5.0,
-
-        reviews:
-          p.reviewsCount ?? 0,
-
-        available: true,
-
-        avatar:
-          (p.avatarUrl && p.avatarUrl !== "undefined" && p.avatarUrl !== "null")
-            ? (p.avatarUrl.startsWith("/") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace("/api", "")}${p.avatarUrl}` : p.avatarUrl)
-            : `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
-                name
-              )}`,
-
-        cover:
-          (p.coverUrl && p.coverUrl !== "undefined" && p.coverUrl !== "null")
-            ? (p.coverUrl.startsWith("/") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace("/api", "")}${p.coverUrl}` : p.coverUrl)
-            : `https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&q=80`,
-
-        bio:
-          p.bio || "",
-
-        verificationStatus:
-          p.verificationStatus ||
-          "unverified",
-
-        role:
-          p.role ||
-          role,
-      };
-    });
+        return {
+          id: p._id || p.id,
+          name,
+          handle:
+            p.handle ||
+            `@${name
+              .toLowerCase()
+              .replace(/\s+/g, "")}`,
+          category:
+            p.category ||
+            "Other",
+          followers,
+          startingPrice:
+            Number(p.startingPrice || 0),
+          location:
+            p.location ||
+            "India",
+          rating:
+            p.rating ?? 5.0,
+          reviews:
+            p.reviewsCount ?? 0,
+          available: true,
+          gender: p.gender || "",
+          createdAt: p.createdAt,
+          isRecentlyJoined: true,
+          avatar:
+            resolveImageUrl(p.avatarUrl || p.avatar || p.profileImage) ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&bold=true`,
+          cover:
+            resolveImageUrl(p.coverUrl || p.cover || p.bannerUrl) ||
+            `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80`,
+          bio:
+            p.bio || "",
+          verificationStatus:
+            p.verificationStatus ||
+            "unverified",
+          role:
+            p.role ||
+            role,
+        };
+      });
   }, [liveProfiles, role]);
 
   /* =========================
@@ -238,10 +240,7 @@ export default function Browse() {
         ? mockBrands
         : influencers;
 
-    return [
-      ...formattedLiveProfiles,
-      ...mockItems,
-    ];
+    return formattedLiveProfiles.length > 0 ? formattedLiveProfiles : mockItems;
   }, [formattedLiveProfiles, role]);
 
   /* =========================
@@ -976,16 +975,16 @@ export default function Browse() {
                         }}
                       />
 
-                      {item.verificationStatus ===
-                        "verified" && (
-                        <Badge className="absolute left-3 top-3 rounded-full border-0 bg-primary px-2.5 py-0.5 text-xs text-white shadow-sm">
-
-                          <Check className="mr-1 h-3 w-3" />
-
-                          Verified
-
+                      {item.isRecentlyJoined ? (
+                        <Badge className="absolute left-3 top-3 rounded-full border-0 gradient-sunset px-2.5 py-0.5 text-[11px] font-bold text-white shadow-glow flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" /> Recent Joined
                         </Badge>
-                      )}
+                      ) : item.verificationStatus === "verified" ? (
+                        <Badge className="absolute left-3 top-3 rounded-full border-0 bg-primary px-2.5 py-0.5 text-xs text-white shadow-sm">
+                          <Check className="mr-1 h-3 w-3" />
+                          Verified
+                        </Badge>
+                      ) : null}
 
                       <Badge
                         variant="secondary"

@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import Profile from "../models/Profile.js";
 import Otp from "../models/Otp.js";
 import ResetToken from "../models/ResetToken.js";
+import Notification from "../models/Notification.js";
+import SubscriptionPackage from "../models/SubscriptionPackage.js";
+import UserSubscription from "../models/UserSubscription.js";
 import { getUniqueReferralCode } from "../utils/referralCode.js";
 import { recordReferralOnSignup } from "../services/referralService.js";
 
@@ -19,9 +22,13 @@ export const registerController = async (req, res) => {
       email,
       password,
       role,
+      gender,
     } = req.body;
 
     const finalName = (fullName || name || "").trim();
+    const finalGender = ["male", "female", "other"].includes(gender?.toLowerCase())
+      ? gender.toLowerCase()
+      : "";
 
     if (!finalName || !email || !password || !role) {
       return res.status(400).json({
@@ -90,6 +97,18 @@ export const registerController = async (req, res) => {
       creatorReferralCode = await getUniqueReferralCode();
     }
 
+    // DEFAULT GENDER-APPROPRIATE AVATAR
+    let initialAvatar = "";
+    if (finalGender === "female") {
+      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}&gender=female&accessoriesProbability=30&top=longHair,straight01,straight02,curvy,bun`;
+    } else if (finalGender === "male") {
+      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}&gender=male&accessoriesProbability=20&top=shortFlat,shortRound,shortCurly,side`;
+    } else if (role === "brand") {
+      initialAvatar = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(finalName)}`;
+    } else {
+      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}`;
+    }
+
     // CREATE PROFILE
     const profile = await Profile.create({
       userId,
@@ -97,9 +116,62 @@ export const registerController = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role,
+      gender: finalGender,
+      avatarUrl: initialAvatar,
       referralCode: creatorReferralCode || undefined,
       verificationStatus: "pending",
     });
+
+    // 3-MONTH PRO PACKAGE PROMOTIONAL OFFER FOR NEW USERS
+    try {
+      let proPackage = await SubscriptionPackage.findOne({ name: /^Pro$/i });
+      if (!proPackage) {
+        proPackage = await SubscriptionPackage.create({
+          name: "Pro",
+          price: 199,
+          billingPeriod: "year",
+          badge: "Popular",
+          features: [
+            "Campaign Limits: Unlimited (per month)",
+            "Priority Support Tier",
+            "Refer & Earn Income: 7.5%",
+            "Verified Badge & Unlimited Chat Access",
+            "3-Month Free Welcome Pro Offer Included"
+          ],
+          sortOrder: 2,
+          active: true,
+        });
+      }
+
+      const threeMonthsInMs = 90 * 24 * 60 * 60 * 1000;
+      await UserSubscription.create({
+        profileId: profile._id,
+        packageId: proPackage._id,
+        startDate: Date.now(),
+        expiryDate: Date.now() + threeMonthsInMs,
+        status: "active",
+      });
+    } catch (promoErr) {
+      console.error("[Register] Error activating 3-month Pro offer:", promoErr);
+    }
+
+    // CREATE THANK YOU & WELCOME NOTIFICATION
+    try {
+      await Notification.create({
+        recipientId: profile._id,
+        senderId: profile._id,
+        type: "admin_broadcast",
+        text: `Welcome to Pravixo, ${finalName}! Thank you for creating your account. You have been granted a complimentary 3-Month Pro Plan! Explore, connect, and elevate your collaboration journey.`,
+        targetUrl: role === "brand" ? "/dashboard/customer" : "/dashboard/influencer",
+        metadata: {
+          welcome: true,
+          role,
+        },
+        createdAt: Date.now(),
+      });
+    } catch (notifErr) {
+      console.error("[Register] Error creating welcome notification:", notifErr);
+    }
 
     // PROCESS REFERRAL CODE IF PROVIDED
     const incomingRefCode = req.body.referralCode || req.body.ref;
@@ -161,6 +233,7 @@ export const registerController = async (req, res) => {
         userId: profile.userId,
         email: profile.email,
         role: profile.role,
+        gender: profile.gender,
         fullName: profile.fullName,
         verificationStatus: profile.verificationStatus,
 

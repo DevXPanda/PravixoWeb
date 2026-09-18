@@ -83,6 +83,7 @@ export default function Register() {
 
   const [role, setRole] = useState("creator");
   const [name, setName] = useState("");
+  const [gender, setGender] = useState("male");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] =
@@ -422,6 +423,7 @@ export default function Register() {
     role,
     email,
     name,
+    gender: role === "creator" ? gender : undefined,
     password,
     otp: code,
     referralCode: role === "creator" ? referralCode : undefined,
@@ -753,6 +755,33 @@ export default function Register() {
               />
             </div>
           </div>
+
+          {/* GENDER SELECTION (for creators) */}
+          {role === "creator" && (
+            <div>
+              <Label>Gender</Label>
+              <div className="grid grid-cols-3 gap-2 mt-1.5">
+                {[
+                  { value: "male", label: "👨 Male" },
+                  { value: "female", label: "👩 Female" },
+                  { value: "other", label: "✨ Other" },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setGender(item.value)}
+                    className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all ${
+                      gender === item.value
+                        ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary"
+                        : "border-border bg-card/50 text-muted-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* EMAIL */}
 

@@ -661,18 +661,18 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  Monthly Cost
+                  Annual Cost
                 </td>
 
                 <td className="p-4 text-center">
                   ₹0
                 </td>
 
-                <td className="p-4 text-center font-bold">
-                  ₹999
+                <td className="p-4 text-center font-bold text-foreground">
+                  ₹199
                 </td>
 
-                <td className="p-4 text-center font-bold">
+                <td className="p-4 text-center font-bold text-foreground">
                   ₹2999
                 </td>
 
@@ -681,19 +681,19 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  Campaign Limits
+                  Campaign Limits (per month)
                 </td>
 
-                <td className="p-4 text-center text-muted-foreground">
-                  Limited
+                <td className="p-4 text-center font-semibold text-muted-foreground">
+                  2/month
+                </td>
+
+                <td className="p-4 text-center text-primary font-semibold">
+                  10/month
                 </td>
 
                 <td className="p-4 text-center text-emerald-600 font-semibold">
-                  Unlimited
-                </td>
-
-                <td className="p-4 text-center text-emerald-600 font-semibold">
-                  Unlimited
+                  100/month
                 </td>
 
               </tr>
@@ -748,12 +748,12 @@ export function SubscriptionTab({ role, profile }) {
                   Standard
                 </td>
 
-                <td className="p-4 text-center">
+                <td className="p-4 text-center font-medium">
                   Priority
                 </td>
 
                 <td className="p-4 text-center font-semibold text-primary">
-                  Premium 24/7
+                  Priority
                 </td>
 
               </tr>
@@ -761,19 +761,19 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  AI Campaign Matching
+                  Refer Income
                 </td>
 
-                <td className="p-4 text-center">
-                  <X className="h-4 w-4 mx-auto text-muted-foreground/30" />
+                <td className="p-4 text-center font-bold text-muted-foreground">
+                  5%
                 </td>
 
-                <td className="p-4 text-center">
-                  <X className="h-4 w-4 mx-auto text-muted-foreground/30" />
+                <td className="p-4 text-center font-bold text-primary">
+                  7.5%
                 </td>
 
-                <td className="p-4 text-center">
-                  <Check className="h-4 w-4 mx-auto text-emerald-500" />
+                <td className="p-4 text-center font-bold text-emerald-500">
+                  10%
                 </td>
 
               </tr>

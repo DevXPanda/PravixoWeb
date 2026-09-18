@@ -42,6 +42,20 @@ export function MultiRoleOfferForm({ profileId, role = "creator", onOfferCreated
     fetchMyOffers();
   }, [profileId]);
 
+  const handleDeleteOffer = async (offerId) => {
+    if (!confirm("Are you sure you want to delete this offer?")) return;
+    // Optimistically update UI immediately without refresh
+    setMyOffers((prev) => prev.filter((o) => o._id !== offerId));
+    try {
+      await api.delete(`/offers/${offerId}`);
+      toast.success("Offer deleted successfully.");
+    } catch (err) {
+      console.error("Failed to delete offer:", err);
+      toast.error(err.response?.data?.message || "Failed to delete offer.");
+      fetchMyOffers();
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!offerTitle.trim()) {
@@ -304,6 +318,15 @@ export function MultiRoleOfferForm({ profileId, role = "creator", onOfferCreated
                         Expires: {new Date(offer.expiresAt).toLocaleDateString()}
                       </span>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteOffer(offer._id)}
+                      className="text-destructive hover:bg-destructive/10 p-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                      title="Delete Offer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-semibold">Delete</span>
+                    </button>
                   </div>
                 </div>
               );

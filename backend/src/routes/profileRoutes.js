@@ -9,6 +9,8 @@ import {
   uploadAvatar,
   uploadCover,
   uploadKycDocuments,
+  unsubscribeEmailNotifications,
+  toggleEmailNotifications,
 } from "../controllers/profileController.js";
 
 import {
@@ -17,8 +19,13 @@ import {
 } from "../controllers/profileVerificationController.js";
 
 import upload from "../middleware/upload.js";
+import { protect } from "../middleware/auth.js";
 
 const router = express.Router();
+
+router.get("/unsubscribe", unsubscribeEmailNotifications);
+router.post("/unsubscribe", unsubscribeEmailNotifications);
+router.patch("/email-notifications", protect, toggleEmailNotifications);
 
 router.get("/", listProfiles);
 

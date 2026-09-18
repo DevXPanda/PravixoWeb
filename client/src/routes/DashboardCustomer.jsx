@@ -30,6 +30,7 @@ import {
   CreditCard,
   Eye,
   Megaphone,
+  Share2,
 } from "lucide-react";
 
 
@@ -248,6 +249,69 @@ export function DashboardCustomer() {
   const [submissionRejectionReason, setSubmissionRejectionReason] = useState("");
   const [hiredCreatorsModalOpen, setHiredCreatorsModalOpen] = useState(false);
   const [campaignFilterStatus, setCampaignFilterStatus] = useState("ALL");
+  const [showApprovedCollabsModal, setShowApprovedCollabsModal] = useState(false);
+
+  // Followers & Following view modal state
+  const [followModalType, setFollowModalType] = useState(null); // 'followers' | 'following' | null
+  const [followListUsers, setFollowListUsers] = useState([]);
+  const [loadingFollowList, setLoadingFollowList] = useState(false);
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+
+  const fetchFollowCounts = async () => {
+    if (!profile?._id) return;
+    try {
+      const res = await api.get(`/follows/status?targetProfileId=${profile._id}`);
+      if (res.data?.data || res.data) {
+        const d = res.data?.data || res.data;
+        setFollowCounts({
+          followers: d.followersCount || 0,
+          following: d.followingCount || 0,
+        });
+      }
+    } catch (e) {
+      console.error("Fetch follow counts error:", e);
+    }
+  };
+
+  const openFollowModal = async (type) => {
+    setFollowModalType(type);
+    setLoadingFollowList(true);
+    try {
+      const res = await api.get(`/follows/${type}/${profile?._id}`);
+      const list = Array.isArray(res.data?.data) ? res.data.data : Array.isArray(res.data) ? res.data : [];
+      setFollowListUsers(list);
+    } catch (err) {
+      console.error(`Failed to fetch ${type}:`, err);
+      toast.error(`Failed to load ${type}`);
+    } finally {
+      setLoadingFollowList(false);
+    }
+  };
+
+  const handleUnfollowUser = async (targetId) => {
+    try {
+      const res = await api.post("/follows/toggle", {
+        followerId: profile?._id,
+        targetProfileId: targetId,
+      });
+      if (res.data?.success) {
+        toast.success(res.data.message || "Unfollowed");
+        setFollowListUsers((prev) => prev.filter((u) => u._id !== targetId));
+        setFollowCounts((prev) => ({
+          ...prev,
+          following: Math.max(0, prev.following - 1),
+        }));
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to unfollow");
+    }
+  };
+
+  useEffect(() => {
+    if (profile?._id) {
+      fetchFollowCounts();
+    }
+  }, [profile?._id]);
 
   // Tab State
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -354,7 +418,8 @@ export function DashboardCustomer() {
   const [galleryRefreshKey, setGalleryRefreshKey] = useState(0);
   const { data: portfolioImages = [] } = useApiQuery(`/portfolio/profile/${profile?._id}?k=${galleryRefreshKey}`, {}, Boolean(profile));
 
-  const { data: campaigns = [] } = useApiQuery(`/campaigns/brand/${profile?._id}`, {}, Boolean(profile));
+  const [campaignsRefreshKey, setCampaignsRefreshKey] = useState(0);
+  const { data: campaigns = [] } = useApiQuery(`/campaigns/brand/${profile?._id}?k=${campaignsRefreshKey}`, {}, Boolean(profile));
   const brandCampaigns = campaigns;
 
   const { data: reviews = [] } = useApiQuery(`/reviews/creator/${profile?._id}`, {}, Boolean(profile));
@@ -404,6 +469,8 @@ const upgradeSubscription = async ({ profileId, packageId, offerId }) => api.pos
   const [bio, setBio] = useState("");
   const [website, setWebsite] = useState("");
   const [companySize, setCompanySize] = useState("");
+  const [startingPrice, setStartingPrice] = useState(0);
+  const [isBarterAllowed, setIsBarterAllowed] = useState(false);
 
   // Social states
   const [instaHandle, setInstaHandle] = useState("");
@@ -444,6 +511,8 @@ const upgradeSubscription = async ({ profileId, packageId, offerId }) => api.pos
   const [campTotalBudget, setCampTotalBudget] = useState("");
   const [campMinBudget, setCampMinBudget] = useState("");
   const [campMaxBudget, setCampMaxBudget] = useState("");
+  const [campMinFollowers, setCampMinFollowers] = useState("");
+  const [campTiers, setCampTiers] = useState([]);
   const [campReels, setCampReels] = useState(0);
   const [campPosts, setCampPosts] = useState(0);
   const [campStories, setCampStories] = useState(0);
@@ -475,8 +544,10 @@ const [submittingVerification, setSubmittingVerification] =
   useEffect(() => {
     if (!loading && !user) {
       navigate("/login");
+    } else if (!loading && profile && profile.role === "creator") {
+      navigate("/dashboard/influencer", { replace: true });
     }
-  }, [user, loading, navigate]);
+  }, [user, profile, loading, navigate]);
 
   useEffect(() => {
     if (profile) {
@@ -487,6 +558,8 @@ const [submittingVerification, setSubmittingVerification] =
       setBio(profile.bio || "");
       setWebsite(profile.website || "");
       setCompanySize(profile.companySize || "");
+      setStartingPrice(Number(profile.startingPrice ?? 0));
+      setIsBarterAllowed(Boolean(profile.isBarterAllowed));
 
       // Socials
       setInstaHandle(profile.instagramHandle || "");
@@ -560,6 +633,8 @@ const [submittingVerification, setSubmittingVerification] =
         bio: bio || undefined,
         website: website || undefined,
         companySize: companySize || undefined,
+        startingPrice: startingPrice || 0,
+        isBarterAllowed: isBarterAllowed,
         // Socials
         instagramHandle: instaHandle || undefined,
         instagramFollowers: instaFollowers,
@@ -775,6 +850,8 @@ const [submittingVerification, setSubmittingVerification] =
     setCampTotalBudget("");
     setCampMinBudget("");
     setCampMaxBudget("");
+    setCampMinFollowers("");
+    setCampTiers([]);
     setCampReels(0);
     setCampPosts(0);
     setCampStories(0);
@@ -794,6 +871,8 @@ const [submittingVerification, setSubmittingVerification] =
     setCampTotalBudget(camp.totalBudget ? String(camp.totalBudget) : "");
     setCampMinBudget(camp.minBudgetPerCreator ? String(camp.minBudgetPerCreator) : "");
     setCampMaxBudget(camp.maxBudgetPerCreator ? String(camp.maxBudgetPerCreator) : "");
+    setCampMinFollowers(camp.minFollowers ? String(camp.minFollowers) : "");
+    setCampTiers(Array.isArray(camp.tiers) ? camp.tiers : []);
     setCampReels(camp.deliverables?.reels || 0);
     setCampPosts(camp.deliverables?.posts || 0);
     setCampStories(camp.deliverables?.stories || 0);
@@ -831,6 +910,10 @@ const [submittingVerification, setSubmittingVerification] =
         totalBudget: Number(campTotalBudget),
         minBudgetPerCreator: Number(campMinBudget) || 0,
         maxBudgetPerCreator: Number(campMaxBudget) || 0,
+        minFollowers: Number(campMinFollowers) || 0,
+        tiers: Array.isArray(campTiers)
+          ? campTiers.filter((t) => t.reward?.trim() || t.minFollowers > 0 || t.cashAmount > 0)
+          : [],
         deliverables: {
           reels: Number(campReels) || 0,
           posts: Number(campPosts) || 0,
@@ -854,10 +937,7 @@ const [submittingVerification, setSubmittingVerification] =
         toast.success("Campaign submitted for Admin verification!");
       }
       setIsCampaignModalOpen(false);
-      // refetch campaigns
-      api.get(`/campaigns/brand/${profile._id}`).then((res) => {
-        // query automatically updates on refresh
-      }).catch(console.error);
+      setCampaignsRefreshKey((k) => k + 1);
     } catch (err) {
       const e = err?.response?.data?.message || err?.message || "Failed to save campaign";
       toast.error(e);
@@ -870,6 +950,7 @@ const [submittingVerification, setSubmittingVerification] =
     if (!confirm("Are you sure you want to delete this campaign?")) return;
     try {
       await removeCampaign({ id });
+      setCampaignsRefreshKey((k) => k + 1);
       toast.success("Campaign deleted");
     } catch (err) {
       const e = err ;
@@ -992,6 +1073,14 @@ const [submittingVerification, setSubmittingVerification] =
 
   const displayName = profile?.fullName || user?.email?.split("@")[0] || "";
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-full overflow-x-hidden">
       {/* Sticky Top Promo Banner */}
@@ -1093,15 +1182,42 @@ const [submittingVerification, setSubmittingVerification] =
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-  <Link to={`/influencer/${profile?._id}`}>
+  <div className="flex flex-wrap items-center gap-2">
+    <Link to={`/influencer/${profile?._id}`}>
+      <Button
+        variant="outline"
+        className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+      >
+        <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
+      </Button>
+    </Link>
     <Button
       variant="outline"
-      className="rounded-full text-xs font-semibold px-5"
+      onClick={() => openFollowModal("followers")}
+      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
     >
-      View Public Profile
+      <Users className="h-3.5 w-3.5 text-primary" />
+      <span>{followCounts.followers}</span> Followers
     </Button>
-  </Link>
+    <Button
+      variant="outline"
+      onClick={() => openFollowModal("following")}
+      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
+    >
+      <Users className="h-3.5 w-3.5 text-indigo-500" />
+      <span>{followCounts.following}</span> Following
+    </Button>
+    <Button
+      variant="outline"
+      onClick={() => {
+        const url = `${window.location.origin}/influencer/${profile?._id}`;
+        navigator.clipboard.writeText(url);
+        toast.success("Brand profile link copied to clipboard!");
+      }}
+      className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+    >
+      <Share2 className="h-3.5 w-3.5 text-primary" /> Share Link
+    </Button>
 
   {(() => {
     const status = profile?.verificationStatus;
@@ -1246,413 +1362,29 @@ const [submittingVerification, setSubmittingVerification] =
           </div>
         )}
 
-        {/* APPROVED COLLABORATIONS */}
+         {/* APPROVED COLLABORATIONS BUTTON BANNER */}
         {approvedCollabs && approvedCollabs.length > 0 && (
-          <div className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm">
-            <div className="mb-5 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              <h2 className="font-display text-lg font-semibold">
-                Approved Collaborations ({approvedCollabs.length})
-              </h2>
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-3xl border border-border/80 bg-gradient-to-r from-emerald-500/10 via-card to-card shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-500/15 flex items-center justify-center text-emerald-600 shrink-0">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-outfit text-base font-bold text-foreground">
+                  Approved Collaborations
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  You have <strong className="text-foreground">{approvedCollabs.length}</strong> active collaboration{approvedCollabs.length > 1 ? "s" : ""} in progress.
+                </p>
+              </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {approvedCollabs.map((collab) => (
-                <div
-                  key={collab._id}
-                  className="rounded-2xl border border-border p-4 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex flex-col justify-between"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <img src={
-                          collab.creatorProfile?.avatarUrl ||
-                          `https://api.dicebear.com/9.x/avataaars/svg?seed=${collab.creatorProfile?.fullName}`
-                        }
-                        alt=""
-                        className="h-10 w-10 rounded-xl object-cover border border-border/50 shadow-sm shrink-0"
-                       onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          to={`/influencer/${collab.creatorId}`}
-                          className="font-display text-sm font-semibold hover:text-primary truncate block"
-                        >
-                          {collab.creatorProfile?.fullName}
-                        </Link>
-                        {collab.creatorProfile?.handle && (
-                          <p className="text-[11px] text-muted-foreground truncate">
-                            {collab.creatorProfile.handle}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    {collab.campaign && (
-                      <div className="text-xs bg-background border border-border/40 rounded-xl p-3 space-y-1">
-                        <div className="font-semibold text-foreground truncate">
-                          {collab.campaign.title}
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          Budget: {collab.campaign.budget}
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Collaboration Payment Status & Details */}
-                    <div className="rounded-xl border border-border/60 bg-background/50 p-3 text-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground font-medium">Payment Status:</span>
-                        {collab.paymentStatus === "PAID" ? (
-                          <span className="font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
-                            ✓ PAID (Payment Successful)
-                          </span>
-                        ) : collab.paymentStatus === "FAILED" ? (
-                          <span className="font-bold text-red-600 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full text-[10px]">
-                            Payment Failed
-                          </span>
-                        ) : collab.collaborationStatus === "AMOUNT_AGREED" ? (
-                          <span className="font-bold text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full text-[10px]">
-                            Payment Pending
-                          </span>
-                        ) : (
-                          <span className="font-semibold text-muted-foreground text-[11px]">
-                            Negotiating ({collab.proposedAmount > 0 ? `₹${collab.proposedAmount.toLocaleString()}` : "Pending offer"})
-                          </span>
-                        )}
-                      </div>
-
-                      {collab.collaborationStatus === "AMOUNT_AGREED" && (
-                        <div className="pt-2 border-t border-border/40 space-y-1 text-[11px]">
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Creator Payment:</span>
-                            <span className="font-medium text-foreground">₹{collab.creatorAmount?.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Pravixo Fee (20%):</span>
-                            <span className="font-medium text-foreground">₹{collab.pravixoFee?.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-xs pt-1 border-t border-border/30">
-                            <span className="font-bold text-foreground">Total Payable:</span>
-                            <span className="font-bold text-primary">₹{collab.brandTotal?.toLocaleString()}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Task 5: Campaign Deliverables Tracking for Brand */}
-                      {collab.deliverablesTracking && collab.deliverablesTracking.length > 0 && (
-                        <div className="pt-2.5 border-t border-border/40 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-[10px] text-foreground uppercase tracking-wider">
-                              Deliverables Progress
-                            </span>
-                            {collab.paymentStatus === "PAID" ? (
-                              (() => {
-                                const totalReq = collab.deliverablesTracking.reduce((acc, d) => acc + (d.requiredQuantity || 0), 0);
-                                const totalComp = collab.deliverablesTracking.reduce((acc, d) => acc + (d.completedQuantity || 0), 0);
-                                const pct = totalReq > 0 ? Math.round((totalComp / totalReq) * 100) : 0;
-                                return (
-                                  <span className="text-[10px] font-bold text-primary">
-                                    {totalComp}/{totalReq} ({pct}%)
-                                  </span>
-                                );
-                              })()
-                            ) : (
-                              <span className="text-[9px] text-amber-600 font-medium">
-                                Unlocked after payment
-                              </span>
-                            )}
-                          </div>
-
-                              <div className="grid grid-cols-2 gap-1.5">
-                            {collab.deliverablesTracking.map((deliv, dIdx) => {
-                              const typeLabels = {
-                                REEL: "Reels",
-                                POST: "Posts",
-                                STORY: "Stories",
-                                VIDEO: "Videos",
-                              };
-                              return (
-                                <div
-                                  key={dIdx}
-                                  className={cn(
-                                    "flex items-center justify-between rounded-lg px-2 py-1 text-[10px] border",
-                                    collab.paymentStatus === "PAID"
-                                      ? "bg-secondary/40 border-border/60"
-                                      : "bg-muted/20 border-border/30 opacity-70"
-                                  )}
-                                >
-                                  <span className="font-medium text-foreground">
-                                    {typeLabels[deliv.type] || deliv.type}
-                                  </span>
-                                  <span className="font-bold text-primary">
-                                    {deliv.completedQuantity || 0} / {deliv.requiredQuantity}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Task 6, 7, 9, 10: View Submissions Button & 72-Hour Status for Brand */}
-                          {collab.paymentStatus === "PAID" && (
-                            <div className="pt-1 space-y-1.5">
-                              {(() => {
-                                const allCompleted =
-                                  collab.allDeliverablesCompleted ||
-                                  collab.deliverablesTracking.every(
-                                    (d) => (d.completedQuantity || 0) >= (d.requiredQuantity || 1)
-                                  );
-
-                                if (allCompleted) {
-                                  const isReleased = collab.paymentReleaseStatus === "RELEASED";
-                                  const nowTime = Date.now();
-                                  const targetEligible =
-                                    collab.paymentReleaseEligibleAt ||
-                                    (collab.approvalCompletedAt ? collab.approvalCompletedAt + 72 * 60 * 60 * 1000 : null);
-                                  const isEligible = targetEligible ? nowTime >= targetEligible : false;
-
-                                  return (
-                                    <div className="rounded-xl border border-border/60 bg-secondary/20 p-2 text-[10px] space-y-1">
-                                      <div className="flex items-center justify-between font-bold">
-                                        <span className="text-muted-foreground uppercase text-[9px] tracking-wider flex items-center gap-1">
-                                          <Clock className="h-3 w-3 text-primary" /> Payout & Review Status
-                                        </span>
-                                        {isReleased ? (
-                                          <span className="text-emerald-600 font-bold">✓ Creator Payout Released</span>
-                                        ) : isEligible ? (
-                                          <span className="text-emerald-600 font-bold">✓ Review Period Completed</span>
-                                        ) : (
-                                          <span className="text-amber-600 font-bold">⏳ Active Review Period</span>
-                                        )}
-                                      </div>
-                                      <p className="text-muted-foreground text-[10px]">
-                                        {isReleased ? (
-                                          <span className="text-emerald-700 font-semibold block">
-                                            Creator payout of ₹{collab.creatorAmount?.toLocaleString()} has been released by Admin. Collaboration completed.
-                                          </span>
-                                        ) : isEligible ? (
-                                          <span className="text-foreground">
-                                            All deliverables approved. Payment is now eligible for Admin release.
-                                          </span>
-                                        ) : targetEligible ? (
-                                          <span>
-                                            Funds secured in escrow. Review period ends: <strong>{new Date(targetEligible).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</strong>
-                                          </span>
-                                        ) : (
-                                          <span>72-hour review period active. Funds held safely in escrow.</span>
-                                        )}
-                                      </p>
-                                    </div>
-                                  );
-                                }
-                                return null;
-                              })()}
-
-                              {(() => {
-                                const submittedCount = collab.deliverablesTracking.reduce(
-                                  (sum, d) => sum + (d.completedQuantity || 0),
-                                  0
-                                );
-                                return (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full h-8 rounded-full border-primary/30 text-primary hover:bg-primary/10 text-[10px] font-bold flex items-center justify-center gap-1.5"
-                                    onClick={async () => {
-                                      setSelectedCollabForSubmissions(collab);
-                                      setLoadingSubmissions(true);
-                                      try {
-                                        const res = await api.get(`/api/submissions/${collab._id}/submissions`);
-                                        const data = res.data?.data || res.data;
-                                        setCollabSubmissionsList(data.submissions || []);
-                                      } catch (err) {
-                                        console.error("Fetch submissions error:", err);
-                                        toast.error(err?.response?.data?.message || "Failed to load submissions.");
-                                      } finally {
-                                        setLoadingSubmissions(false);
-                                      }
-                                    }}
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    {submittedCount > 0
-                                      ? `View Submitted Deliverables (${submittedCount})`
-                                      : "View Submissions"}
-                                  </Button>
-                                );
-                              })()}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs border-t border-border/40 pt-2.5">
-                      <span className="text-muted-foreground">Chat Status:</span>
-                      <span className="capitalize font-semibold text-emerald-600">{collab.conversationStatus}</span>
-                    </div>
-
-                    {/* Task Info */}
-                    {(() => {
-                      const task = brandTasks?.find(t => t.creatorId === collab.creatorId && t.campaignId === collab.campaignId);
-                      if (!task) return null;
-                      return (
-                        <div className="text-xs bg-background border border-border/40 rounded-xl p-3 space-y-1 mt-2">
-                          <div className="font-semibold text-foreground flex items-center justify-between gap-1">
-                            <span className="truncate">Task: {task.title}</span>
-                            <Badge
-                              variant="secondary"
-                              className={cn(
-                                "rounded-full text-[8px] px-1.5 uppercase font-bold shrink-0",
-                                task.status === "approved" && "bg-emerald-500/10 text-emerald-600",
-                                task.status === "completed" && "bg-blue-500/10 text-blue-500",
-                                task.status === "in_progress" && "bg-primary/10 text-primary",
-                                task.status === "revision_requested" && "bg-red-500/10 text-red-500",
-                                task.status === "assigned" && "bg-amber/10 text-amber"
-                              )}
-                            >
-                              {task.status.replace("_", " ")}
-                            </Badge>
-                          </div>
-                          {(task.status === "in_progress" || task.status === "revision_requested") && (
-                            <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
-                              <span>Time Left:</span>
-                              <CountdownTimer dueDate={task.dueDate} />
-                            </div>
-                          )}
-                          {task.status === "assigned" && (
-                            <p className="text-[10px] text-amber mt-1 italic">
-                              Awaiting Creator to Start
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  {(() => {
-                    const task = brandTasks?.find(t => t.creatorId === collab.creatorId && t.campaignId === collab.campaignId);
-                    return (
-                      <div className="mt-4 flex flex-col gap-2">
-                        {/* Direct Pay Pravixo button on Brand Dashboard */}
-                        {collab.collaborationStatus === "AMOUNT_AGREED" && collab.paymentStatus !== "PAID" && (
-                          <Button
-                            size="sm"
-                            className="w-full rounded-full gradient-sunset border-0 text-white shadow-glow text-xs h-9 font-bold flex items-center justify-center gap-1.5"
-                            disabled={payingId === collab._id}
-                            onClick={async () => {
-                              setPayingId(collab._id);
-                              try {
-                                const res = await api.post(`/api/payments/collaboration/${collab._id}/order`);
-                                const orderData = res.data?.data || res.data;
-
-                                const options = {
-                                  key: orderData.key || import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder",
-                                  amount: orderData.amount,
-                                  currency: orderData.currency || "INR",
-                                  name: "Pravixo Platform",
-                                  description: `Payment for Collaboration (${collab.campaign?.title || "Campaign"})`,
-                                  order_id: orderData.orderId,
-                                  handler: async (response) => {
-                                    try {
-                                      setPayingId(collab._id);
-                                      await api.post(`/api/payments/collaboration/${collab._id}/verify`, {
-                                        gatewayOrderId: response.razorpay_order_id,
-                                        gatewayPaymentId: response.razorpay_payment_id,
-                                        gatewaySignature: response.razorpay_signature,
-                                      });
-                                      toast.success("Payment successful! Funds secured with Pravixo.");
-                                      setRequestsRefreshKey((k) => k + 1);
-                                    } catch (err) {
-                                      toast.error(err?.response?.data?.message || err.message || "Payment verification failed.");
-                                    } finally {
-                                      setPayingId(null);
-                                    }
-                                  },
-                                  prefill: {
-                                    name: profile?.fullName || "",
-                                    email: profile?.email || "",
-                                    contact: profile?.phone || "",
-                                  },
-                                  theme: {
-                                    color: "#EC4899",
-                                  },
-                                  modal: {
-                                    ondismiss: () => {
-                                      setPayingId(null);
-                                      toast.info("Payment window closed.");
-                                    },
-                                  },
-                                };
-
-                                if (!window.Razorpay) {
-                                  const script = document.createElement("script");
-                                  script.src = "https://checkout.razorpay.com/v1/checkout.js";
-                                  script.onload = () => {
-                                    const rzp = new window.Razorpay(options);
-                                    rzp.open();
-                                  };
-                                  document.body.appendChild(script);
-                                } else {
-                                  const rzp = new window.Razorpay(options);
-                                  rzp.open();
-                                }
-                              } catch (e) {
-                                toast.error(e?.response?.data?.message || e.message || "Failed to initiate payment.");
-                                setPayingId(null);
-                              }
-                            }}
-                          >
-                            <CreditCard className="h-4 w-4" />
-                            {payingId === collab._id ? "Processing..." : `Pay Pravixo ₹${collab.brandTotal?.toLocaleString()}`}
-                          </Button>
-                        )}
-
-                        <div className="flex gap-2">
-                          {collab.conversationId && (
-                            <Link
-                              to={`/messages?conversationId=${collab.conversationId}`}
-                              className="flex-1"
-                            >
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="w-full rounded-full border-border hover:bg-secondary text-xs h-9 font-semibold"
-                              >
-                                Open Chat
-                              </Button>
-                            </Link>
-                          )}
-                          
-                          {!task ? (
-                            <Button
-                              size="sm"
-                              className="flex-1 rounded-full bg-secondary hover:bg-secondary/80 text-foreground text-xs h-9 font-semibold"
-                              onClick={() => {
-                                setSelectedCollabForTask(collab);
-                                setTaskTitle("");
-                                setTaskDesc("");
-                                setTaskDeliverables("");
-                                setTaskDueDate("");
-                                setTaskDueTime("23:59");
-                                setTaskPriority("medium");
-                                setTaskNotes("");
-                              }}
-                            >
-                              Assign Task
-                            </Button>
-                          ) : task.status === "completed" ? (
-                            <Button
-                              size="sm"
-                              className="flex-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white border-0 text-xs h-9 font-semibold"
-                              onClick={() => {
-                                setSelectedTaskForReview(task);
-                              }}
-                            >
-                              Review
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              ))}
-            </div>
+            <Button
+              className="btn-bouncy rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-5 shadow-sm flex items-center gap-1.5 shrink-0"
+              onClick={() => setShowApprovedCollabsModal(true)}
+            >
+              <Eye className="h-3.5 w-3.5" /> View Collaborations ({approvedCollabs.length})
+            </Button>
           </div>
         )}
 
@@ -1680,6 +1412,17 @@ const [submittingVerification, setSubmittingVerification] =
             >
               <Star className="h-4 w-4" />
               ⭐ Packages
+            </button>
+            <button
+              onClick={() => setActiveTab("offers")}
+              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
+                activeTab === "offers"
+                  ? "gradient-sunset text-white shadow-glow"
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+              }`}
+            >
+              <Sparkles className="h-4 w-4 text-amber-400" />
+              Offers
             </button>
           </div>
 
@@ -1716,9 +1459,9 @@ const [submittingVerification, setSubmittingVerification] =
         {/* MAIN TAB CONTENT */}
         <div className="mt-6 w-full min-w-0">
           {activeTab === "dashboard" ? (
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3 items-start w-full min-w-0 font-jakarta">
-              {/* LEFT COLUMN: EDIT SECTIONS */}
-              <div className="space-y-6 lg:col-span-2 w-full min-w-0">
+            <div className="w-full max-w-5xl mx-auto space-y-8 font-jakarta">
+              {/* EDIT SECTIONS */}
+              <div className="space-y-6 w-full min-w-0">
             {/* STATS PREVIEW CARDS */}
             {(brandSubSection === "all" || brandSubSection === "profile") && (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -2039,6 +1782,37 @@ const [submittingVerification, setSubmittingVerification] =
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="brandStartingPrice">Starting Campaign Budget / Price (₹)</Label>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-primary select-none">
+                        <input
+                          type="checkbox"
+                          checked={isBarterAllowed}
+                          onChange={(e) => setIsBarterAllowed(e.target.checked)}
+                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                        />
+                        <span>🤝 Barter Allowed</span>
+                      </label>
+                    </div>
+                    <Input
+                      id="brandStartingPrice"
+                      type="text"
+                      value={startingPrice}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setStartingPrice(val === "" ? "" : Number(val));
+                      }}
+                      placeholder={isBarterAllowed ? "0 (Barter / Products provided)" : "e.g. 10000"}
+                      className="mt-1.5 rounded-xl"
+                    />
+                    {isBarterAllowed && (
+                      <p className="text-[11px] text-emerald-600 font-medium mt-1">
+                        ✓ Open to product sponsorship, gifting, or food voucher exchanges with creators.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -2992,12 +2766,9 @@ const [submittingVerification, setSubmittingVerification] =
             )}
           </div>
 
-          {/* RIGHT COLUMN: SIDEBAR */}
+          {/* HIRING & SAVED PREFERENCES */}
           {(brandSubSection === "all" || brandSubSection === "preferences") && (
-          <div className="space-y-6 w-full min-w-0">
-            {/* LIMITED-TIME OFFERS SIDEBAR WIDGET */}
-            <CreatorOffersSidebarWidget />
-
+          <div className="grid gap-6 md:grid-cols-2 w-full min-w-0">
             {/* HIRING PREFERENCES PANEL */}
             <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
               <h2 className="font-outfit text-xl font-bold mb-4 flex items-center gap-2">
@@ -3229,6 +3000,20 @@ const [submittingVerification, setSubmittingVerification] =
             </div>
           )}
           </div>
+        ) : activeTab === "offers" ? (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+              <h2 className="font-display text-xl font-bold flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" /> Special Offers & Creator Deals
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Explore limited-time promotional deals and discounts created by verified creators for your brand campaigns.
+              </p>
+              <div className="mt-6">
+                <CreatorOffersSidebarWidget audience="brand" />
+              </div>
+            </div>
+          </div>
         ) : (
           <SubscriptionTab role="brand" profile={profile} />
         )}
@@ -3368,8 +3153,143 @@ const [submittingVerification, setSubmittingVerification] =
                   />
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                A campaign can hire multiple creators within the total budget.
+              <div className="space-y-1 mt-2">
+                <span className="text-[10px] text-muted-foreground block font-medium">Baseline Minimum Followers Required (e.g. 10000 for 10k+)</span>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 10000 (or configure tiered brackets below)"
+                  value={campMinFollowers}
+                  onChange={(e) => setCampMinFollowers(e.target.value)}
+                  className="rounded-xl border-border bg-background text-xs"
+                />
+              </div>
+
+              {/* Dynamic Tiered Perks / Compensation Builder */}
+              <div className="mt-3 p-3.5 rounded-2xl border border-primary/20 bg-secondary/15 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Condition-Based Options & Perks (By Followers)
+                    </Label>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Define custom rewards per follower tier (e.g. 10k+ ➜ ₹2k Food, 25k+ ➜ ₹2k Food + ₹2k Cash, 100k+ ➜ ₹2k Food + ₹3k Cash).
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {campTiers.length === 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full text-[10px] h-7 px-2.5 font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                        onClick={() => {
+                          setCampTiers([
+                            { minFollowers: 10000, reward: "₹2,000 Food Voucher", cashAmount: 0, perks: "Food Voucher" },
+                            { minFollowers: 25000, reward: "₹2,000 Food Voucher + ₹2,000 Cash", cashAmount: 2000, perks: "Food Voucher + Cash" },
+                            { minFollowers: 100000, reward: "₹2,000 Food Voucher + ₹3,000 Cash", cashAmount: 3000, perks: "Food Voucher + Cash" },
+                          ]);
+                          if (!campMinFollowers) setCampMinFollowers("10000");
+                        }}
+                      >
+                        + Load Sample Tiers
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="rounded-full text-[10px] h-7 px-3 font-semibold gradient-sunset text-white border-0 shadow-sm flex items-center gap-1"
+                      onClick={() => {
+                        const lastFollowers = campTiers.length > 0 ? (Number(campTiers[campTiers.length - 1].minFollowers) || 0) * 2 : 10000;
+                        setCampTiers([
+                          ...campTiers,
+                          { minFollowers: lastFollowers || 10000, reward: "", cashAmount: 0, perks: "" },
+                        ]);
+                      }}
+                    >
+                      <Plus className="h-3 w-3" /> Add Option / Tier
+                    </Button>
+                  </div>
+                </div>
+
+                {campTiers.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    {campTiers.map((tier, idx) => (
+                      <div
+                        key={idx}
+                        className="rounded-xl border border-border bg-card p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-2 text-xs"
+                      >
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] font-bold text-muted-foreground w-12">
+                            Option {idx + 1}:
+                          </span>
+                          <div className="w-28 space-y-0.5">
+                            <span className="text-[9px] text-muted-foreground block">Min Followers</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              placeholder="e.g. 10000"
+                              value={tier.minFollowers}
+                              onChange={(e) => {
+                                const updated = [...campTiers];
+                                updated[idx].minFollowers = Math.max(0, parseInt(e.target.value) || 0);
+                                setCampTiers(updated);
+                              }}
+                              className="h-7 text-xs rounded-lg font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex-1 w-full space-y-0.5">
+                          <span className="text-[9px] text-muted-foreground block">Reward / Perks Description *</span>
+                          <Input
+                            placeholder="e.g. ₹2,000 Food Voucher + ₹2,000 Cash"
+                            value={tier.reward}
+                            onChange={(e) => {
+                              const updated = [...campTiers];
+                              updated[idx].reward = e.target.value;
+                              setCampTiers(updated);
+                            }}
+                            className="h-7 text-xs rounded-lg"
+                          />
+                        </div>
+
+                        <div className="w-24 shrink-0 space-y-0.5">
+                          <span className="text-[9px] text-muted-foreground block">Cash (₹)</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={tier.cashAmount || ""}
+                            onChange={(e) => {
+                              const updated = [...campTiers];
+                              updated[idx].cashAmount = Math.max(0, parseInt(e.target.value) || 0);
+                              setCampTiers(updated);
+                            }}
+                            className="h-7 text-xs rounded-lg"
+                          />
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 rounded-full text-muted-foreground hover:text-destructive self-end sm:self-center shrink-0 mt-3 sm:mt-0"
+                          onClick={() => {
+                            setCampTiers(campTiers.filter((_, i) => i !== idx));
+                          }}
+                          title="Remove Tier"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Creators matching the respective follower brackets can apply for that specific option. Creators with fewer followers than required will see the campaign in view-only mode with a Share / Refer button.
               </p>
             </div>
 
@@ -4725,6 +4645,298 @@ const [submittingVerification, setSubmittingVerification] =
               size="sm"
               className="rounded-full text-xs"
               onClick={() => setHiredCreatorsModalOpen(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approved Collaborations Modal */}
+      <Dialog
+        open={showApprovedCollabsModal}
+        onOpenChange={(open) => setShowApprovedCollabsModal(open)}
+      >
+        <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col rounded-3xl p-6 bg-card border-border">
+          <DialogHeader className="shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="font-display text-xl font-bold flex items-center gap-2">
+                <Check className="h-5 w-5 text-emerald-500" />
+                Approved Collaborations ({approvedCollabs?.length || 0})
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground mt-1">
+              Active creator collaborations, assigned tasks, deliverable progress, and payments.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 flex-1 overflow-y-auto space-y-4 pr-1">
+            {!approvedCollabs || approvedCollabs.length === 0 ? (
+              <div className="py-12 text-center rounded-2xl border border-dashed border-border p-6 bg-secondary/10">
+                <Users className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="font-semibold text-sm text-foreground">No approved collaborations</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  When creators accept your campaign terms or pitch approvals, they will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {approvedCollabs.map((collab) => {
+                  const creator = collab.creatorProfile;
+                  const creatorId = collab.creatorId?._id || collab.creatorId;
+                  const payment = collab.payment;
+                  const isPaid = payment?.paymentStatus === "held_in_escrow" || payment?.paymentStatus === "released" || payment?.paymentStatus === "payout_released";
+                  const task = collab.task;
+
+                  return (
+                    <div
+                      key={collab._id}
+                      className="rounded-2xl border border-border/70 bg-secondary/15 p-4 flex flex-col justify-between gap-3 hover:border-border transition-all"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <img
+                              src={
+                                creator?.avatarUrl ||
+                                `https://api.dicebear.com/9.x/avataaars/svg?seed=${creator?.fullName || "Creator"}`
+                              }
+                              alt=""
+                              className="h-10 w-10 rounded-xl object-cover border border-border shrink-0"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback";
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-sm text-foreground truncate">
+                                {creator?.fullName || "Creator"}
+                              </h4>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {creator?.handle || creator?.email || "Creator"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
+                              isPaid ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border border-amber-500/20"
+                            )}
+                          >
+                            {isPaid ? "Paid (Escrow)" : "Payment Pending"}
+                          </Badge>
+                        </div>
+
+                        {collab.campaign && (
+                          <div className="rounded-xl bg-background/50 border border-border/40 p-2.5 text-xs">
+                            <p className="font-semibold text-foreground truncate">{collab.campaign.title}</p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              Budget: ₹{collab.agreedAmount?.toLocaleString() || collab.campaign.totalBudget?.toLocaleString() || "N/A"}
+                            </p>
+                          </div>
+                        )}
+
+                        {task && (
+                          <div className="rounded-xl bg-primary/5 border border-primary/10 p-2.5 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-primary">Task: {task.title}</span>
+                              <Badge variant="outline" className="text-[9px] uppercase px-1.5 py-0">
+                                {task.status}
+                              </Badge>
+                            </div>
+                            {task.deliverables && (
+                              <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                                {task.deliverables}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40 mt-1">
+                        <div className="flex items-center gap-1.5">
+                          {collab.conversationId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 rounded-full text-xs px-2.5 font-semibold"
+                              onClick={() => {
+                                setShowApprovedCollabsModal(false);
+                                navigate(`/messages?conversationId=${collab.conversationId}`);
+                              }}
+                            >
+                              <MessageCircle className="h-3 w-3 mr-1" /> Chat
+                            </Button>
+                          )}
+                          {creatorId && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 rounded-full text-xs px-2.5 font-semibold hover:bg-secondary"
+                              onClick={() => {
+                                setShowApprovedCollabsModal(false);
+                                navigate(`/influencer/${creatorId}`);
+                              }}
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" /> Profile
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-7 rounded-full text-xs px-2.5 font-semibold"
+                            onClick={() => {
+                              setSelectedCollabForSubmissions(collab);
+                              setShowApprovedCollabsModal(false);
+                            }}
+                          >
+                            <Eye className="h-3 w-3 mr-1" /> Deliverables
+                          </Button>
+                          {!task && (
+                            <Button
+                              size="sm"
+                              className="h-7 rounded-full gradient-sunset text-white text-xs font-bold px-3 shadow-xs"
+                              onClick={() => {
+                                setSelectedCollabForTask(collab);
+                                setShowApprovedCollabsModal(false);
+                              }}
+                            >
+                              Assign Task
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-border/40">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full text-xs font-semibold px-5"
+              onClick={() => setShowApprovedCollabsModal(false)}
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Followers & Following List Modal */}
+      <Dialog
+        open={!!followModalType}
+        onOpenChange={(open) => !open && setFollowModalType(null)}
+      >
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2 capitalize">
+              <Users className="h-5 w-5 text-primary" />
+              {followModalType === "followers" ? "Followers" : "Following"} (
+              {followModalType === "followers"
+                ? followCounts.followers
+                : followCounts.following}
+              )
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-3 max-h-[60vh] overflow-y-auto space-y-3 pr-1">
+            {loadingFollowList ? (
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                Loading list...
+              </div>
+            ) : followListUsers.length === 0 ? (
+              <div className="py-10 text-center rounded-2xl border border-dashed border-border p-4 bg-secondary/10">
+                <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  {followModalType === "followers"
+                    ? "No followers yet."
+                    : "Not following anyone yet."}
+                </p>
+              </div>
+            ) : (
+              followListUsers.map((u) => {
+                const uId = u._id || u.profileId;
+                const avatar =
+                  u.avatarUrl ||
+                  u.profilePicture ||
+                  `https://api.dicebear.com/9.x/avataaars/svg?seed=${u.fullName || "User"}`;
+
+                return (
+                  <div
+                    key={uId}
+                    className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-border bg-secondary/15 hover:bg-secondary/25 transition-all"
+                  >
+                    <div
+                      className="flex items-center gap-3 min-w-0 cursor-pointer"
+                      onClick={() => {
+                        setFollowModalType(null);
+                        navigate(`/influencer/${uId}`);
+                      }}
+                    >
+                      <img
+                        src={avatar}
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover border border-border shrink-0"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback";
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-foreground truncate hover:text-primary transition-colors">
+                          {u.fullName || u.handle || "User"}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {u.handle ? `@${u.handle.replace("@", "")}` : u.role || "Creator"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {followModalType === "following" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 rounded-full text-[11px] font-semibold text-destructive hover:bg-destructive/10 px-3"
+                          onClick={() => handleUnfollowUser(uId)}
+                        >
+                          Unfollow
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 rounded-full text-[11px] font-semibold px-3"
+                          onClick={() => {
+                            setFollowModalType(null);
+                            navigate(`/influencer/${uId}`);
+                          }}
+                        >
+                          View
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full text-xs"
+              onClick={() => setFollowModalType(null)}
             >
               Close
             </Button>

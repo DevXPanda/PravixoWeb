@@ -1033,7 +1033,7 @@ export const releaseCreatorPayout = async (req, res) => {
       }
     }
 
-    // Credit Creator Wallet (Additive referral hook: splits commission if active referral exists, else normal payout)
+    // Credit Creator Wallet (Referral hook: credits creator with full 80% earnings; credits referrer from Pravixo's commission share)
     let walletResult = null;
     let payoutBreakdown = null;
     try {
@@ -1043,7 +1043,8 @@ export const releaseCreatorPayout = async (req, res) => {
         campaignId: connection.campaignId || null,
         payoutId: payout._id,
         gross_payout_amount: creatorAmount,
-        platform_fee: 0, // Commission comes out of creator's share
+        total_deal_amount: connection.brandTotal || (connection.pravixoFee ? creatorAmount + connection.pravixoFee : Math.round(creatorAmount / 0.8)),
+        platform_fee: 0,
         transactionReference,
         description: `Payment released for collaboration (${campaignTitle})`,
       });

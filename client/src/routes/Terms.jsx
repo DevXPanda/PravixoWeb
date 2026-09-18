@@ -104,7 +104,7 @@ export function Terms() {
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-1" />
                 <span>
-                  <strong>2. Creator Referral Commission:</strong> If a Creator was referred by another user (Brand or Creator), the referring user (&ldquo;Referrer&rdquo;) will earn a commission equal to <strong>5%</strong> of the payment received by the referred Creator for each successfully completed project, credited automatically to the Referrer&apos;s wallet at the time the payment is processed. This applies to Brand-to-Brand referrals under the same 5% recurring model where applicable.
+                  <strong>2. Tiered Referral Commission:</strong> If a Creator was referred by another user (Brand or Creator), the referring user (&ldquo;Referrer&rdquo;) earns a recurring referral commission on each successfully completed project. Commission rates are tiered based on the Referrer&apos;s active subscription tier: <strong>5.0% for Starter (Free)</strong>, <strong>7.5% for Pro</strong>, and <strong>10.0% for Elite</strong>, credited directly to the Referrer&apos;s wallet.
                 </span>
               </li>
 
@@ -118,7 +118,7 @@ export function Terms() {
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-1" />
                 <span>
-                  <strong>4. Deduction from Creator&apos;s Earnings:</strong> The referral commission is deducted from the Creator&apos;s own earnings for the completed project, and is clearly disclosed in the payment breakdown shown to the Creator at the time of payout.
+                  <strong>4. Funded Directly by Pravixo:</strong> The referral commission is paid directly by Pravixo out of the 20% platform service fee. It is <strong>never deducted</strong> from the Creator&apos;s net 80% compensation.
                 </span>
               </li>
 

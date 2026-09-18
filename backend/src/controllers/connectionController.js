@@ -910,7 +910,7 @@ export const agreeCollaborationAmount = async (req, res) => {
           }).lean();
 
           const totalCommitted = agreedConnections.reduce(
-            (acc, curr) => acc + (curr.creatorAmount || 0),
+            (acc, curr) => acc + (curr.brandTotal || curr.creatorAmount || 0),
             0
           );
 
@@ -927,11 +927,12 @@ export const agreeCollaborationAmount = async (req, res) => {
     }
 
     // Exact calculations:
-    // pravixoFee = 20% of creatorAmount
-    // brandTotal = creatorAmount + pravixoFee
-    const creatorAmount = Math.round(finalAmount);
-    const pravixoFee = Math.round(creatorAmount * 0.20);
-    const brandTotal = creatorAmount + pravixoFee;
+    // Brand Total Budget = finalAmount (e.g. ₹1,000)
+    // Pravixo Commission = 20% of brand budget (e.g. ₹200)
+    // Creator Net Earnings = 80% (e.g. ₹800)
+    const brandTotal = Math.round(finalAmount);
+    const pravixoFee = Math.round(brandTotal * 0.20);
+    const creatorAmount = brandTotal - pravixoFee;
 
     connection.creatorAmount = creatorAmount;
     connection.pravixoFee = pravixoFee;
@@ -959,7 +960,7 @@ export const agreeCollaborationAmount = async (req, res) => {
       recipientId,
       senderId: agreeingUser,
       type: "campaign_amount_agreed",
-      text: `${agreeingName} agreed to creator payment ₹${creatorAmount.toLocaleString()} (Total ₹${brandTotal.toLocaleString()}) for "${campaignTitle}".`,
+      text: `${agreeingName} agreed to collaboration budget ₹${brandTotal.toLocaleString()} (Creator receives ₹${creatorAmount.toLocaleString()} after 20% platform fee) for "${campaignTitle}".`,
       createdAt: Date.now(),
     });
 

@@ -60,6 +60,20 @@ const campaignSchema = new mongoose.Schema(
       default: 0,
     },
 
+    minFollowers: {
+      type: Number,
+      default: 0,
+    },
+
+    tiers: [
+      {
+        minFollowers: { type: Number, default: 0 },
+        reward: { type: String, default: "" },
+        cashAmount: { type: Number, default: 0 },
+        perks: { type: String, default: "" },
+      },
+    ],
+
     deliverables: {
       reels: { type: Number, default: 0 },
       posts: { type: Number, default: 0 },

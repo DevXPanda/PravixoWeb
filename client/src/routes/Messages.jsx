@@ -65,6 +65,8 @@ export default function Messages() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const queryConversationId = searchParams.get("conversationId");
+  const queryRecipientId = searchParams.get("recipientId");
+  const [recipientHandling, setRecipientHandling] = useState(false);
 
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -252,6 +254,61 @@ export default function Messages() {
       openConversation(conversation);
     }
   }, [queryConversationId, conversations]);
+
+  /*
+   * ----------------------------------------------------
+   * OPEN CONVERSATION FROM recipientId QUERY PARAM
+   * Finds existing conversation or creates new one
+   * ----------------------------------------------------
+   */
+  useEffect(() => {
+    if (!queryRecipientId || !profile?._id || !conversations || recipientHandling) return;
+
+    const handleRecipient = async () => {
+      setRecipientHandling(true);
+      try {
+        // Check if there's already a conversation with this recipient
+        const existing = conversations.find((conv) => {
+          const otherId =
+            conv.creatorId?._id || conv.creatorId ||
+            conv.brandId?._id || conv.brandId ||
+            conv.adminId?._id || conv.adminId;
+          return String(otherId) === String(queryRecipientId);
+        });
+
+        if (existing) {
+          // Already have a conversation — open it
+          setSearchParams({ conversationId: existing._id }, { replace: true });
+          openConversation(existing);
+        } else {
+          // No existing conversation — create one via API
+          const myRole = profile.role; // 'creator' or 'brand'
+          const payload =
+            myRole === "creator"
+              ? { creatorId: profile._id, brandId: queryRecipientId }
+              : { brandId: profile._id, creatorId: queryRecipientId };
+
+          const res = await api.post("/api/conversations", payload);
+          const convId = res?.data?.data || res?.data?.conversation?._id;
+
+          // Reload conversations so the new one appears in the list
+          await fetchConversations();
+
+          if (convId) {
+            setSearchParams({ conversationId: convId }, { replace: true });
+          }
+        }
+      } catch (err) {
+        console.error("recipientId conversation open error:", err);
+        toast.error("Could not open conversation.");
+      } finally {
+        setRecipientHandling(false);
+      }
+    };
+
+    // Wait until conversations have loaded before running
+    handleRecipient();
+  }, [queryRecipientId, profile?._id, conversations.length]);
 
   /*
    * ----------------------------------------------------

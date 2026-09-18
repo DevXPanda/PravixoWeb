@@ -17,6 +17,10 @@ import {
   Globe,
   ShieldCheck,
   X,
+  Film,
+  Camera,
+  Sparkles,
+  Play,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -672,6 +676,131 @@ export default function InfluencerDetails() {
   );
   
   const [lightboxImage, setLightboxImage] = useState(null);
+  const [portfolioTab, setPortfolioTab] = useState("all");
+  const [selectedPortfolioPost, setSelectedPortfolioPost] = useState(null);
+  const [portfolioCommentText, setPortfolioCommentText] = useState("");
+  const [submittingPortfolioComment, setSubmittingPortfolioComment] = useState(false);
+
+  const handleTogglePortfolioLike = async (post) => {
+    if (!post?._id) return;
+    try {
+      const res = await api.post(`/portfolio/${post._id}/like`);
+      const likesCount = res?.data?.data?.likesCount;
+      const isLiked = res?.data?.data?.isLiked;
+
+      setSelectedPortfolioPost((prev) => prev ? {
+        ...prev,
+        likesCount,
+        isLiked,
+      } : null);
+
+      setPortfolioImages((prev) =>
+        prev.map((item) =>
+          item._id === post._id
+            ? { ...item, likesCount, isLiked }
+            : item
+        )
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddPortfolioComment = async () => {
+    if (!selectedPortfolioPost?._id || !portfolioCommentText.trim()) return;
+    setSubmittingPortfolioComment(true);
+    try {
+      const res = await api.post(`/portfolio/${selectedPortfolioPost._id}/comments`, {
+        text: portfolioCommentText.trim(),
+        userName: myProfile?.fullName || user?.email?.split("@")[0] || "Guest Brand",
+        userAvatar: resolveImageUrl(myProfile?.avatarUrl) || "",
+      });
+
+      const updatedComments = res?.data?.data || [];
+      setSelectedPortfolioPost((prev) => ({
+        ...prev,
+        comments: Array.isArray(updatedComments) ? updatedComments : [...(prev.comments || []), {
+          userName: myProfile?.fullName || "Brand Visitor",
+          text: portfolioCommentText.trim(),
+          createdAt: new Date(),
+        }],
+        commentsCount: (prev.commentsCount || 0) + 1,
+      }));
+      setPortfolioCommentText("");
+      toast.success("Comment posted!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to post comment");
+    } finally {
+      setSubmittingPortfolioComment(false);
+    }
+  };
+
+  const handleSharePortfolioItem = (post) => {
+    const url = window.location.href;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+      toast.success("Creator portfolio link copied to clipboard!");
+    } else {
+      toast.info(`Link: ${url}`);
+    }
+  };
+
+  // FOLLOW FEATURE STATE
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followFollowersCount, setFollowFollowersCount] = useState(0);
+  const [followingLoading, setFollowingLoading] = useState(false);
+
+  useEffect(() => {
+    if (!profileId) return;
+    const checkFollow = async () => {
+      try {
+        const res = await api.get("/follows/status", {
+          params: {
+            followerId: myProfile?._id,
+            targetProfileId: profileId,
+          },
+        });
+        if (res.data?.success) {
+          setIsFollowing(Boolean(res.data.isFollowing));
+          if (res.data.followersCount !== undefined) {
+            setFollowFollowersCount(res.data.followersCount);
+          }
+        }
+      } catch (err) {
+        // silent fail
+      }
+    };
+    checkFollow();
+  }, [profileId, myProfile?._id]);
+
+  const handleToggleFollow = async () => {
+    if (!myProfile) {
+      toast.error("Please login to follow profiles.");
+      navigate("/login");
+      return;
+    }
+    if (myProfile._id === profileId) {
+      toast.error("You cannot follow your own profile.");
+      return;
+    }
+    try {
+      setFollowingLoading(true);
+      const res = await api.post("/follows/toggle", {
+        followerId: myProfile._id,
+        targetProfileId: profileId,
+      });
+      if (res.data?.success) {
+        setIsFollowing(res.data.isFollowing);
+        setFollowFollowersCount((prev) => (res.data.isFollowing ? prev + 1 : Math.max(0, prev - 1)));
+        toast.success(res.data.message || (res.data.isFollowing ? "Followed!" : "Unfollowed."));
+      }
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update follow status.");
+    } finally {
+      setFollowingLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -1748,6 +1877,24 @@ export default function InfluencerDetails() {
                     </span>
                   </span>
 
+                  {(inf.startingPrice > 0 || inf.isBarterAllowed) && (
+                    <>
+                      <span className="text-border hidden sm:inline">•</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {inf.startingPrice > 0 && (
+                          <span className="font-bold text-xs text-foreground bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full">
+                            Starting ₹{Number(inf.startingPrice).toLocaleString("en-IN")}
+                          </span>
+                        )}
+                        {inf.isBarterAllowed && (
+                          <span className="font-bold text-xs text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            🤝 Barter Allowed
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+
                 </div>
 
               </div>
@@ -1795,6 +1942,27 @@ export default function InfluencerDetails() {
                 }}
               >
                 <Share2 className="h-4 w-4" />
+              </Button>
+
+              {/* FOLLOW / UNFOLLOW BUTTON (Brand or Creator can follow any Brand or Creator) */}
+              <Button
+                variant={isFollowing ? "outline" : "default"}
+                size="sm"
+                onClick={handleToggleFollow}
+                disabled={followingLoading}
+                className={`rounded-full px-4 h-9 flex items-center gap-1.5 text-xs font-semibold ${
+                  isFollowing
+                    ? "border-primary/50 text-primary hover:bg-primary/10"
+                    : "gradient-sunset border-0 text-white shadow-glow"
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                {isFollowing ? "Following" : "Follow"}
+                {followFollowersCount > 0 && (
+                  <span className="ml-0.5 rounded-full bg-black/20 px-1.5 py-0.2 text-[10px] font-bold">
+                    {followFollowersCount}
+                  </span>
+                )}
               </Button>
 
               {myProfile?.role ===
@@ -2035,36 +2203,189 @@ export default function InfluencerDetails() {
 
               </div>
 
-              {/* PORTFOLIO */}
-
+              {/* INSTAGRAM-STYLE CREATOR PORTFOLIO / BRAND GALLERY */}
               <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded-md bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white shadow-xs">
+                      <Camera className="h-4 w-4" />
+                    </span>
+                    <h2 className="font-display text-xl font-semibold">
+                      {isBrand ? "Brand Gallery" : "Creative Portfolio & Feed"}
+                    </h2>
+                    {portfolio?.length > 0 && (
+                      <Badge variant="secondary" className="text-[10px] font-bold bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                        {portfolio.length}
+                      </Badge>
+                    )}
+                  </div>
 
-                <h2 className="font-display text-xl font-semibold">
-                  {isBrand
-                    ? "Brand Gallery"
-                    : "Portfolio"}
-                </h2>
-
-                <div className="mt-4 grid grid-cols-2 gap-3">
-
-                  {portfolio.map(
-                    (item, index) => (
-                      <div
-                        key={index}
-                        className="group relative aspect-square overflow-hidden rounded-2xl cursor-pointer"
-                        onClick={() => setLightboxImage(resolveImageUrl(item.url || item))}
-                      >
-                        <img
-                          src={resolveImageUrl(item.url || item)}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                      </div>
-                    )
-                  )}
-
+                  {/* Format Filter Tabs */}
+                  <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPortfolioTab("all")}
+                      className={cn(
+                        "px-2.5 py-1 rounded-lg font-medium transition-all",
+                        portfolioTab === "all"
+                          ? "bg-background text-foreground shadow-xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPortfolioTab("post")}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
+                        portfolioTab === "post"
+                          ? "bg-background text-foreground shadow-xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Camera className="h-3 w-3 text-blue-500" /> Posts
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPortfolioTab("reel")}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
+                        portfolioTab === "reel"
+                          ? "bg-background text-foreground shadow-xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Film className="h-3 w-3 text-pink-500" /> Reels
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPortfolioTab("story")}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
+                        portfolioTab === "story"
+                          ? "bg-background text-foreground shadow-xs font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Sparkles className="h-3 w-3 text-amber-500" /> Stories
+                    </button>
+                  </div>
                 </div>
 
+                {/* Portfolio Grid */}
+                {(() => {
+                  const filtered = (portfolio || []).filter((item) => {
+                    if (portfolioTab === "all") return true;
+                    const itemType = item.type || "post";
+                    return itemType === portfolioTab;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-10 border border-dashed border-border/80 rounded-2xl bg-muted/10 p-6">
+                        <Camera className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
+                        <p className="text-xs text-muted-foreground">
+                          No {portfolioTab === "all" ? "portfolio deliverables" : portfolioTab + "s"} published yet.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {filtered.map((item, index) => {
+                        const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
+                        const isReel = item.type === "reel";
+                        const isStory = item.type === "story";
+                        const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
+                        const likes = item.likesCount || 0;
+                        const comments = item.commentsCount || (item.comments?.length || 0);
+                        const views = item.viewsCount || (isReel ? 1200 : 0);
+
+                        return (
+                          <div
+                            key={item._id || index}
+                            className={cn(
+                              "group relative rounded-2xl overflow-hidden border border-border bg-black cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md",
+                              (isReel || isStory) ? "aspect-[9/16]" : "aspect-square"
+                            )}
+                            onClick={() => {
+                              setSelectedPortfolioPost(item);
+                            }}
+                          >
+                            {/* Media Display */}
+                            {isVideo ? (
+                              <video
+                                src={imageSrc}
+                                className="h-full w-full object-cover"
+                                preload="metadata"
+                                muted
+                                playsInline
+                              />
+                            ) : (
+                              <img
+                                src={imageSrc}
+                                alt={item.caption || "Portfolio deliverable"}
+                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              />
+                            )}
+
+                            {/* Type Pill Badge (Top Left) */}
+                            <div className="absolute top-2 left-2 z-10">
+                              {isReel ? (
+                                <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30">
+                                  <Film className="h-2.5 w-2.5" /> Reel
+                                </span>
+                              ) : isStory ? (
+                                <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
+                                  <Sparkles className="h-2.5 w-2.5" /> Story
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30">
+                                  <Camera className="h-2.5 w-2.5" /> Post
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Brand Collab Badge (Top Right) */}
+                            {item.brandTag && (
+                              <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
+                                <span className="block truncate bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
+                                  {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Reel Play / Views (Bottom Left) */}
+                            {isReel && views > 0 && (
+                              <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
+                              </div>
+                            )}
+
+                            {/* Hover Overlay with Likes & Comments */}
+                            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
+                              {item.caption && (
+                                <p className="text-[11px] font-medium text-white/90 line-clamp-2 mb-2">
+                                  {item.caption}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-3 text-xs font-bold">
+                                <span className="flex items-center gap-1">
+                                  <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
 
             </div>
@@ -2092,72 +2413,64 @@ export default function InfluencerDetails() {
 
                   <div className="space-y-4">
 
-                    {brandDetails.campaigns.length ===
-                      0 ? (
+                    {brandDetails.campaigns.length === 0 ? (
                       <div className="text-sm text-muted-foreground text-center py-6">
                         No active campaigns.
                       </div>
                     ) : (
-                      brandDetails.campaigns.map(
-                        (campaign) => (
-                          <div
-                            key={
-                              campaign.id
-                            }
-                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-border p-4 bg-secondary/20"
-                          >
+                      brandDetails.campaigns.map((campaign) => (
+                        <div
+                          key={campaign.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-border p-4 bg-secondary/20 hover:border-primary/40 transition-all"
+                        >
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <h3 className="font-display text-sm font-bold">
+                              {campaign.title}
+                            </h3>
 
-                            <div className="space-y-1">
-
-                              <h3 className="font-display text-sm font-bold">
-                                {campaign.title}
-                              </h3>
-
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-
-                                <span className="font-medium text-gradient-sunset">
-                                  {campaign.budget}
-                                </span>
-
-                                <span>
-                                  ·
-                                </span>
-
-                                <span>
-                                  {campaign.category}
-                                </span>
-
-                                <span>
-                                  ·
-                                </span>
-
-                                <span>
-                                  {campaign.duration}
-                                </span>
-
-                              </div>
-
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                              <span className="font-medium text-gradient-sunset">
+                                {campaign.budget}
+                              </span>
+                              <span>·</span>
+                              <span>{campaign.category}</span>
+                              <span>·</span>
+                              <span>{campaign.duration}</span>
                             </div>
 
-                            <Button
-                              size="sm"
-                              className="rounded-full gradient-sunset border-0 text-white px-4 text-xs font-semibold"
-                              onClick={() => {
-                                setSelectedCampaign(
-                                  campaign
-                                );
-
-                                setIsConnectionModalOpen(
-                                  true
-                                );
-                              }}
-                            >
-                              Request to Connect
-                            </Button>
-
+                            {/* Condition-Based Tiers / Options preview */}
+                            {Array.isArray(campaign.tiers) && campaign.tiers.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 pt-1">
+                                {campaign.tiers.map((t, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center gap-1 text-[10px] font-semibold bg-secondary/60 text-foreground px-2 py-0.5 rounded-md border border-border/50"
+                                  >
+                                    🎯 {t.minFollowers >= 1000 ? `${(t.minFollowers / 1000).toFixed(0)}k+` : t.minFollowers}: {t.reward || ''}{t.cashAmount ? ` + ₹${t.cashAmount}` : ''}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : campaign.minFollowers > 0 ? (
+                              <div className="pt-0.5">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                  Min {campaign.minFollowers >= 1000 ? `${(campaign.minFollowers / 1000).toFixed(0)}k+` : campaign.minFollowers} Followers
+                                </span>
+                              </div>
+                            ) : null}
                           </div>
-                        )
-                      )
+
+                          <Button
+                            size="sm"
+                            className="rounded-full gradient-sunset border-0 text-white px-4 text-xs font-semibold shrink-0 shadow-sm"
+                            onClick={() => {
+                              setSelectedCampaign(campaign);
+                              setIsConnectionModalOpen(true);
+                            }}
+                          >
+                            Apply to Connect
+                          </Button>
+                        </div>
+                      ))
                     )}
 
                   </div>
@@ -2769,7 +3082,205 @@ export default function InfluencerDetails() {
 
       </Dialog>
 
-      {/* LIGHTBOX OVERLAY */}
+      {/* INSTAGRAM-STYLE INTERACTIVE LIGHTBOX & POST VIEWER */}
+      {selectedPortfolioPost && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setSelectedPortfolioPost(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 transition-colors rounded-full hover:bg-white/10 z-50 cursor-pointer"
+            onClick={() => setSelectedPortfolioPost(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          <div
+            className="relative w-full max-w-4xl bg-card border border-border/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Left Side: Media Display */}
+            <div className="md:w-3/5 bg-black flex items-center justify-center relative min-h-[300px] md:min-h-[500px]">
+              {selectedPortfolioPost.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url || "") ? (
+                <video
+                  src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
+                  alt={selectedPortfolioPost.caption || "Portfolio deliverable"}
+                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              )}
+
+              {/* Format Badge Overlay */}
+              <div className="absolute top-3 left-3">
+                {selectedPortfolioPost.type === "reel" ? (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-xs font-bold px-2.5 py-1 rounded-full border border-pink-500/30">
+                    <Film className="h-3 w-3" /> Reel
+                  </span>
+                ) : selectedPortfolioPost.type === "story" ? (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
+                    <Sparkles className="h-3 w-3" /> Story
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-500/30">
+                    <Camera className="h-3 w-3" /> Post
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right Side: Creator info, Brand tag, Caption, Live Comments & Actions */}
+            <div className="md:w-2/5 flex flex-col justify-between border-t md:border-t-0 md:border-l border-border bg-card">
+              {/* Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-full overflow-hidden border border-border bg-muted">
+                    <img
+                      src={resolveImageUrl(inf.avatarUrl || inf.avatar) || "https://api.dicebear.com/9.x/avataaars/svg?seed=Creator"}
+                      alt={inf.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold leading-tight">{inf.name}</h4>
+                    <p className="text-[10px] text-muted-foreground">{inf.handle || "@creator"}</p>
+                  </div>
+                </div>
+
+                <Badge variant="secondary" className="text-[10px] font-bold">
+                  {inf.category || "Creator"}
+                </Badge>
+              </div>
+
+              {/* Scrollable Caption & Comments List */}
+              <div className="flex-1 p-4 overflow-y-auto max-h-[300px] md:max-h-[360px] space-y-3.5 text-xs">
+                {/* Brand Collab Partnership Tag */}
+                {selectedPortfolioPost.brandTag && (
+                  <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-500 font-semibold flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Paid partnership with <span className="underline">{selectedPortfolioPost.brandTag.startsWith("@") ? selectedPortfolioPost.brandTag : `@${selectedPortfolioPost.brandTag}`}</span></span>
+                  </div>
+                )}
+
+                {/* Main Creator Caption */}
+                {selectedPortfolioPost.caption ? (
+                  <div className="flex gap-2.5">
+                    <div className="h-7 w-7 rounded-full overflow-hidden shrink-0 border border-border">
+                      <img
+                        src={resolveImageUrl(inf.avatarUrl || inf.avatar) || "https://api.dicebear.com/9.x/avataaars/svg?seed=Creator"}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="leading-relaxed">
+                        <span className="font-bold mr-1.5">{inf.name}</span>
+                        {selectedPortfolioPost.caption}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground mt-1 block">
+                        {new Date(selectedPortfolioPost.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground italic text-[11px]">No caption provided.</p>
+                )}
+
+                {/* Comments Section */}
+                <div className="border-t border-border/50 pt-3 space-y-2.5">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                    Comments ({selectedPortfolioPost.comments?.length || selectedPortfolioPost.commentsCount || 0})
+                  </p>
+
+                  {(selectedPortfolioPost.comments || []).map((comm, cIdx) => (
+                    <div key={cIdx} className="flex gap-2.5 items-start">
+                      <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
+                        <img
+                          src={resolveImageUrl(comm.userAvatar) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${comm.userName || 'Commenter'}`}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
+                        <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
+                        <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bottom Action Bar: Like, Share, Stats, Add Comment */}
+              <div className="p-4 border-t border-border bg-card space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePortfolioLike(selectedPortfolioPost)}
+                      className="text-foreground hover:text-rose-500 transition-colors cursor-pointer"
+                    >
+                      <Heart className={cn("h-5 w-5", selectedPortfolioPost.isLiked ? "fill-rose-500 text-rose-500" : "")} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById("public-portfolio-comment-input")?.focus()}
+                      className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSharePortfolioItem(selectedPortfolioPost)}
+                      className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] font-bold text-muted-foreground">
+                    {selectedPortfolioPost.viewsCount ? `${selectedPortfolioPost.viewsCount.toLocaleString()} views` : ""}
+                  </span>
+                </div>
+
+                <p className="text-xs font-bold text-foreground">
+                  {(selectedPortfolioPost.likesCount || 0).toLocaleString()} likes
+                </p>
+
+                {/* Add Comment Input */}
+                <div className="flex items-center gap-2 pt-1">
+                  <Input
+                    id="public-portfolio-comment-input"
+                    placeholder="Leave feedback or comment..."
+                    value={portfolioCommentText}
+                    onChange={(e) => setPortfolioCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddPortfolioComment();
+                    }}
+                    className="text-xs rounded-full h-8 px-3"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={submittingPortfolioComment || !portfolioCommentText.trim()}
+                    onClick={handleAddPortfolioComment}
+                    className="rounded-full h-8 px-3 gradient-sunset text-white border-0 text-xs font-semibold"
+                  >
+                    Post
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BASIC FALLBACK LIGHTBOX */}
       {lightboxImage && (
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
