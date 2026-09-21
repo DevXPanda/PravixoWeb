@@ -10,6 +10,7 @@ import {
 } from "../controllers/portfoliocontroller.js";
 
 import upload from "../middleware/upload.js";
+import { optionalAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -29,12 +30,14 @@ router.post(
 // Toggle like on portfolio item
 router.post(
   "/:id/like",
+  optionalAuth,
   toggleLike
 );
 
 // Add comment to portfolio item
 router.post(
   "/:id/comments",
+  optionalAuth,
   addComment
 );
 

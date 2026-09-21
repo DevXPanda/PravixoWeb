@@ -8,11 +8,12 @@ export function getGenderAvatar(name = "User", gender = "", role = "creator") {
   }
 
   if (cleanGender === "female") {
-    return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=bigHair,bob,bun,curly,curvy,longButNotTooLong,miaWallace,straight01,straight02,straightAndStrand&accessoriesProbability=15&facialHairProbability=0`;
+    // Friendly, vibrant female creator illustration (Lorelei with cheerful expression)
+    return `https://api.dicebear.com/9.x/lorelei/svg?seed=${seed}&mouth=happy01,happy02,happy03,happy04,happy05,happy06,happy07,happy08,happy09,happy10,happy11,happy12,happy13,happy14,happy15,happy16,happy17,happy18&eyes=happy,smiling,round,variant01,variant02,variant03,variant04,variant05,variant06,variant07,variant08,variant09,variant10`;
   }
 
-  // Default to male / male tops for male or unspecified creator
-  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=shortFlat,shortRound,shortCurly,shortWaved,theCaesar,theCaesarAndSidePart,sides&accessoriesProbability=0&facialHairProbability=20`;
+  // Friendly, modern male creator illustration (Micah with smiling mouth & clean hairstyle)
+  return `https://api.dicebear.com/9.x/micah/svg?seed=${seed}&mouth=smile,laughing,pucker,smirk&hair=fonze,mrClean,mrT,dannyPhantom,full,pixie,turban&facialHairProbability=10`;
 }
 
 export const DEFAULT_BANNERS = [

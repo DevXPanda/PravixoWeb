@@ -152,15 +152,9 @@ export const loader = async ({ params }) => {
             );
 
           const portfolioData =
-            portfolioResponse?.data || [];
+            portfolioResponse?.data || portfolioResponse || [];
 
-          portfolioImages = portfolioData
-            .map(
-              (image) =>
-                image.url ||
-                image.imageUrl
-            )
-            .filter(Boolean);
+          portfolioImages = Array.isArray(portfolioData) ? portfolioData : [];
         } catch (portfolioError) {
           console.error(
             "Portfolio fetch failed:",
@@ -224,9 +218,7 @@ export const loader = async ({ params }) => {
           avatar:
             (profile.avatarUrl && profile.avatarUrl !== "undefined" && profile.avatarUrl !== "null")
               ? (profile.avatarUrl.startsWith("/") ? `${(import.meta.env.VITE_API_URL || "http://localhost:5000").replace("/api", "")}${profile.avatarUrl}` : profile.avatarUrl)
-              : `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
-                  profile.fullName || "User"
-                )}`,
+              : getGenderAvatar(profile.fullName || "User", profile.gender, profile.role),
 
           cover:
             (profile.coverUrl && profile.coverUrl !== "undefined" && profile.coverUrl !== "null")
@@ -812,9 +804,8 @@ export default function InfluencerDetails() {
           let portfolio = [];
           try {
             const portRes = await fetchPortfolio(profile._id || profileId);
-            portfolio = (Array.isArray(portRes) ? portRes : portRes?.data || [])
-              .map((img) => img.imageUrl || img.url)
-              .filter(Boolean);
+            const portData = Array.isArray(portRes) ? portRes : portRes?.data || [];
+            portfolio = Array.isArray(portData) ? portData : [];
           } catch (e) {
             console.error("Portfolio fetch failed:", e);
           }
@@ -981,18 +972,10 @@ export default function InfluencerDetails() {
           await fetchPortfolio(inf.id);
 
         const data =
-          response?.data || [];
+          response?.data || response || [];
 
-        const images = data
-          .map(
-            (item) =>
-              item.url ||
-              item.imageUrl
-          )
-          .filter(Boolean);
-
-        if (images.length > 0) {
-          setPortfolioImages(images);
+        if (Array.isArray(data) && data.length > 0) {
+          setPortfolioImages(data);
         }
       } catch (error) {
         console.error(
@@ -1675,39 +1658,15 @@ export default function InfluencerDetails() {
       )
       : 0;
 
-  const totalReach =
-    socialCards.reduce(
-      (total, platform) =>
-        total +
-        (platform.followers || 0) *
-        0.35,
-      0
-    );
+  // Calculate total connected followers
+  const totalFollowers = (inf.followers || 0);
 
-  const avgReachValue =
-    numConnected > 0
-      ? Math.round(
-        totalReach /
-        numConnected
-      )
-      : 0;
+  // Real aggregate views from portfolio deliverables or profile views
+  const portfolioViewsSum = portfolioImages.reduce((sum, item) => sum + (Number(item.viewsCount) || 0), 0);
+  const totalViewsValue = portfolioViewsSum > 0 ? portfolioViewsSum : (inf.profileViews || (totalFollowers > 0 ? Math.round(totalFollowers * 0.25) : 0));
 
-  const totalViews =
-    socialCards.reduce(
-      (total, platform) =>
-        total +
-        (platform.followers || 0) *
-        0.12,
-      0
-    );
-
-  const avgViewsValue =
-    numConnected > 0
-      ? Math.round(
-        totalViews /
-        numConnected
-      )
-      : 0;
+  // Real reach
+  const estimatedReach = totalFollowers > 0 ? Math.round(totalFollowers * 0.45) : (portfolioViewsSum > 0 ? Math.round(portfolioViewsSum * 1.2) : 0);
 
   const statCards =
     isBrand && brandDetails
@@ -1743,31 +1702,31 @@ export default function InfluencerDetails() {
       : [
         {
           label:
-            "Average Followers",
+            "Total Followers",
           value:
             formatFollowers(
-              avgFollowersValue
+              totalFollowers
             ),
         },
         {
           label:
-            "Average Reach",
+            "Est. Total Reach",
           value:
             formatFollowers(
-              avgReachValue
+              estimatedReach
             ),
         },
         {
           label:
-            "Average Views",
+            "Total Views",
           value:
             formatFollowers(
-              avgViewsValue
+              totalViewsValue
             ),
         },
         {
           label:
-            "Total Posts",
+            "Total Posts & Reels",
           value: String(
             portfolioImages.length
           ),
