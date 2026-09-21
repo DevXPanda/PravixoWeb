@@ -2916,7 +2916,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                           }
 
                           return (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
                               {filtered.map((item, idx) => {
                                 const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
                                 const isReel = item.type === "reel";
@@ -2930,10 +2930,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                                   <div
                                     key={item._id || idx}
                                     onClick={() => setSelectedPortfolioPost(item)}
-                                    className={cn(
-                                      "group relative rounded-2xl overflow-hidden border border-border/80 bg-black cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md",
-                                      (isReel || isStory) ? "aspect-[9/16]" : "aspect-square"
-                                    )}
+                                    className="group relative aspect-square w-full rounded-2xl overflow-hidden border border-border/80 bg-neutral-900 cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
                                   >
                                     {/* Media Thumbnail */}
                                     {isVideo ? (

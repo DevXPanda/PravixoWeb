@@ -31,6 +31,15 @@ import {
   Eye,
   Megaphone,
   Share2,
+  Gift,
+  Copy,
+  Film,
+  ChevronRight,
+  ChevronLeft,
+  ArrowRight,
+  Play,
+  ShieldCheck,
+  IndianRupee,
 } from "lucide-react";
 
 
@@ -46,6 +55,7 @@ import { Button } from "@/components/ui/Button";
 import { CreatorOffersSidebarWidget } from "@/components/offers/CreatorOffersSidebarWidget";
 import { MultiRoleOfferForm } from "@/components/offers/CreatorOfferForm";
 import { AvatarPickerModal } from "@/components/avatar/AvatarPickerModal";
+import { getGenderAvatar } from "@/utils/avatar";
 
 const QuoraIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -465,6 +475,56 @@ export function DashboardCustomer() {
     }
   }, [popupSettings, offers, profile, user]);
 
+  const [referralRefreshKey, setReferralRefreshKey] = useState(0);
+  const { data: referralCodeData = null } = useApiQuery(
+    `/referrals/my-code?k=${referralRefreshKey}`,
+    {},
+    Boolean(profile)
+  );
+  const { data: referralEarnings = { total_earned: 0, active_referrals_count: 0, earnings: [] } } = useApiQuery(
+    `/referrals/earnings?page=1&limit=20&k=${referralRefreshKey}`,
+    {},
+    Boolean(profile)
+  );
+  const { data: referredListQuery = { total: 0, users: [], totalCommissionEarned: 0 } } = useApiQuery(
+    `/referrals/list?limit=100&k=${referralRefreshKey}`,
+    {},
+    Boolean(profile)
+  );
+
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showReferredModal, setShowReferredModal] = useState(false);
+  const [isRefreshingReferral, setIsRefreshingReferral] = useState(false);
+
+  // Accordion Section States (one-by-one opening)
+  const [openBasicSection, setOpenBasicSection] = useState(true);
+  const [openKycSection, setOpenKycSection] = useState(false);
+  const [openSocialSection, setOpenSocialSection] = useState(false);
+  const [openPortfolioSection, setOpenPortfolioSection] = useState(false);
+
+  // Campaign Pagination State
+  const [campaignPage, setCampaignPage] = useState(1);
+  const campaignsPerPage = 3;
+
+  // Portfolio tab & view states
+  const [portfolioTab, setPortfolioTab] = useState("all");
+  const [selectedPortfolioItem, setSelectedPortfolioItem] = useState(null);
+  const [showAddPortfolioModal, setShowAddPortfolioModal] = useState(false);
+  const [uploadingPortfolioItem, setUploadingPortfolioItem] = useState(false);
+  const [newPortfolioForm, setNewPortfolioForm] = useState({
+    type: "post",
+    file: null,
+    filePreview: null,
+    caption: "",
+    brandTag: "",
+    likesCount: 120,
+    viewsCount: 1500,
+  });
+  const [selectedPortfolioPost, setSelectedPortfolioPost] = useState(null);
+  const [portfolioCommentText, setPortfolioCommentText] = useState("");
+  const [submittingPortfolioComment, setSubmittingPortfolioComment] = useState(false);
+
   const [galleryRefreshKey, setGalleryRefreshKey] = useState(0);
   const { data: portfolioImages = [] } = useApiQuery(`/portfolio/profile/${profile?._id}?k=${galleryRefreshKey}`, {}, Boolean(profile));
 
@@ -492,7 +552,34 @@ const updateProfile = async (payload) => { const res = await api.put(`/profiles/
 const acceptConnection = async ({ connectionId }) => api.patch(`/connections/${connectionId}/accept`);
 const rejectConnection = async ({ connectionId }) => api.patch(`/connections/${connectionId}/reject`);
 const toggleFavorite = async ({ brandId, creatorId, remove = true }) => remove ? api.delete(`/favorites`, { data: { brandId, creatorId } }) : api.post(`/favorites`, { brandId, creatorId });
-const addPortfolioImage = async ({ profileId, imageFile, sortOrder }) => { const fd = new FormData(); fd.append("image", imageFile); fd.append("profileId", profileId); if (sortOrder != null) fd.append("sortOrder", String(sortOrder)); return (await api.post(`/portfolio`, fd, { headers: { "Content-Type": "multipart/form-data" } })).data; };
+const addPortfolioImage = async ({ profileId, imageFile, sortOrder, metadata }) => {
+  const fd = new FormData();
+  fd.append("image", imageFile);
+  fd.append("profileId", profileId);
+  if (sortOrder != null) fd.append("sortOrder", String(sortOrder));
+  if (metadata) {
+    if (metadata.type) fd.append("type", metadata.type);
+    if (metadata.caption) fd.append("caption", metadata.caption);
+    if (metadata.brandTag) fd.append("brandTag", metadata.brandTag);
+    if (metadata.likesCount != null) fd.append("likesCount", String(metadata.likesCount));
+    if (metadata.viewsCount != null) fd.append("viewsCount", String(metadata.viewsCount));
+    if (metadata.mediaType) fd.append("mediaType", metadata.mediaType);
+    if (metadata.aspectRatio) fd.append("aspectRatio", metadata.aspectRatio);
+  }
+  return (await api.post(`/portfolio`, fd, { headers: { "Content-Type": "multipart/form-data" } })).data;
+};
+const removePortfolioImage = async ({ id }) => {
+  return (await api.delete(`/portfolio/${id}`)).data;
+};
+const togglePortfolioLike = async (id) => {
+  return (await api.post(`/portfolio/${id}/like`)).data;
+};
+const addPortfolioComment = async (id, data) => {
+  return (await api.post(`/portfolio/${id}/comments`, data)).data;
+};
+const deletePortfolioComment = async (id, commentId) => {
+  return (await api.delete(`/portfolio/${id}/comments/${commentId}`)).data;
+};
 const setAvatarImage = async ({ file, profileId }) => { const fd = new FormData(); fd.append("image", file); return (await api.post(`/profiles/${profileId || profile._id}/avatar`, fd, { headers: { "Content-Type": "multipart/form-data" } })).data; };
 const setCoverImage = async ({ file, profileId }) => { const fd = new FormData(); fd.append("image", file); return (await api.post(`/profiles/${profileId || profile._id}/cover`, fd, { headers: { "Content-Type": "multipart/form-data" } })).data; };
 
@@ -1089,6 +1176,143 @@ const [submittingVerification, setSubmittingVerification] =
     return filtered.slice(0, 4);
   }, [allLiveCreators, profile]);
 
+  const handleCreateBrandPortfolioItem = async () => {
+    if (!profile || !newPortfolioForm.file) {
+      toast.error("Please choose an image or video file to publish.");
+      return;
+    }
+    setUploadingPortfolioItem(true);
+    try {
+      await addPortfolioImage({
+        profileId: profile._id,
+        imageFile: newPortfolioForm.file,
+        sortOrder: portfolioImages?.length || 0,
+        metadata: {
+          type: newPortfolioForm.type,
+          caption: newPortfolioForm.caption,
+          brandTag: newPortfolioForm.brandTag,
+          likesCount: Number(newPortfolioForm.likesCount) || 0,
+          viewsCount: Number(newPortfolioForm.viewsCount) || 0,
+          mediaType: newPortfolioForm.file?.type?.startsWith("video/") ? "video" : "image",
+          aspectRatio: newPortfolioForm.type === "reel" || newPortfolioForm.type === "story" ? "9:16" : "1:1",
+        },
+      });
+
+      setGalleryRefreshKey((c) => c + 1);
+      toast.success(`Published ${newPortfolioForm.type.toUpperCase()} to your showcase!`);
+      setShowAddPortfolioModal(false);
+      setNewPortfolioForm({
+        type: "post",
+        file: null,
+        filePreview: null,
+        caption: "",
+        brandTag: "",
+        likesCount: 120,
+        viewsCount: 1500,
+      });
+    } catch (err) {
+      console.error("Create portfolio item error:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to publish media item");
+    } finally {
+      setUploadingPortfolioItem(false);
+    }
+  };
+
+  const handleTogglePortfolioLike = async (post) => {
+    if (!post?._id) return;
+    try {
+      const res = await togglePortfolioLike(post._id);
+      const isLiked = res?.data?.isLiked;
+      const likesCount = res?.data?.likesCount;
+
+      if (selectedPortfolioPost?._id === post._id) {
+        setSelectedPortfolioPost((prev) => ({
+          ...prev,
+          likesCount,
+          isLiked,
+        }));
+      }
+      setGalleryRefreshKey((c) => c + 1);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddPortfolioComment = async () => {
+    if (!selectedPortfolioPost?._id || !portfolioCommentText.trim()) return;
+    setSubmittingPortfolioComment(true);
+    try {
+      const res = await addPortfolioComment(selectedPortfolioPost._id, {
+        text: portfolioCommentText.trim(),
+        userName: fullName || profile?.fullName || "Brand Rep",
+        userAvatar: resolveImageUrl(profile?.avatarUrl) || "",
+      });
+
+      const updatedComments = res?.data || [];
+      setSelectedPortfolioPost((prev) => ({
+        ...prev,
+        comments: Array.isArray(updatedComments) ? updatedComments : [...(prev.comments || []), {
+          userName: fullName || "Brand Rep",
+          text: portfolioCommentText.trim(),
+          createdAt: new Date(),
+        }],
+        commentsCount: (prev.commentsCount || 0) + 1,
+      }));
+      setPortfolioCommentText("");
+      setGalleryRefreshKey((c) => c + 1);
+      toast.success("Comment posted!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to post comment");
+    } finally {
+      setSubmittingPortfolioComment(false);
+    }
+  };
+
+  const handleDeletePortfolioComment = async (commentId) => {
+    if (!selectedPortfolioPost?._id || !commentId) return;
+    try {
+      const res = await deletePortfolioComment(selectedPortfolioPost._id, commentId);
+      const updatedComments = res?.data || (selectedPortfolioPost.comments || []).filter(c => (c._id || c.id) !== commentId);
+      setSelectedPortfolioPost((prev) => ({
+        ...prev,
+        comments: updatedComments,
+        commentsCount: Math.max(0, (prev.commentsCount || 1) - 1),
+      }));
+      setGalleryRefreshKey((c) => c + 1);
+      toast.success("Comment deleted");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete comment");
+    }
+  };
+
+  const handleSharePortfolioItem = (post) => {
+    const url = `${window.location.origin}/dashboard/customer`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url);
+      toast.success("Showcase link copied to clipboard!");
+    } else {
+      toast.info(`Link: ${url}`);
+    }
+  };
+
+  const handleRemovePortfolioImage = async (idxOrId) => {
+    try {
+      const targetImage = Array.isArray(portfolioImages) ? portfolioImages[idxOrId] || portfolioImages.find(img => img._id === idxOrId) : null;
+      const idToDelete = targetImage?._id || idxOrId;
+      await removePortfolioImage({ id: idToDelete });
+      if (selectedPortfolioPost?._id === idToDelete) {
+        setSelectedPortfolioPost(null);
+      }
+      setGalleryRefreshKey((current) => current + 1);
+      toast.success("Item removed from showcase");
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to remove item");
+    }
+  };
+
   const handleRemoveFavorite = async (creatorId) => {
     if (!profile) return;
     try {
@@ -1549,6 +1773,20 @@ const [submittingVerification, setSubmittingVerification] =
               <Sparkles className="h-4 w-4 text-amber-400" />
               Offers
             </button>
+            <button
+              onClick={() => setActiveTab("referrals")}
+              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
+                activeTab === "referrals"
+                  ? "gradient-sunset text-white shadow-glow"
+                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+              }`}
+            >
+              <Gift className="h-4 w-4 text-emerald-400" />
+              Refer & Earn
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 text-[10px] font-extrabold border border-emerald-500/30">
+                5% - 10% Tiered
+              </span>
+            </button>
           </div>
 
           {/* Quick Sub-Section Navigator to eliminate scrolling */}
@@ -1648,7 +1886,7 @@ const [submittingVerification, setSubmittingVerification] =
               </div>
             )}
 
-            {/* BRAND PROFILE FORM */}
+            {/* BRAND PROFILE FORM & ACCORDIONS */}
             {(brandSubSection === "all" || brandSubSection === "profile") && (
             <>
             <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
@@ -1702,570 +1940,787 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
               </div>
 
-              <form onSubmit={handleSaveProfile} className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+              {/* 1. BASIC DETAILS ACCORDION */}
+              <div className="rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all mb-4">
+                <button
+                  type="button"
+                  onClick={() => setOpenBasicSection(!openBasicSection)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors cursor-pointer"
+                >
                   <div>
-                    <Label htmlFor="fullName">Company Name</Label>
-                    <Input
-                      id="fullName"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g., Nike India"
-                      className="mt-1.5 rounded-xl"
-                      required
-                    />
+                    <h3 className="font-display text-base font-bold flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-primary" /> Basic Information
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Company name, handle, category, HQ location, website, and company size
+                    </p>
                   </div>
-                  <div>
-                    <Label htmlFor="handle">Handle</Label>
-                    <Input
-                      id="handle"
-                      value={handle}
-                      onChange={(e) => setHandle(e.target.value)}
-                      placeholder="e.g., nikeindia"
-                      className="mt-1.5 rounded-xl"
-                    />
-                  </div>
+                  <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openBasicSection && "rotate-90 text-primary")} />
+                </button>
 
-                  {/* CATEGORY & LOCATION POPOVER SELECTORS */}
-                  <div className="flex flex-col gap-1.5">
-                    <Label>Industry Category</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
-                        >
-                          <div className="flex flex-wrap gap-1">
-                            {selectedCategories.length === 0 ? (
-                              <span className="text-muted-foreground">
-                                Select categories...
-                              </span>
-                            ) : (
-                              selectedCategories.map((cat) => (
-                                <Badge
-                                  key={cat}
-                                  variant="secondary"
-                                  className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
-                                >
-                                  {cat}
-                                  <span
-                                    role="button"
-                                    className="rounded-full p-0.5 hover:bg-muted cursor-pointer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSelectCategory(cat);
-                                    }}
-                                  >
-                                    <X className="h-3 w-3 text-muted-foreground" />
-                                  </span>
-                                </Badge>
-                              ))
-                            )}
-                          </div>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-[var(--radix-popover-trigger-width)] p-0"
-                        align="start"
-                      >
-                        <Command>
-                          <CommandInput
-                            placeholder="Search categories..."
-                            className="h-9"
+                {openBasicSection && (
+                  <div className="p-4 pt-2 border-t border-border/40">
+                    <form onSubmit={handleSaveProfile} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <Label htmlFor="fullName">Company Name</Label>
+                          <Input
+                            id="fullName"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="e.g., Nike India"
+                            className="mt-1.5 rounded-xl"
+                            required
                           />
-                          <CommandList className="max-h-[200px] overflow-y-auto">
-                            <CommandEmpty>No category found.</CommandEmpty>
-                            <CommandGroup>
-                              {CATEGORY_OPTIONS.map((cat) => {
-                                const isSelected =
-                                  selectedCategories.includes(cat);
-                                return (
-                                  <CommandItem
-                                    key={cat}
-                                    onSelect={() => handleSelectCategory(cat)}
-                                    className="flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <div
-                                      className={cn(
-                                        "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                        isSelected
-                                          ? "bg-primary text-primary-foreground"
-                                          : "opacity-50",
-                                      )}
-                                    >
-                                      {isSelected && (
-                                        <Check className="h-3 w-3" />
-                                      )}
-                                    </div>
-                                    {cat}
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <Label>HQ Location</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
-                        >
-                          <div className="flex flex-wrap gap-1">
-                            {selectedLocations.length === 0 ? (
-                              <span className="text-muted-foreground">
-                                Select locations...
-                              </span>
-                            ) : (
-                              selectedLocations.map((loc) => (
-                                <Badge
-                                  key={loc}
-                                  variant="secondary"
-                                  className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
-                                >
-                                  {loc}
-                                  <span
-                                    role="button"
-                                    className="rounded-full p-0.5 hover:bg-muted cursor-pointer"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSelectLocation(loc);
-                                    }}
-                                  >
-                                    <X className="h-3 w-3 text-muted-foreground" />
-                                  </span>
-                                </Badge>
-                              ))
-                            )}
-                          </div>
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-[var(--radix-popover-trigger-width)] p-0"
-                        align="start"
-                      >
-                        <Command>
-                          <CommandInput
-                            placeholder="Search locations..."
-                            className="h-9"
+                        </div>
+                        <div>
+                          <Label htmlFor="handle">Handle</Label>
+                          <Input
+                            id="handle"
+                            value={handle}
+                            onChange={(e) => setHandle(e.target.value)}
+                            placeholder="e.g., nikeindia"
+                            className="mt-1.5 rounded-xl"
                           />
-                          <CommandList className="max-h-[200px] overflow-y-auto">
-                            <CommandEmpty>No location found.</CommandEmpty>
-                            <CommandGroup>
-                              {LOCATION_OPTIONS.map((loc) => {
-                                const isSelected =
-                                  selectedLocations.includes(loc);
-                                return (
-                                  <CommandItem
-                                    key={loc}
-                                    onSelect={() => handleSelectLocation(loc)}
-                                    className="flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <div
-                                      className={cn(
-                                        "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                        isSelected
-                                          ? "bg-primary text-primary-foreground"
-                                          : "opacity-50",
-                                      )}
-                                    >
-                                      {isSelected && (
-                                        <Check className="h-3 w-3" />
-                                      )}
-                                    </div>
-                                    {loc}
-                                  </CommandItem>
-                                );
-                              })}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                        </div>
 
-                  <div>
-                    <Label htmlFor="website">Website Link</Label>
-                    <Input
-                      id="website"
-                      value={website}
-                      onChange={(e) => setWebsite(e.target.value)}
-                      placeholder="e.g., https://www.nike.com/in"
-                      className="mt-1.5 rounded-xl"
-                    />
-                  </div>
+                        {/* CATEGORY & LOCATION POPOVER SELECTORS */}
+                        <div className="flex flex-col gap-1.5">
+                          <Label>Industry Category</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
+                              >
+                                <div className="flex flex-wrap gap-1">
+                                  {selectedCategories.length === 0 ? (
+                                    <span className="text-muted-foreground">
+                                      Select categories...
+                                    </span>
+                                  ) : (
+                                    selectedCategories.map((cat) => (
+                                      <Badge
+                                        key={cat}
+                                        variant="secondary"
+                                        className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
+                                      >
+                                        {cat}
+                                        <span
+                                          role="button"
+                                          className="rounded-full p-0.5 hover:bg-muted cursor-pointer"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSelectCategory(cat);
+                                          }}
+                                        >
+                                          <X className="h-3 w-3 text-muted-foreground" />
+                                        </span>
+                                      </Badge>
+                                    ))
+                                  )}
+                                </div>
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[var(--radix-popover-trigger-width)] p-0"
+                              align="start"
+                            >
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search categories..."
+                                  className="h-9"
+                                />
+                                <CommandList className="max-h-[200px] overflow-y-auto">
+                                  <CommandEmpty>No category found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {CATEGORY_OPTIONS.map((cat) => {
+                                      const isSelected =
+                                        selectedCategories.includes(cat);
+                                      return (
+                                        <CommandItem
+                                          key={cat}
+                                          onSelect={() => handleSelectCategory(cat)}
+                                          className="flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <div
+                                            className={cn(
+                                              "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                              isSelected
+                                                ? "bg-primary text-primary-foreground"
+                                                : "opacity-50",
+                                            )}
+                                          >
+                                            {isSelected && (
+                                              <Check className="h-3 w-3" />
+                                            )}
+                                          </div>
+                                          {cat}
+                                        </CommandItem>
+                                      );
+                                    })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
 
-                  <div>
-                    <Label htmlFor="companySize">Company Size</Label>
-                    <select
-                      id="companySize"
-                      value={companySize}
-                      onChange={(e) => setCompanySize(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring mt-1.5 rounded-xl cursor-pointer"
-                    >
-                      <option value="">Select size...</option>
-                      {COMPANY_SIZE_OPTIONS.map((size) => (
-                        <option key={size} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label>HQ Location</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
+                              >
+                                <div className="flex flex-wrap gap-1">
+                                  {selectedLocations.length === 0 ? (
+                                    <span className="text-muted-foreground">
+                                      Select locations...
+                                    </span>
+                                  ) : (
+                                    selectedLocations.map((loc) => (
+                                      <Badge
+                                        key={loc}
+                                        variant="secondary"
+                                        className="rounded-sm px-1.5 py-0.5 font-normal text-xs flex items-center gap-1"
+                                      >
+                                        {loc}
+                                        <span
+                                          role="button"
+                                          className="rounded-full p-0.5 hover:bg-muted cursor-pointer"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSelectLocation(loc);
+                                          }}
+                                        >
+                                          <X className="h-3 w-3 text-muted-foreground" />
+                                        </span>
+                                      </Badge>
+                                    ))
+                                  )}
+                                </div>
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[var(--radix-popover-trigger-width)] p-0"
+                              align="start"
+                            >
+                              <Command>
+                                <CommandInput
+                                  placeholder="Search locations..."
+                                  className="h-9"
+                                />
+                                <CommandList className="max-h-[200px] overflow-y-auto">
+                                  <CommandEmpty>No location found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {LOCATION_OPTIONS.map((loc) => {
+                                      const isSelected =
+                                        selectedLocations.includes(loc);
+                                      return (
+                                        <CommandItem
+                                          key={loc}
+                                          onSelect={() => handleSelectLocation(loc)}
+                                          className="flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <div
+                                            className={cn(
+                                              "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                              isSelected
+                                                ? "bg-primary text-primary-foreground"
+                                                : "opacity-50",
+                                            )}
+                                          >
+                                            {isSelected && (
+                                              <Check className="h-3 w-3" />
+                                            )}
+                                          </div>
+                                          {loc}
+                                        </CommandItem>
+                                      );
+                                    })}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
 
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="brandStartingPrice">Starting Campaign Budget / Price (₹)</Label>
-                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-primary select-none">
-                        <input
-                          type="checkbox"
-                          checked={isBarterAllowed}
-                          onChange={(e) => setIsBarterAllowed(e.target.checked)}
-                          className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                        <div>
+                          <Label htmlFor="website">Website Link</Label>
+                          <Input
+                            id="website"
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            placeholder="e.g., https://www.nike.com/in"
+                            className="mt-1.5 rounded-xl"
+                          />
+                        </div>
+
+                        <div>
+                          <Label htmlFor="companySize">Company Size</Label>
+                          <select
+                            id="companySize"
+                            value={companySize}
+                            onChange={(e) => setCompanySize(e.target.value)}
+                            className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring mt-1.5 rounded-xl cursor-pointer"
+                          >
+                            <option value="">Select size...</option>
+                            {COMPANY_SIZE_OPTIONS.map((size) => (
+                              <option key={size} value={size}>
+                                {size}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="brandStartingPrice">Starting Campaign Budget / Price (₹)</Label>
+                            <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-primary select-none">
+                              <input
+                                type="checkbox"
+                                checked={isBarterAllowed}
+                                onChange={(e) => setIsBarterAllowed(e.target.checked)}
+                                className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
+                              />
+                              <span>🤝 Barter Allowed</span>
+                            </label>
+                          </div>
+                          <Input
+                            id="brandStartingPrice"
+                            type="text"
+                            value={startingPrice}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              setStartingPrice(val === "" ? "" : Number(val));
+                            }}
+                            placeholder={isBarterAllowed ? "0 (Barter / Products provided)" : "e.g. 10000"}
+                            className="mt-1.5 rounded-xl"
+                          />
+                          {isBarterAllowed && (
+                            <p className="text-[11px] text-emerald-600 font-medium mt-1">
+                              ✓ Open to product sponsorship, gifting, or food voucher exchanges with creators.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="bio">About Brand</Label>
+                        <Textarea
+                          id="bio"
+                          value={bio}
+                          onChange={(e) => setBio(e.target.value)}
+                          placeholder="Provide a detailed description of your brand, values, and products..."
+                          className="mt-1.5 rounded-xl resize-none"
+                          rows={4}
                         />
-                        <span>🤝 Barter Allowed</span>
-                      </label>
-                    </div>
-                    <Input
-                      id="brandStartingPrice"
-                      type="text"
-                      value={startingPrice}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, "");
-                        setStartingPrice(val === "" ? "" : Number(val));
-                      }}
-                      placeholder={isBarterAllowed ? "0 (Barter / Products provided)" : "e.g. 10000"}
-                      className="mt-1.5 rounded-xl"
-                    />
-                    {isBarterAllowed && (
-                      <p className="text-[11px] text-emerald-600 font-medium mt-1">
-                        ✓ Open to product sponsorship, gifting, or food voucher exchanges with creators.
-                      </p>
-                    )}
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          type="submit"
+                          disabled={savingProfile}
+                          className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow px-7 font-bold text-xs h-9"
+                        >
+                          {savingProfile ? "Saving Details..." : "Save Basic Details"}
+                        </Button>
+                      </div>
+                    </form>
                   </div>
-                </div>
+                )}
+              </div>
 
-                <div>
-                  <Label htmlFor="bio">About Brand</Label>
-                  <Textarea
-                    id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Provide a detailed description of your brand, values, and products..."
-                    className="mt-1.5 rounded-xl resize-none"
-                    rows={4}
-                  />
-                </div>
+              {/* 2. KYC DOCUMENTS ACCORDION */}
+              <div className="rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all mb-4">
+                <button
+                  type="button"
+                  onClick={() => setOpenKycSection(!openKycSection)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <h3 className="font-display text-base font-bold flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-primary" /> KYC Documents
+                      {(profile?.gstCertificateUrl || profile?.verificationStatus === "verified") && (
+                        <Badge variant="secondary" className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10">
+                          Uploaded ✓
+                        </Badge>
+                      )}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      GST Number and Official Certificate for verified brand badge
+                    </p>
+                  </div>
+                  <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openKycSection && "rotate-90 text-primary")} />
+                </button>
 
-                <div className="pt-4 border-t border-border/40">
-                  <h3 className="font-display text-base font-semibold">
-                    KYC Documents
-                  </h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Update your GST Number and Certificate for verification.
-                  </p>
-                  <div className="grid gap-6 sm:grid-cols-2 bg-muted/10 p-4 rounded-2xl border border-border">
-                    <div className="space-y-2">
-                      <Label htmlFor="gstNumberInline" className="text-sm font-semibold">GST Number</Label>
-                      <Input
-                        id="gstNumberInline"
-                        value={gstNumber}
-                        onChange={(e) => setGstNumber(e.target.value)}
-                        placeholder="Enter GST Number"
-                        className="h-12 rounded-xl"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold">GST Certificate (PDF, JPG, PNG)</Label>
-                      <div className="flex items-center gap-3">
-                        <label className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-secondary/40 px-4 py-3 text-sm font-medium transition-colors">
-                          <Upload className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-muted-foreground truncate">
-                            {gstFileName || (profile?.gstCertificateUrl ? "Certificate Uploaded ✓" : "Upload File")}
-                          </span>
-                          <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => { if (e.target.files?.length) uploadVerificationFile(e.target.files[0]); }} />
-                        </label>
-                        {(profile?.gstCertificateUrl || gstFile) && (
-                          <Button type="button" variant="outline" size="icon" className="shrink-0 h-12 w-12 rounded-xl"
-                            onClick={() => profile?.gstCertificateUrl ? window.open(resolveImageUrl(profile.gstCertificateUrl), "_blank") : toast.info("File selected but not yet uploaded")}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        )}
+                {openKycSection && (
+                  <div className="p-4 pt-2 border-t border-border/40">
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Update your GST Number and Certificate for official platform verification.
+                    </p>
+                    <div className="grid gap-6 sm:grid-cols-2 bg-muted/10 p-4 rounded-2xl border border-border">
+                      <div className="space-y-2">
+                        <Label htmlFor="gstNumberInline" className="text-sm font-semibold">GST Number</Label>
+                        <Input
+                          id="gstNumberInline"
+                          value={gstNumber}
+                          onChange={(e) => setGstNumber(e.target.value)}
+                          placeholder="Enter GST Number"
+                          className="h-11 rounded-xl"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold">GST Certificate (PDF, JPG, PNG)</Label>
+                        <div className="flex items-center gap-3">
+                          <label className="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 hover:bg-secondary/40 px-4 py-2.5 text-sm font-medium transition-colors">
+                            <Upload className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-muted-foreground truncate">
+                              {gstFileName || (profile?.gstCertificateUrl ? "Certificate Uploaded ✓" : "Upload File")}
+                            </span>
+                            <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => { if (e.target.files?.length) uploadVerificationFile(e.target.files[0]); }} />
+                          </label>
+                          {(profile?.gstCertificateUrl || gstFile) && (
+                            <Button type="button" variant="outline" size="icon" className="shrink-0 h-11 w-11 rounded-xl"
+                              onClick={() => profile?.gstCertificateUrl ? window.open(resolveImageUrl(profile.gstCertificateUrl), "_blank") : toast.info("File selected but not yet uploaded")}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="sm:col-span-2 flex justify-end">
+                        <Button onClick={handleVerificationSubmit} disabled={submittingVerification || (!gstNumber && !gstFile)} className="rounded-full bg-primary text-primary-foreground px-6 font-semibold h-9 text-xs">
+                          {submittingVerification ? "Uploading..." : "Save Documents & Request Verification"}
+                        </Button>
                       </div>
                     </div>
-                    <div className="sm:col-span-2 flex justify-end">
-                      <Button onClick={handleVerificationSubmit} disabled={submittingVerification || (!gstNumber && !gstFile)} className="rounded-full bg-primary text-primary-foreground px-6 font-semibold">
-                        {submittingVerification ? "Uploading..." : "Save Documents & Request Verification"}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. SOCIAL PRESENCE ACCORDION */}
+              <div className="rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all mb-4">
+                <button
+                  type="button"
+                  onClick={() => setOpenSocialSection(!openSocialSection)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <h3 className="font-display text-base font-bold flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" /> Social Presence
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Instagram, Facebook, LinkedIn, YouTube, Twitter / X, and Quora handles
+                    </p>
+                  </div>
+                  <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openSocialSection && "rotate-90 text-primary")} />
+                </button>
+
+                {openSocialSection && (
+                  <div className="p-4 pt-2 border-t border-border/40">
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Update your brand's official social handles and follower counts.
+                    </p>
+
+                    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
+                        <div className="flex items-center gap-2">
+                          <FaInstagram className="h-4 w-4 text-pink-600" />
+                          <span className="text-sm font-semibold">Instagram</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
+                          <Input
+                            value={instaHandle}
+                            onChange={(e) => setInstaHandle(e.target.value)}
+                            placeholder="@username"
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
+                          <Input
+                            type="number"
+                            value={instaFollowers}
+                            onChange={(e) => setInstaFollowers(Number(e.target.value))}
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
+                        <div className="flex items-center gap-2">
+                          <FaFacebook className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm font-semibold">Facebook</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
+                          <Input
+                            value={fbHandle}
+                            onChange={(e) => setFbHandle(e.target.value)}
+                            placeholder="username"
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
+                          <Input
+                            type="number"
+                            value={fbFollowers}
+                            onChange={(e) => setFbFollowers(Number(e.target.value))}
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
+                        <div className="flex items-center gap-2">
+                          <FaLinkedin className="h-4 w-4 text-blue-800" />
+                          <span className="text-sm font-semibold">LinkedIn</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
+                          <Input
+                            value={liHandle}
+                            onChange={(e) => setLiHandle(e.target.value)}
+                            placeholder="in/username"
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
+                          <Input
+                            type="number"
+                            value={liFollowers}
+                            onChange={(e) => setLiFollowers(Number(e.target.value))}
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
+                        <div className="flex items-center gap-2">
+                          <FaYoutube className="h-4 w-4 text-red-600" />
+                          <span className="text-sm font-semibold">YouTube</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
+                          <Input
+                            value={ytHandle}
+                            onChange={(e) => setYtHandle(e.target.value)}
+                            placeholder="@username"
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
+                          <Input
+                            type="number"
+                            value={ytFollowers}
+                            onChange={(e) => setYtFollowers(Number(e.target.value))}
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
+                        <div className="flex items-center gap-2">
+                          <QuoraIcon className="h-4 w-4 text-red-700" />
+                          <span className="text-sm font-semibold">Quora</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
+                          <Input
+                            value={quoraHandle}
+                            onChange={(e) => setQuoraHandle(e.target.value)}
+                            placeholder="username"
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
+                          <Input
+                            type="number"
+                            value={quoraFollowers}
+                            onChange={(e) => setQuoraFollowers(Number(e.target.value))}
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
+                        <div className="flex items-center gap-2">
+                          <FaTwitter className="h-4 w-4 text-sky-500" />
+                          <span className="text-sm font-semibold">X / Twitter</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
+                          <Input
+                            value={twHandle}
+                            onChange={(e) => setTwHandle(e.target.value)}
+                            placeholder="@username"
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
+                          <Input
+                            type="number"
+                            value={twFollowers}
+                            onChange={(e) => setTwFollowers(Number(e.target.value))}
+                            className="h-8 text-xs rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                      <Button
+                        type="button"
+                        onClick={handleSaveProfile}
+                        disabled={savingProfile}
+                        className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow px-6 font-bold text-xs h-9"
+                      >
+                        {savingProfile ? "Saving..." : "Save Social Handles"}
                       </Button>
                     </div>
                   </div>
-                </div>
+                )}
+              </div>
 
-                <div className="pt-4 border-t border-border/40">
-                  <h3 className="font-display text-base font-semibold">
-                    Social Presence
-                  </h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Update your company's social handles and follower counts
-                    manually.
-                  </p>
-
-                  <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                    <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                      <div className="flex items-center gap-2">
-                        <FaInstagram className="h-4 w-4 text-pink-600" />
-                        <span className="text-sm font-semibold">Instagram</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Handle
-                        </Label>
-                        <Input
-                          value={instaHandle}
-                          onChange={(e) => setInstaHandle(e.target.value)}
-                          placeholder="@username"
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Followers
-                        </Label>
-                        <Input
-                          type="number"
-                          value={instaFollowers}
-                          onChange={(e) =>
-                            setInstaFollowers(Number(e.target.value))
-                          }
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                      <div className="flex items-center gap-2">
-                        <FaFacebook className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-semibold">Facebook</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Handle
-                        </Label>
-                        <Input
-                          value={fbHandle}
-                          onChange={(e) => setFbHandle(e.target.value)}
-                          placeholder="username"
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Followers
-                        </Label>
-                        <Input
-                          type="number"
-                          value={fbFollowers}
-                          onChange={(e) =>
-                            setFbFollowers(Number(e.target.value))
-                          }
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                      <div className="flex items-center gap-2">
-                        <FaLinkedin className="h-4 w-4 text-blue-800" />
-                        <span className="text-sm font-semibold">LinkedIn</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Handle
-                        </Label>
-                        <Input
-                          value={liHandle}
-                          onChange={(e) => setLiHandle(e.target.value)}
-                          placeholder="in/username"
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Followers
-                        </Label>
-                        <Input
-                          type="number"
-                          value={liFollowers}
-                          onChange={(e) =>
-                            setLiFollowers(Number(e.target.value))
-                          }
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                      <div className="flex items-center gap-2">
-                        <FaYoutube className="h-4 w-4 text-red-600" />
-                        <span className="text-sm font-semibold">YouTube</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Handle
-                        </Label>
-                        <Input
-                          value={ytHandle}
-                          onChange={(e) => setYtHandle(e.target.value)}
-                          placeholder="@username"
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Followers
-                        </Label>
-                        <Input
-                          type="number"
-                          value={ytFollowers}
-                          onChange={(e) =>
-                            setYtFollowers(Number(e.target.value))
-                          }
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                      <div className="flex items-center gap-2">
-                        <QuoraIcon className="h-4 w-4 text-red-700" />
-                        <span className="text-sm font-semibold">Quora</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Handle
-                        </Label>
-                        <Input
-                          value={quoraHandle}
-                          onChange={(e) => setQuoraHandle(e.target.value)}
-                          placeholder="username"
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Followers
-                        </Label>
-                        <Input
-                          type="number"
-                          value={quoraFollowers}
-                          onChange={(e) =>
-                            setQuoraFollowers(Number(e.target.value))
-                          }
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                      <div className="flex items-center gap-2">
-                        <FaTwitter className="h-4 w-4 text-sky-500" />
-                        <span className="text-sm font-semibold">
-                          X / Twitter
-                        </span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Handle
-                        </Label>
-                        <Input
-                          value={twHandle}
-                          onChange={(e) => setTwHandle(e.target.value)}
-                          placeholder="@username"
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Followers
-                        </Label>
-                        <Input
-                          type="number"
-                          value={twFollowers}
-                          onChange={(e) =>
-                            setTwFollowers(Number(e.target.value))
-                          }
-                          className="h-8 text-xs rounded-lg"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <Button
-                    type="submit"
-                    disabled={savingProfile}
-                    className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow px-7 font-bold text-xs h-10"
-                  >
-                    {savingProfile ? "Saving Details..." : "Save Details"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-
-            {/* BRAND GALLERY */}
-            <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-              <h2 className="font-outfit text-xl font-bold mb-2">
-                Brand Gallery
-              </h2>
-              <p className="text-xs text-muted-foreground mb-4">
-                Showcase products, campaign banners, teams, or advertisements.
-              </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {(portfolioImages || []).map((img) => {
-                  const imageSrc = resolveImageUrl(img.url || img.imageUrl);
-                  return (
-                    <div
-                      key={img._id}
-                      className="group relative aspect-square overflow-hidden rounded-2xl border border-border/70 hover:shadow-md transition-all"
-                    >
-                      {imageSrc && (
-                        <img
-                          src={imageSrc}
-                          alt="Gallery"
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                          }}
-                        />
+              {/* 4. CREATIVE PORTFOLIO & REELS ACCORDION */}
+              <div className="rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setOpenPortfolioSection(!openPortfolioSection)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors cursor-pointer"
+                >
+                  <div>
+                    <h3 className="font-display text-base font-bold flex items-center gap-2">
+                      <span className="p-1 rounded-md bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white shadow-xs">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                      </span>
+                      Brand Creative Showcase & Feed
+                      {portfolioImages?.length > 0 && (
+                        <Badge variant="secondary" className="text-[10px] font-bold bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                          {portfolioImages.length} {portfolioImages.length > 1 ? "media items" : "media item"}
+                        </Badge>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveGalleryImage(img._id)}
-                        className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 opacity-0 shadow-soft transition-opacity group-hover:opacity-100 hover:scale-110"
-                        title="Delete image"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                      </button>
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Showcase past campaigns, Posts, Reels, and product advertisements to creators
+                    </p>
+                  </div>
+                  <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openPortfolioSection && "rotate-90 text-primary")} />
+                </button>
+
+                {openPortfolioSection && (
+                  <div className="p-4 pt-2 border-t border-border/40">
+                    {/* Format Tabs & Action Buttons */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                      <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => setPortfolioTab("all")}
+                          className={cn(
+                            "px-3 py-1 rounded-lg font-medium transition-all",
+                            portfolioTab === "all"
+                              ? "bg-background text-foreground shadow-xs font-semibold"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          All ({portfolioImages?.length || 0})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPortfolioTab("post")}
+                          className={cn(
+                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                            portfolioTab === "post"
+                              ? "bg-background text-foreground shadow-xs font-semibold"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Camera className="h-3.5 w-3.5 text-blue-500" /> Posts ({portfolioImages?.filter(i => (i.type || "post") === "post").length || 0})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPortfolioTab("reel")}
+                          className={cn(
+                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                            portfolioTab === "reel"
+                              ? "bg-background text-foreground shadow-xs font-semibold"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Film className="h-3.5 w-3.5 text-pink-500" /> Reels ({portfolioImages?.filter(i => i.type === "reel").length || 0})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPortfolioTab("story")}
+                          className={cn(
+                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                            portfolioTab === "story"
+                              ? "bg-background text-foreground shadow-xs font-semibold"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Stories ({portfolioImages?.filter(i => i.type === "story").length || 0})
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => setShowAddPortfolioModal(true)}
+                          className="rounded-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white font-semibold text-xs shadow-sm hover:opacity-95"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Media / Reel / Story
+                        </Button>
+                      </div>
                     </div>
-                  );
-                })}
-                <label className="btn-bouncy flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border/80 text-xs font-semibold text-muted-foreground hover:bg-secondary/70 hover:border-primary/50 transition-all">
-                  <Upload className="h-5 w-5 text-primary" />
-                  {uploadingGallery ? "Uploading…" : "Add Image"}
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={onGalleryUpload}
-                    disabled={uploadingGallery}
-                  />
-                </label>
+
+                    {/* Portfolio Feed / Grid */}
+                    {(() => {
+                      const filtered = (portfolioImages || []).filter((item) => {
+                        if (portfolioTab === "all") return true;
+                        const itemType = item.type || "post";
+                        return itemType === portfolioTab;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="text-center py-12 border border-dashed border-border/80 rounded-2xl bg-muted/10 p-6">
+                            <div className="mx-auto w-12 h-12 rounded-full bg-pink-500/10 flex items-center justify-center text-pink-500 mb-3">
+                              <Camera className="h-6 w-6" />
+                            </div>
+                            <h4 className="font-semibold text-sm">No {portfolioTab === "all" ? "media items" : portfolioTab + "s"} added yet</h4>
+                            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                              Upload your campaign creatives, promotional reels, and brand assets to showcase your brand to creators.
+                            </p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => setShowAddPortfolioModal(true)}
+                              className="mt-4 rounded-full gradient-sunset text-white text-xs"
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Media
+                            </Button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                          {filtered.map((item, idx) => {
+                            const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
+                            const isReel = item.type === "reel";
+                            const isStory = item.type === "story";
+                            const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
+                            const likes = item.likesCount || 0;
+                            const comments = item.commentsCount || (item.comments?.length || 0);
+                            const views = item.viewsCount || (isReel ? 1200 : 0);
+
+                            return (
+                              <div
+                                key={item._id || idx}
+                                onClick={() => setSelectedPortfolioPost(item)}
+                                className="group relative aspect-square w-full rounded-2xl overflow-hidden border border-border/80 bg-neutral-900 cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
+                              >
+                                {/* Media Thumbnail */}
+                                {isVideo ? (
+                                  <video
+                                    src={imageSrc}
+                                    className="h-full w-full object-cover"
+                                    preload="metadata"
+                                    muted
+                                    playsInline
+                                  />
+                                ) : (
+                                  <img
+                                    src={imageSrc}
+                                    alt={item.caption || "Showcase item"}
+                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = "https://api.dicebear.com/9.x/shapes/svg?seed=BrandCreative";
+                                    }}
+                                  />
+                                )}
+
+                                {/* Type Pill Badge (Top Left) */}
+                                <div className="absolute top-2 left-2 z-10">
+                                  {isReel ? (
+                                    <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30 shadow-xs">
+                                      <Film className="h-2.5 w-2.5" /> Reel
+                                    </span>
+                                  ) : isStory ? (
+                                    <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 shadow-xs">
+                                      <Sparkles className="h-2.5 w-2.5" /> Story
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 shadow-xs">
+                                      <Camera className="h-2.5 w-2.5" /> Post
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Brand Tag Badge (Top Right) */}
+                                {item.brandTag && (
+                                  <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
+                                    <span className="block truncate bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
+                                      {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Delete Button (Visible on hover) */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemovePortfolioImage(item._id || idx);
+                                  }}
+                                  className="absolute top-2 right-2 z-20 bg-destructive/90 hover:bg-destructive text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                                  title="Delete item"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+
+                                {/* Reel Play / Views pill (Bottom Left) */}
+                                {isReel && views > 0 && (
+                                  <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
+                                  </div>
+                                )}
+
+                                {/* Hover Overlay with Likes & Comments */}
+                                <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
+                                  {item.caption && (
+                                    <p className="text-[11px] font-medium text-white/90 line-clamp-2 mb-2">
+                                      {item.caption}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-3 text-xs font-bold">
+                                    <span className="flex items-center gap-1">
+                                      <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2418,9 +2873,14 @@ const [submittingVerification, setSubmittingVerification] =
                   );
                 }
 
+                const totalCampaignPages = Math.ceil(displayedCampaigns.length / campaignsPerPage) || 1;
+                const safeCurrentPage = Math.min(campaignPage, totalCampaignPages);
+                const startIndex = (safeCurrentPage - 1) * campaignsPerPage;
+                const paginatedCampaigns = displayedCampaigns.slice(startIndex, startIndex + campaignsPerPage);
+
                 return (
                   <div className="space-y-4">
-                    {displayedCampaigns.map((camp) => (
+                    {paginatedCampaigns.map((camp) => (
                     <div
                       key={camp._id}
                       className="card-3d rounded-2xl border border-border/60 bg-background/70 p-4 transition-all hover:border-primary/40"
@@ -2572,6 +3032,54 @@ const [submittingVerification, setSubmittingVerification] =
                       </div>
                     </div>
                   ))}
+
+                    {/* Numeric Pagination Bar (1, 2, 3...) */}
+                    {totalCampaignPages > 1 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border/40">
+                        <p className="text-xs text-muted-foreground">
+                          Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{" "}
+                          <span className="font-semibold text-foreground">{Math.min(startIndex + campaignsPerPage, displayedCampaigns.length)}</span> of{" "}
+                          <span className="font-semibold text-foreground">{displayedCampaigns.length}</span> campaigns
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2.5 rounded-xl text-xs gap-1 border-border/70"
+                            disabled={safeCurrentPage === 1}
+                            onClick={() => setCampaignPage((prev) => Math.max(1, prev - 1))}
+                          >
+                            <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                          </Button>
+                          {Array.from({ length: totalCampaignPages }, (_, idx) => idx + 1).map((pageNum) => (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              onClick={() => setCampaignPage(pageNum)}
+                              className={cn(
+                                "h-8 w-8 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center",
+                                safeCurrentPage === pageNum
+                                  ? "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary/40"
+                                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
+                              )}
+                            >
+                              {pageNum}
+                            </button>
+                          ))}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8 px-2.5 rounded-xl text-xs gap-1 border-border/70"
+                            disabled={safeCurrentPage === totalCampaignPages}
+                            onClick={() => setCampaignPage((prev) => Math.min(totalCampaignPages, prev + 1))}
+                          >
+                            Next <ChevronRight className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -3146,6 +3654,383 @@ const [submittingVerification, setSubmittingVerification] =
                 <CreatorOffersSidebarWidget audience="brand" />
               </div>
             </div>
+          </div>
+        ) : activeTab === "referrals" ? (
+          <div className="space-y-6">
+            {/* REFERRAL HERO CARD */}
+            <div className="rounded-3xl border border-border bg-gradient-to-br from-card via-card/90 to-primary/5 p-6 sm:p-8 shadow-sm relative overflow-hidden">
+              <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+              <div className="max-w-3xl relative z-10">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs font-bold mb-3">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Tiered Referral Income (5% - 10%) • Paid Directly by Pravixo</span>
+                </div>
+                <h2 className="font-display text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+                  Invite creators & brands. <span className="text-gradient-sunset">Earn up to 10% on every deal.</span>
+                </h2>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  Share your unique referral code or link. Whenever a creator or brand you refer completes a collaboration on Pravixo, you receive a recurring referral commission directly from our platform fees with zero extra cost.
+                </p>
+
+                {/* TIERED COMMISSION BADGES */}
+                <div className="mt-4 grid grid-cols-3 gap-2.5 max-w-lg">
+                  <div className="p-2.5 rounded-xl border border-border/80 bg-background/60 text-center">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block">Starter Plan</span>
+                    <span className="text-base font-black text-foreground">5.0%</span>
+                    <span className="text-[10px] text-muted-foreground block">Free Tier</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center">
+                    <span className="text-[10px] font-bold text-amber-500 uppercase block">Pro Plan</span>
+                    <span className="text-base font-black text-amber-500">7.5%</span>
+                    <span className="text-[10px] text-muted-foreground block">Active Pro Sub</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl border border-purple-500/30 bg-purple-500/5 text-center">
+                    <span className="text-[10px] font-bold text-purple-500 uppercase block">Elite Plan</span>
+                    <span className="text-base font-black text-purple-500">10.0%</span>
+                    <span className="text-[10px] text-muted-foreground block">Active Elite Sub</span>
+                  </div>
+                </div>
+
+                {/* CODE & LINK BOXES */}
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Code Box */}
+                  <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70 backdrop-blur-sm">
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                      Your Referral Code
+                    </span>
+                    <div className="flex items-center justify-between gap-2 bg-card px-3 py-2 rounded-xl border border-border">
+                      <span className="font-mono font-black text-base text-foreground tracking-wider">
+                        {referralCodeData?.referral_code || profile?.referral_code || profile?.referralCode || "Generating..."}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-3 rounded-lg text-xs font-bold text-primary hover:text-primary hover:bg-primary/10"
+                        onClick={() => {
+                          const code = referralCodeData?.referral_code || profile?.referral_code || profile?.referralCode || "";
+                          if (!code) return;
+                          navigator.clipboard.writeText(code);
+                          setCopiedCode(true);
+                          toast.success("Referral code copied to clipboard!");
+                          setTimeout(() => setCopiedCode(false), 2000);
+                        }}
+                      >
+                        {copiedCode ? (
+                          <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mr-1" /> Copied</>
+                        ) : (
+                          <><Copy className="h-3.5 w-3.5 mr-1" /> Copy Code</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Link Box */}
+                  <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70 backdrop-blur-sm">
+                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                      Your Referral Link
+                    </span>
+                    <div className="flex items-center justify-between gap-2 bg-card px-3 py-2 rounded-xl border border-border">
+                      <span className="font-mono text-xs text-muted-foreground truncate max-w-[170px]">
+                        {referralCodeData?.referral_link || `${window.location.origin}/register?ref=${referralCodeData?.referral_code || profile?.referral_code || ""}`}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2.5 rounded-lg text-xs font-bold text-primary hover:text-primary hover:bg-primary/10"
+                          onClick={() => {
+                            const link = referralCodeData?.referral_link || `${window.location.origin}/register?ref=${referralCodeData?.referral_code || profile?.referral_code || ""}`;
+                            navigator.clipboard.writeText(link);
+                            setCopiedLink(true);
+                            toast.success("Referral link copied!");
+                            setTimeout(() => setCopiedLink(false), 2000);
+                          }}
+                        >
+                          {copiedLink ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8 px-3 rounded-lg text-xs font-bold gradient-sunset text-white border-0 shadow-sm flex items-center gap-1"
+                          onClick={() => {
+                            const link = referralCodeData?.referral_link || `${window.location.origin}/register?ref=${referralCodeData?.referral_code || profile?.referral_code || ""}`;
+                            const refCode = referralCodeData?.referral_code || profile?.referral_code || "";
+                            if (navigator.share) {
+                              navigator.share({
+                                title: "Join Pravixo Network",
+                                text: `Join Pravixo using my referral code ${refCode} to connect with creators and brands!`,
+                                url: link,
+                              }).catch(() => {});
+                            } else {
+                              const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(`Join Pravixo with my referral code ${refCode}: ${link}`)}`;
+                              window.open(whatsappUrl, "_blank");
+                            }
+                          }}
+                        >
+                          <Share2 className="h-3.5 w-3.5" /> Share
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* STATS METRICS */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-primary uppercase tracking-wider">Total Commission Earned</span>
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <IndianRupee className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-3 text-3xl font-extrabold text-foreground font-display">
+                  ₹{Number(referralEarnings?.total_earned || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Credited directly to your wallet</p>
+              </div>
+
+              <div
+                onClick={() => setShowReferredModal(true)}
+                className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group relative overflow-hidden"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider group-hover:text-primary transition-colors">Active Referrals</span>
+                  <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                    <Users className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-3 flex items-baseline justify-between">
+                  <div className="text-3xl font-extrabold text-foreground font-display">
+                    {referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)}
+                  </div>
+                  <span className="text-[11px] font-bold text-primary flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
+                    View list <ChevronRight className="h-3.5 w-3.5" />
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Click to view all users referred by your code</p>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Commission Rate</span>
+                  <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600">
+                    <Sparkles className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="mt-3 text-3xl font-extrabold text-amber-600 font-display">
+                  5% - 10%
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Tiered based on active subscription plan</p>
+              </div>
+            </div>
+
+            {/* REFERRAL COMMISSIONS TABLE */}
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="font-display text-base font-bold text-foreground">Referral Commission History</h3>
+                  <p className="text-xs text-muted-foreground">Earnings credited from referred users' completed collaboration payouts</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full text-xs flex items-center gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => setShowReferredModal(true)}
+                  >
+                    <Users className="h-3.5 w-3.5" /> Referred Users ({referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full text-xs flex items-center gap-1.5"
+                    disabled={isRefreshingReferral}
+                    onClick={() => {
+                      setIsRefreshingReferral(true);
+                      setReferralRefreshKey((k) => k + 1);
+                      toast.info("Refreshing referral data & commissions...");
+                      setTimeout(() => {
+                        setIsRefreshingReferral(false);
+                        toast.success("Referral data updated!");
+                      }, 700);
+                    }}
+                  >
+                    <History className={`h-3.5 w-3.5 ${isRefreshingReferral ? "animate-spin text-primary" : ""}`} />
+                    {isRefreshingReferral ? "Refreshing..." : "Refresh"}
+                  </Button>
+                </div>
+              </div>
+
+              {(!referralEarnings?.earnings || referralEarnings.earnings.length === 0) ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center text-muted-foreground mb-3">
+                    <Gift className="h-8 w-8 text-primary/60" />
+                  </div>
+                  <p className="font-semibold text-sm text-foreground">No commission earnings yet</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[340px]">
+                    Share your referral code with fellow brands and creators. When they complete collaborations, your referral commissions will appear right here!
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-border/50 text-muted-foreground">
+                        <th className="pb-3 pl-2 font-semibold">Referred User</th>
+                        <th className="pb-3 px-2 font-semibold">Project / Payout</th>
+                        <th className="pb-3 px-2 font-semibold">Date</th>
+                        <th className="pb-3 px-2 font-semibold">Commission</th>
+                        <th className="pb-3 pr-2 text-right font-semibold">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                      {referralEarnings.earnings.map((item, idx) => (
+                        <tr key={item._id || item.project_id || idx} className="hover:bg-secondary/10 transition-colors">
+                          <td className="py-3.5 pl-2 font-semibold text-foreground flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                              {item.referred_user_name?.[0] || "U"}
+                            </div>
+                            <div>
+                              <span>{item.referred_user_name || "Referred User"}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-2 text-muted-foreground font-mono text-[11px]">
+                            {item.project_id ? (item.project_id.length > 12 ? `${item.project_id.slice(0, 10)}...` : item.project_id) : "Completed Collaboration"}
+                          </td>
+                          <td className="py-3.5 px-2 text-muted-foreground whitespace-nowrap">
+                            {item.date ? new Date(item.date).toLocaleDateString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            }) : "-"}
+                          </td>
+                          <td className="py-3.5 px-2 font-bold text-sm text-emerald-600">
+                            +₹{Number(item.commission_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3.5 pr-2 text-right">
+                            <Badge className="rounded-full text-[9px] font-bold px-2 py-0.5 border bg-emerald-500/15 text-emerald-700 border-emerald-500/30">
+                              ✓ Credited
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* REFERRED USERS DIALOG */}
+            <Dialog open={showReferredModal} onOpenChange={setShowReferredModal}>
+              <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col rounded-3xl p-6 bg-card border border-border">
+                <DialogHeader>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="h-9 w-9 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <DialogTitle className="font-display text-lg sm:text-xl font-bold text-foreground">
+                        People Referred By You
+                      </DialogTitle>
+                      <DialogDescription className="text-xs text-muted-foreground">
+                        Creators and brands registered using your referral code. You earn a recurring commission on their completed projects.
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                {/* Summary Bar inside Modal */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-secondary/40 border border-border/60 text-xs">
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Referred</span>
+                    <span className="font-bold text-base text-foreground font-display">
+                      {referredListQuery?.total ?? referralEarnings?.active_referrals_count ?? 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Commission Earned</span>
+                    <span className="font-bold text-base text-emerald-600 font-display">
+                      ₹{Number(referredListQuery?.totalCommissionEarned ?? referralEarnings?.total_earned ?? 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Commission Rate</span>
+                    <span className="font-bold text-base text-amber-500 font-display">
+                      5% - 10% Tiered
+                    </span>
+                  </div>
+                </div>
+
+                {/* Referred Users List */}
+                <div className="flex-1 overflow-y-auto pr-1 mt-2 space-y-2.5 max-h-[400px]">
+                  {(!referredListQuery?.users || referredListQuery.users.length === 0) ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-border rounded-2xl">
+                      <Users className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                      <p className="text-sm font-semibold text-foreground">No referred users registered yet</p>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
+                        Share your referral link or code with creators and brand partners to start earning recurring commissions.
+                      </p>
+                    </div>
+                  ) : (
+                    referredListQuery.users.map((u, idx) => (
+                      <div
+                        key={u._id || idx}
+                        className="flex items-center justify-between gap-3 p-3 rounded-2xl border border-border/60 bg-secondary/15 hover:bg-secondary/30 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <img
+                            src={
+                              resolveImageUrl(u.avatarUrl) ||
+                              `https://api.dicebear.com/9.x/avataaars/svg?seed=${u.fullName || "User"}`
+                            }
+                            alt=""
+                            className="h-10 w-10 rounded-full object-cover border border-border aspect-square shrink-0"
+                            onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }}
+                          />
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-foreground truncate">
+                              {u.fullName || "Registered User"}
+                            </h4>
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                              {u.handle && <span>@{u.handle.replace("@", "")}</span>}
+                              <span>•</span>
+                              <span className="capitalize">{u.role || "Creator"}</span>
+                              <span>•</span>
+                              <span>Joined {new Date(u.createdAt || Date.now()).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-xs font-bold text-emerald-600 block">
+                            ₹{Number(u.commissionEarned || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground">
+                            {u.dealsCompleted || 0} deals completed
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <DialogFooter className="mt-3 pt-3 border-t border-border/40">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full rounded-full text-xs font-bold"
+                    onClick={() => setShowReferredModal(false)}
+                  >
+                    Close
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         ) : (
           <SubscriptionTab role="brand" profile={profile} />
@@ -5148,6 +6033,407 @@ const [submittingVerification, setSubmittingVerification] =
         currentAvatar={resolveImageUrl(profile?.avatarUrl) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile?.fullName || user?.email || "brand"}`}
         onSelectAvatar={handleSelectAvatarPreset}
       />
+
+      {/* ========================================================= */}
+      {/* 1. ADD TO BRAND SHOWCASE MODAL (IMAGE 2 MATCHING) */}
+      {/* ========================================================= */}
+      <Dialog open={showAddPortfolioModal} onOpenChange={setShowAddPortfolioModal}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto rounded-3xl p-6 bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
+              <span className="p-1 rounded-md bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white">
+                <Camera className="h-4 w-4" />
+              </span>
+              Add to Brand Creative Showcase
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Upload past campaign creatives, promotional reels, and brand assets to showcase to creators.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Format Selection Buttons */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Deliverable Format *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "post", label: "Post (1:1)", icon: Camera, color: "text-blue-500" },
+                  { id: "reel", label: "Reel / Video", icon: Film, color: "text-pink-500" },
+                  { id: "story", label: "Story", icon: Sparkles, color: "text-amber-500" },
+                ].map((fmt) => {
+                  const Icon = fmt.icon;
+                  const isSelected = newPortfolioForm.type === fmt.id;
+                  return (
+                    <button
+                      key={fmt.id}
+                      type="button"
+                      onClick={() => setNewPortfolioForm((f) => ({ ...f, type: fmt.id }))}
+                      className={cn(
+                        "flex flex-col items-center justify-center p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer",
+                        isSelected
+                          ? "border-pink-500 bg-pink-500/10 text-foreground ring-1 ring-pink-500/50"
+                          : "border-border bg-card hover:bg-secondary/50 text-muted-foreground"
+                      )}
+                    >
+                      <Icon className={cn("h-5 w-5 mb-1.5", fmt.color)} />
+                      {fmt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Media Upload Box */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Media File (Photo or Video) *
+              </label>
+              {newPortfolioForm.filePreview ? (
+                <div className="relative rounded-xl overflow-hidden border border-border bg-black max-h-56 flex items-center justify-center group">
+                  {newPortfolioForm.file?.type?.startsWith("video/") ? (
+                    <video
+                      src={newPortfolioForm.filePreview}
+                      className="max-h-56 w-auto object-contain"
+                      controls
+                    />
+                  ) : (
+                    <img
+                      src={newPortfolioForm.filePreview}
+                      alt="Preview"
+                      className="max-h-56 w-auto object-contain"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setNewPortfolioForm((f) => ({ ...f, file: null, filePreview: null }))}
+                    className="absolute top-2 right-2 bg-destructive text-white p-1.5 rounded-full shadow-lg hover:opacity-90 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-6 cursor-pointer hover:bg-secondary/30 transition-colors">
+                  <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-xs font-semibold text-foreground">Click to upload photo or reel video</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">JPG, PNG, WEBP, MP4, MOV (up to 50MB)</span>
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const preview = URL.createObjectURL(file);
+                      setNewPortfolioForm((f) => ({ ...f, file, filePreview: preview }));
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* Brand Collaboration Tag */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Brand Collaborator / Handle (Optional)
+              </label>
+              <Input
+                placeholder="e.g. @zara, @nike, @myntra"
+                value={newPortfolioForm.brandTag}
+                onChange={(e) => setNewPortfolioForm((f) => ({ ...f, brandTag: e.target.value }))}
+                className="text-xs rounded-xl"
+              />
+            </div>
+
+            {/* Caption & Hashtags */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                Caption & Hashtags (Optional)
+              </label>
+              <Textarea
+                placeholder="Write a caption... e.g. 'Excited to launch our new collection! ✨ #brand #campaign'"
+                value={newPortfolioForm.caption}
+                onChange={(e) => setNewPortfolioForm((f) => ({ ...f, caption: e.target.value }))}
+                className="text-xs rounded-xl min-h-[70px]"
+              />
+            </div>
+
+            {/* Engagement Metrics Showcase */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  Likes Count
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={newPortfolioForm.likesCount}
+                  onChange={(e) => setNewPortfolioForm((f) => ({ ...f, likesCount: e.target.value }))}
+                  className="text-xs rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  Views / Reach Count
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={newPortfolioForm.viewsCount}
+                  onChange={(e) => setNewPortfolioForm((f) => ({ ...f, viewsCount: e.target.value }))}
+                  className="text-xs rounded-xl"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddPortfolioModal(false)}
+              className="rounded-full text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={uploadingPortfolioItem || !newPortfolioForm.file}
+              onClick={handleCreateBrandPortfolioItem}
+              className="rounded-full gradient-sunset text-white border-0 text-xs font-semibold cursor-pointer"
+            >
+              {uploadingPortfolioItem ? "Publishing..." : "Publish to Showcase"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================= */}
+      {/* 2. INSTAGRAM-STYLE INTERACTIVE LIGHTBOX & POST VIEWER */}
+      {/* ========================================================= */}
+      {selectedPortfolioPost && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setSelectedPortfolioPost(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 transition-colors rounded-full hover:bg-white/10 z-50 cursor-pointer"
+            onClick={() => setSelectedPortfolioPost(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          <div
+            className="relative w-full max-w-4xl bg-card border border-border/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Left Side: Media Display */}
+            <div className="md:w-3/5 bg-black flex items-center justify-center relative min-h-[300px] md:min-h-[500px]">
+              {selectedPortfolioPost.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url || "") ? (
+                <video
+                  src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              ) : (
+                <img
+                  src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
+                  alt={selectedPortfolioPost.caption || "Showcase post"}
+                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                />
+              )}
+
+              {/* Format Badge Overlay */}
+              <div className="absolute top-3 left-3">
+                {selectedPortfolioPost.type === "reel" ? (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-xs font-bold px-2.5 py-1 rounded-full border border-pink-500/30">
+                    <Film className="h-3 w-3" /> Reel
+                  </span>
+                ) : selectedPortfolioPost.type === "story" ? (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
+                    <Sparkles className="h-3 w-3" /> Story
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-500/30">
+                    <Camera className="h-3 w-3" /> Post
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right Side: Brand info, Brand tag, Caption, Live Comments & Actions */}
+            <div className="md:w-2/5 flex flex-col justify-between border-t md:border-t-0 md:border-l border-border bg-card">
+              {/* Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-full overflow-hidden border border-border bg-muted">
+                    <img
+                      src={resolveImageUrl(profile?.avatarUrl) || `https://api.dicebear.com/9.x/identicon/svg?seed=${fullName || "Brand"}`}
+                      alt={fullName || "Brand"}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold leading-tight">{fullName || profile?.fullName || "Brand"}</h4>
+                    <p className="text-[10px] text-muted-foreground">@{handle?.replace(/^@+/, "") || "brand"}</p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemovePortfolioImage(selectedPortfolioPost._id)}
+                  className="text-destructive hover:bg-destructive/10 h-7 px-2 rounded-lg text-xs"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              {/* Scrollable Caption & Comments List */}
+              <div className="flex-1 p-4 overflow-y-auto max-h-[300px] md:max-h-[360px] space-y-3.5 text-xs">
+                {/* Brand Collab Partnership Tag */}
+                {selectedPortfolioPost.brandTag && (
+                  <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-500 font-semibold flex items-center gap-2">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>In partnership with <span className="underline">{selectedPortfolioPost.brandTag.startsWith("@") ? selectedPortfolioPost.brandTag : `@${selectedPortfolioPost.brandTag}`}</span></span>
+                  </div>
+                )}
+
+                {/* Main Creator/Brand Caption */}
+                {selectedPortfolioPost.caption ? (
+                  <div className="flex gap-2.5">
+                    <div className="h-7 w-7 rounded-full overflow-hidden shrink-0 border border-border">
+                      <img
+                        src={resolveImageUrl(profile?.avatarUrl) || `https://api.dicebear.com/9.x/identicon/svg?seed=${fullName || "Brand"}`}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p className="leading-relaxed">
+                        <span className="font-bold mr-1.5">{fullName || "Brand"}</span>
+                        {selectedPortfolioPost.caption}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground mt-1 block">
+                        {new Date(selectedPortfolioPost.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground italic text-[11px]">No caption provided.</p>
+                )}
+
+                {/* Comments Section */}
+                <div className="border-t border-border/50 pt-3 space-y-2.5">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
+                    Comments ({selectedPortfolioPost.comments?.length || selectedPortfolioPost.commentsCount || 0})
+                  </p>
+
+                  {(selectedPortfolioPost.comments || []).map((comm, cIdx) => {
+                    const commentId = comm._id || comm.id || cIdx;
+                    return (
+                      <div key={cIdx} className="group/comm flex gap-2.5 items-start justify-between">
+                        <div className="flex gap-2.5 items-start flex-1">
+                          <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
+                            <img
+                              src={resolveImageUrl(comm.userAvatar) || getGenderAvatar(comm.userName || "User", "", "creator")}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = getGenderAvatar(comm.userName || "User", "", "creator");
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
+                            <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
+                            <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePortfolioComment(commentId)}
+                          className="opacity-0 group-hover/comm:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                          title="Delete comment"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Bottom Action Bar: Like, Share, Stats, Add Comment */}
+              <div className="p-4 border-t border-border bg-card space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePortfolioLike(selectedPortfolioPost)}
+                      className="text-foreground hover:text-rose-500 transition-colors cursor-pointer"
+                    >
+                      <Heart className={cn("h-5 w-5", selectedPortfolioPost.isLiked ? "fill-rose-500 text-rose-500" : "")} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById("brand-portfolio-comment-input")?.focus()}
+                      className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSharePortfolioItem(selectedPortfolioPost)}
+                      className="text-foreground hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <Share2 className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] font-bold text-muted-foreground">
+                    {selectedPortfolioPost.viewsCount ? `${Number(selectedPortfolioPost.viewsCount).toLocaleString()} views` : ""}
+                  </span>
+                </div>
+
+                <p className="text-xs font-bold text-foreground">
+                  {(Number(selectedPortfolioPost.likesCount) || 0).toLocaleString()} likes
+                </p>
+
+                {/* Add Comment Input */}
+                <div className="flex items-center gap-2 pt-1">
+                  <Input
+                    id="brand-portfolio-comment-input"
+                    placeholder="Add a comment..."
+                    value={portfolioCommentText}
+                    onChange={(e) => setPortfolioCommentText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAddPortfolioComment();
+                      }
+                    }}
+                    className="text-xs rounded-full h-8"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={submittingPortfolioComment || !portfolioCommentText.trim()}
+                    onClick={handleAddPortfolioComment}
+                    className="h-8 rounded-full px-3 text-xs gradient-sunset text-white border-0 font-semibold cursor-pointer"
+                  >
+                    Post
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

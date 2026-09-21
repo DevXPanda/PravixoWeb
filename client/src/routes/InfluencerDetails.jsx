@@ -2459,16 +2459,36 @@ export default function InfluencerDetails() {
                             ) : null}
                           </div>
 
-                          <Button
-                            size="sm"
-                            className="rounded-full gradient-sunset border-0 text-white px-4 text-xs font-semibold shrink-0 shadow-sm"
-                            onClick={() => {
-                              setSelectedCampaign(campaign);
-                              setIsConnectionModalOpen(true);
-                            }}
-                          >
-                            Apply to Connect
-                          </Button>
+                          {isOwnProfile ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="rounded-full text-xs font-semibold shrink-0 border-border"
+                              onClick={() => navigate("/dashboard/customer")}
+                            >
+                              Manage Campaign
+                            </Button>
+                          ) : profile?.role === "brand" ? (
+                            <span className="text-[11px] text-muted-foreground italic px-2">
+                              Creator Opportunity
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="rounded-full gradient-sunset border-0 text-white px-4 text-xs font-semibold shrink-0 shadow-sm"
+                              onClick={() => {
+                                if (!user) {
+                                  toast.error("Please login as a creator to apply for campaigns");
+                                  navigate("/login");
+                                  return;
+                                }
+                                setSelectedCampaign(campaign);
+                                setIsConnectionModalOpen(true);
+                              }}
+                            >
+                              Apply to Connect
+                            </Button>
+                          )}
                         </div>
                       ))
                     )}
