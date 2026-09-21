@@ -20,13 +20,16 @@ export const listFavorites = async (req, res) => {
       favorites.map(async (fav) => {
         let creatorData = null;
         if (mongoose.Types.ObjectId.isValid(fav.creatorId)) {
-          const profile = await Profile.findById(fav.creatorId).select("fullName name avatar category followers");
+          const profile = await Profile.findById(fav.creatorId).select("fullName name avatar avatarUrl category followers gender role");
           if (profile) {
             creatorData = {
               name: profile.fullName || profile.name,
-              avatar: profile.avatar,
+              avatar: profile.avatarUrl || profile.avatar || null,
+              avatarUrl: profile.avatarUrl || null,
               category: profile.category || "Creator",
               followers: profile.followers || "0",
+              gender: profile.gender || "",
+              role: profile.role || "creator",
             };
           }
         }
@@ -36,8 +39,11 @@ export const listFavorites = async (req, res) => {
           isLive: !!creatorData,
           name: creatorData?.name || `Creator ${fav.creatorId.slice(0, 4)}`,
           avatar: creatorData?.avatar || null,
+          avatarUrl: creatorData?.avatarUrl || null,
           category: creatorData?.category || "Creator",
           followers: creatorData?.followers || "10k+",
+          gender: creatorData?.gender || "",
+          role: creatorData?.role || "creator",
         };
       })
     );

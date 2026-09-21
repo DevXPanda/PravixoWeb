@@ -1122,9 +1122,11 @@ const [submittingVerification, setSubmittingVerification] =
           return {
             id: fav.id,
             name: fav.name,
-            avatar: fav.avatar,
+            avatar: fav.avatarUrl || fav.avatar,
             category: fav.category,
             followers: fav.followers,
+            gender: fav.gender || "",
+            role: fav.role || "creator",
           };
         } else {
           const staticInf = influencers.find((i) => i.id === fav.id);
@@ -1135,6 +1137,8 @@ const [submittingVerification, setSubmittingVerification] =
                 avatar: staticInf.avatar,
                 category: staticInf.category,
                 followers: staticInf.followers,
+                gender: staticInf.gender || "",
+                role: staticInf.role || "creator",
               }
             : null;
         }
@@ -1146,12 +1150,14 @@ const [submittingVerification, setSubmittingVerification] =
     const liveMapped = Array.isArray(allLiveCreators) ? allLiveCreators.map(p => ({
       id: p._id,
       name: p.fullName || p.name,
-      avatar: p.avatar,
+      avatar: p.avatarUrl || p.avatar,
       category: p.category || "Creator",
       followers: p.followers || "0",
       niches: p.niches || [],
       budget: p.budget || 0,
       region: p.region || "",
+      gender: p.gender || "",
+      role: p.role || "creator",
     })) : [];
 
     const allAvailable = [...influencers, ...liveMapped];
@@ -2741,46 +2747,46 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
-                  {recommendedCreators.map((creator) => (
-                    <div
-                      key={creator.id}
-                      className="card-3d flex items-center justify-between rounded-2xl border border-border/60 bg-background/80 p-3.5 hover:border-primary/40 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 overflow-hidden rounded-full border border-border">
-                          <img src={
-                              creator.avatar?.startsWith("http")
-                                ? creator.avatar
-                                : creator.avatar
-                                ? `${
-                                    import.meta.env.VITE_API_URL ||
-                                    "http://localhost:5000"
-                                  }/uploads/${creator.avatar}`
-                                : `https://api.dicebear.com/9.x/avataaars/svg?seed=${creator.id}`
-                            }
-                            alt={creator.name}
-                            className="h-full w-full object-cover"
-                           onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                        </div>
-                        <div>
-                          <p className="font-outfit text-sm font-bold text-foreground">
-                            {creator.name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {creator.category} • {creator.followers}
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="btn-bouncy h-7 rounded-full text-[10px] px-3 font-bold"
-                        onClick={() => navigate(`/influencer/${creator.id}`)}
+                  {recommendedCreators.map((creator) => {
+                    const fallbackSrc = getGenderAvatar(creator.name || "Creator", creator.gender, creator.role || "creator");
+                    const avatarSrc = resolveImageUrl(creator.avatar) || fallbackSrc;
+                    return (
+                      <div
+                        key={creator.id}
+                        className="card-3d flex items-center justify-between rounded-2xl border border-border/60 bg-background/80 p-3.5 hover:border-primary/40 transition-all"
                       >
-                        View
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 overflow-hidden rounded-full border border-border">
+                            <img
+                              src={avatarSrc}
+                              alt={creator.name}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = fallbackSrc;
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-outfit text-sm font-bold text-foreground">
+                              {creator.name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {creator.category} • {creator.followers}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="btn-bouncy h-7 rounded-full text-[10px] px-3 font-bold"
+                          onClick={() => navigate(`/influencer/${creator.id}`)}
+                        >
+                          View
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -3517,45 +3523,45 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {saved.map((inf) => (
-                    <div
-                      key={inf.id}
-                      className="flex items-center gap-3 rounded-2xl border border-border p-3"
-                    >
-                      <img src={
-                          inf.avatar?.startsWith("http")
-                            ? inf.avatar
-                            : inf.avatar
-                            ? `${
-                                import.meta.env.VITE_API_URL ||
-                                "http://localhost:5000"
-                              }/uploads/${inf.avatar}`
-                            : `https://api.dicebear.com/9.x/avataaars/svg?seed=${inf.id}`
-                        }
-                        alt=""
-                        className="h-10 w-10 rounded-full object-cover aspect-square flex-shrink-0 border border-border"
-                       onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          to={`/influencer/${inf.id}`}
-                          className="block truncate font-display text-xs font-semibold hover:text-primary"
-                        >
-                          {inf.name}
-                        </Link>
-                        <p className="text-[10px] text-muted-foreground">
-                          {inf.category} · {formatFollowers(inf.followers || 0)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFavorite(inf.id)}
-                        className="text-muted-foreground hover:text-destructive p-1"
-                        aria-label="Remove"
+                  {saved.map((inf) => {
+                    const fallbackSrc = getGenderAvatar(inf.name || "User", inf.gender, inf.role || "creator");
+                    const avatarSrc = resolveImageUrl(inf.avatar) || fallbackSrc;
+                    return (
+                      <div
+                        key={inf.id}
+                        className="flex items-center gap-3 rounded-2xl border border-border p-3"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                        <img
+                          src={avatarSrc}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover aspect-square flex-shrink-0 border border-border"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = fallbackSrc;
+                          }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            to={`/influencer/${inf.id}`}
+                            className="block truncate font-display text-xs font-semibold hover:text-primary"
+                          >
+                            {inf.name}
+                          </Link>
+                          <p className="text-[10px] text-muted-foreground">
+                            {inf.category} · {formatFollowers(inf.followers || 0)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFavorite(inf.id)}
+                          className="text-muted-foreground hover:text-destructive p-1 cursor-pointer"
+                          aria-label="Remove"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
