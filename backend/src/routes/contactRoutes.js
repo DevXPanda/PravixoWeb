@@ -1,6 +1,5 @@
 import express from "express";
 import ContactInquiry from "../models/ContactInquiry.js";
-import { verifyAdminToken } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
