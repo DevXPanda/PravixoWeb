@@ -21,4 +21,5 @@ export const DEFAULT_BANNERS = [
   "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1800&q=85",
 ];
 
+export const DEFAULT_BANNER_IMAGES = DEFAULT_BANNERS;
 export const DEFAULT_BANNER = DEFAULT_BANNERS[0];
