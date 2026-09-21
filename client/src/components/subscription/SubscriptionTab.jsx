@@ -615,16 +615,45 @@ export function SubscriptionTab({ role, profile }) {
       </div>
 
       {/* =================================================
+          CREATOR 3-MONTH PRO TRIAL & ELITE 50% OFF INFO BANNER
+      ================================================= */}
+      <div className="rounded-3xl border border-primary/30 bg-gradient-to-r from-primary/15 via-primary/5 to-transparent p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start md:items-center gap-3.5">
+          <div className="h-10 w-10 rounded-2xl bg-primary/20 text-primary flex items-center justify-center shrink-0 shadow-inner">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-display font-bold text-sm text-foreground">
+                Special Creator Welcome: 3 Months Pro Free Trial
+              </h3>
+              <span className="text-[10px] font-bold bg-primary text-primary-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                Active Offer
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              All creators get 3 months of complimentary <strong className="text-foreground font-semibold">Pro Plan (₹999 value)</strong> access. After 3 months, your account automatically continues on the <strong className="text-foreground font-semibold">Starter Plan</strong> with no hidden fees, or you can upgrade with an exclusive <strong className="text-primary font-semibold">50% OFF on Elite (₹999/yr)</strong>!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* =================================================
           FEATURE COMPARISON
       ================================================= */}
 
       <div className="rounded-3xl border border-border bg-card overflow-hidden shadow-sm">
 
-        <div className="p-6 border-b border-border bg-secondary/10">
+        <div className="p-6 border-b border-border bg-secondary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
 
-          <h3 className="font-display text-base font-bold">
-            Compare Package Features
-          </h3>
+          <div>
+            <h3 className="font-display text-base font-bold">
+              Compare Package Features & Tiers
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Transparent side-by-side comparison of Starter, Pro, and Elite plans.
+            </p>
+          </div>
 
         </div>
 
@@ -637,19 +666,19 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="border-b border-border bg-secondary/5 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
 
                 <th className="p-4 pl-6">
-                  Feature
+                  Feature / Capability
                 </th>
 
                 <th className="p-4 text-center">
                   Starter
                 </th>
 
-                <th className="p-4 text-center">
-                  Pro
+                <th className="p-4 text-center text-primary">
+                  Pro (Popular)
                 </th>
 
-                <th className="p-4 text-center">
-                  Elite
+                <th className="p-4 text-center text-amber-500">
+                  Elite (Best Value)
                 </th>
 
               </tr>
@@ -661,19 +690,19 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  Annual Cost
+                  Annual Plan Pricing
                 </td>
 
-                <td className="p-4 text-center">
-                  ₹0
-                </td>
-
-                <td className="p-4 text-center font-bold text-foreground">
-                  ₹199
+                <td className="p-4 text-center font-bold text-muted-foreground">
+                  ₹0 <span className="text-[10px] font-normal block text-muted-foreground/80">Lifetime Free</span>
                 </td>
 
                 <td className="p-4 text-center font-bold text-foreground">
-                  ₹2999
+                  ₹999 <span className="text-[10px] font-normal block text-primary font-semibold">Free 1st 3 Months</span>
+                </td>
+
+                <td className="p-4 text-center font-bold text-foreground">
+                  ₹1,999 <span className="text-[10px] font-normal block text-amber-500 font-semibold">₹999 with 50% Promo</span>
                 </td>
 
               </tr>
@@ -681,19 +710,59 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  Campaign Limits (per month)
+                  Welcome Promotional Benefit
+                </td>
+
+                <td className="p-4 text-center text-xs text-muted-foreground">
+                  Free Forever
+                </td>
+
+                <td className="p-4 text-center text-xs text-primary font-semibold">
+                  3 Months Free Access
+                </td>
+
+                <td className="p-4 text-center text-xs text-emerald-500 font-semibold">
+                  50% Launch Discount
+                </td>
+
+              </tr>
+
+              <tr className="hover:bg-secondary/5">
+
+                <td className="p-4 pl-6 font-medium text-foreground">
+                  Campaign Limits
                 </td>
 
                 <td className="p-4 text-center font-semibold text-muted-foreground">
-                  2/month
+                  2 / month
                 </td>
 
                 <td className="p-4 text-center text-primary font-semibold">
-                  10/month
+                  15 / month
                 </td>
 
-                <td className="p-4 text-center text-emerald-600 font-semibold">
-                  100/month
+                <td className="p-4 text-center text-emerald-500 font-bold">
+                  Unlimited
+                </td>
+
+              </tr>
+
+              <tr className="hover:bg-secondary/5">
+
+                <td className="p-4 pl-6 font-medium text-foreground">
+                  Direct Chat & Messaging
+                </td>
+
+                <td className="p-4 text-center text-muted-foreground text-xs">
+                  Limited Basic
+                </td>
+
+                <td className="p-4 text-center text-emerald-600 font-semibold text-xs">
+                  Unlimited
+                </td>
+
+                <td className="p-4 text-center text-emerald-600 font-semibold text-xs">
+                  Unlimited + Media
                 </td>
 
               </tr>
@@ -709,11 +778,17 @@ export function SubscriptionTab({ role, profile }) {
                 </td>
 
                 <td className="p-4 text-center">
-                  <Check className="h-4 w-4 mx-auto text-emerald-500" />
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-500">
+                    <Check className="h-3.5 w-3.5 text-blue-500" />
+                    Verified Blue
+                  </span>
                 </td>
 
                 <td className="p-4 text-center">
-                  <Check className="h-4 w-4 mx-auto text-emerald-500" />
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-500">
+                    <Check className="h-3.5 w-3.5 text-amber-500" />
+                    Elite Gold
+                  </span>
                 </td>
 
               </tr>
@@ -721,39 +796,19 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  Chat Access
+                  Support Level
                 </td>
 
-                <td className="p-4 text-center text-muted-foreground">
-                  Limited
+                <td className="p-4 text-center text-xs text-muted-foreground">
+                  Standard Support
                 </td>
 
-                <td className="p-4 text-center text-emerald-600 font-semibold">
-                  Unlimited
+                <td className="p-4 text-center text-xs font-medium text-primary">
+                  Priority Support
                 </td>
 
-                <td className="p-4 text-center text-emerald-600 font-semibold">
-                  Unlimited
-                </td>
-
-              </tr>
-
-              <tr className="hover:bg-secondary/5">
-
-                <td className="p-4 pl-6 font-medium text-foreground">
-                  Support Tier
-                </td>
-
-                <td className="p-4 text-center">
-                  Standard
-                </td>
-
-                <td className="p-4 text-center font-medium">
-                  Priority
-                </td>
-
-                <td className="p-4 text-center font-semibold text-primary">
-                  Priority
+                <td className="p-4 text-center text-xs font-bold text-amber-500">
+                  24/7 VIP Dedicated
                 </td>
 
               </tr>
@@ -761,7 +816,7 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  Refer Income
+                  Refer & Earn Commission
                 </td>
 
                 <td className="p-4 text-center font-bold text-muted-foreground">
@@ -773,7 +828,7 @@ export function SubscriptionTab({ role, profile }) {
                 </td>
 
                 <td className="p-4 text-center font-bold text-emerald-500">
-                  10%
+                  10% (Max Tier)
                 </td>
 
               </tr>
@@ -781,7 +836,7 @@ export function SubscriptionTab({ role, profile }) {
               <tr className="hover:bg-secondary/5">
 
                 <td className="p-4 pl-6 font-medium text-foreground">
-                  Dedicated Manager
+                  1-on-1 Dedicated Account Manager
                 </td>
 
                 <td className="p-4 text-center">
@@ -794,6 +849,66 @@ export function SubscriptionTab({ role, profile }) {
 
                 <td className="p-4 text-center">
                   <Check className="h-4 w-4 mx-auto text-emerald-500" />
+                </td>
+
+              </tr>
+
+              <tr className="hover:bg-secondary/5">
+
+                <td className="p-4 pl-6 font-medium text-foreground">
+                  Discovery & Search Priority
+                </td>
+
+                <td className="p-4 text-center text-xs text-muted-foreground">
+                  Standard
+                </td>
+
+                <td className="p-4 text-center text-xs text-primary font-medium">
+                  High Visibility
+                </td>
+
+                <td className="p-4 text-center text-xs text-amber-500 font-bold">
+                  Top Featured Placement
+                </td>
+
+              </tr>
+
+              <tr className="hover:bg-secondary/5">
+
+                <td className="p-4 pl-6 font-medium text-foreground">
+                  Analytics & Reports
+                </td>
+
+                <td className="p-4 text-center text-xs text-muted-foreground">
+                  Basic Analytics
+                </td>
+
+                <td className="p-4 text-center text-xs text-primary font-medium">
+                  Advanced Metrics
+                </td>
+
+                <td className="p-4 text-center text-xs text-emerald-500 font-semibold">
+                  Real-time & Export Reports
+                </td>
+
+              </tr>
+
+              <tr className="hover:bg-secondary/5 bg-secondary/[0.03]">
+
+                <td className="p-4 pl-6 font-medium text-foreground">
+                  Expiry / Plan Renewal Policy
+                </td>
+
+                <td className="p-4 text-center text-xs text-muted-foreground">
+                  Lifetime Free
+                </td>
+
+                <td className="p-4 text-center text-xs text-muted-foreground">
+                  Reverts to Starter after 3 mos. or renew at ₹999/yr
+                </td>
+
+                <td className="p-4 text-center text-xs text-muted-foreground">
+                  Reverts to Starter or renew annually
                 </td>
 
               </tr>

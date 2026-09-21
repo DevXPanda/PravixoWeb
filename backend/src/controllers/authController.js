@@ -131,15 +131,16 @@ export const registerController = async (req, res) => {
       if (!proPackage) {
         proPackage = await SubscriptionPackage.create({
           name: "Pro",
-          price: 199,
+          price: 999,
           billingPeriod: "year",
-          badge: "Popular",
+          badge: "3 Months Free Trial",
           features: [
-            "Campaign Limits: Unlimited (per month)",
-            "Priority Support Tier",
+            "Campaign Limits: 15/month",
+            "Verified Blue Badge & Unlimited Chat",
+            "Support Tier: Priority Support",
             "Refer & Earn Income: 7.5%",
-            "Verified Badge & Unlimited Chat Access",
-            "3-Month Free Welcome Pro Offer Included"
+            "Complimentary 3-Month Free Welcome for Creators",
+            "High Discovery Visibility & Advanced Analytics"
           ],
           sortOrder: 2,
           active: true,

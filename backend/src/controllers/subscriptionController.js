@@ -19,55 +19,78 @@ export const getPackages = async (req, res) => {
       .sort({ sortOrder: 1 })
       .lean();
 
+    const defaultPackages = [
+      {
+        name: "Starter",
+        price: 0,
+        billingPeriod: "year",
+        badge: "Free",
+        features: [
+          "Campaign Limits: 2/month",
+          "Chat Access: Limited Basic Messages",
+          "Support Tier: Standard Support",
+          "Refer & Earn Income: 5%",
+          "Standard Discovery Visibility"
+        ],
+        sortOrder: 1,
+        active: true,
+      },
+      {
+        name: "Pro",
+        price: 999,
+        billingPeriod: "year",
+        badge: "3 Months Free Trial",
+        features: [
+          "Campaign Limits: 15/month",
+          "Verified Blue Badge & Unlimited Chat",
+          "Support Tier: Priority Support",
+          "Refer & Earn Income: 7.5%",
+          "Complimentary 3-Month Free Welcome for Creators",
+          "High Discovery Visibility & Advanced Analytics"
+        ],
+        sortOrder: 2,
+        active: true,
+      },
+      {
+        name: "Elite",
+        price: 1999,
+        billingPeriod: "year",
+        badge: "50% OFF",
+        features: [
+          "Campaign Limits: Unlimited Campaigns",
+          "Elite Gold Badge & Unlimited Chat Access",
+          "Support Tier: 24/7 VIP Priority",
+          "Refer & Earn Income: 10% (Max Tier)",
+          "1-on-1 Dedicated Account Manager",
+          "Top Featured Placement in Brand Discovery",
+          "Real-time Live Analytics & Export Reports"
+        ],
+        sortOrder: 3,
+        active: true,
+      },
+    ];
+
     // If packages empty, seed standard Starter, Pro, Elite packages
     if (!packages || packages.length === 0) {
-      await SubscriptionPackage.create([
-        {
-          name: "Starter",
-          price: 0,
-          billingPeriod: "year",
-          badge: "Free",
-          features: [
-            "Campaign Limits: 2/month",
-            "Chat Access: Limited",
-            "Support Tier: Standard",
-            "Refer Income: 5%"
-          ],
-          sortOrder: 1,
-          active: true,
-        },
-        {
-          name: "Pro",
-          price: 199,
-          billingPeriod: "year",
-          badge: "Popular",
-          features: [
-            "Campaign Limits: 10/month",
-            "Verified Badge & Unlimited Chat Access",
-            "Support Tier: Priority",
-            "Refer Income: 7.5%",
-            "Complimentary 3-Month Free Welcome Offer for New Users"
-          ],
-          sortOrder: 2,
-          active: true,
-        },
-        {
-          name: "Elite",
-          price: 2999,
-          billingPeriod: "year",
-          badge: "Best Value",
-          features: [
-            "Campaign Limits: 100/month",
-            "Verified Badge & Unlimited Chat Access",
-            "Support Tier: Priority",
-            "Refer Income: 10%",
-            "Dedicated Account Manager"
-          ],
-          sortOrder: 3,
-          active: true,
-        },
-      ]);
-
+      await SubscriptionPackage.create(defaultPackages);
+      packages = await SubscriptionPackage.find({ active: true }).sort({ sortOrder: 1 }).lean();
+    } else {
+      // Sync prices and features if they still hold legacy prices
+      for (const defPkg of defaultPackages) {
+        await SubscriptionPackage.updateOne(
+          { name: new RegExp(`^${defPkg.name}$`, "i") },
+          {
+            $set: {
+              price: defPkg.price,
+              billingPeriod: defPkg.billingPeriod,
+              badge: defPkg.badge,
+              features: defPkg.features,
+              sortOrder: defPkg.sortOrder,
+              active: true,
+            },
+          }
+        );
+      }
       packages = await SubscriptionPackage.find({ active: true }).sort({ sortOrder: 1 }).lean();
     }
 
@@ -94,7 +117,7 @@ export const getOffers = async (req, res) => {
   try {
     const now = Date.now();
 
-    const offers = await SubscriptionOffer.find({
+    let offers = await SubscriptionOffer.find({
       active: true,
       expiryDate: {
         $gt: now,
@@ -103,6 +126,32 @@ export const getOffers = async (req, res) => {
       .populate("packageId")
       .sort({ expiryDate: 1 })
       .lean();
+
+    // If no active offer exists, create default 50% OFF promo on Elite package
+    if (!offers || offers.length === 0) {
+      const elitePkg = await SubscriptionPackage.findOne({ name: /^Elite$/i });
+      if (elitePkg) {
+        const promoExpiry = Date.now() + 90 * 24 * 60 * 60 * 1000; // 90 days validity
+        await SubscriptionOffer.create({
+          packageId: elitePkg._id,
+          name: "Elite 50% OFF Launch Promo",
+          description: "Get 50% discount on the Elite Annual Plan. Unlock unlimited campaigns & dedicated manager for just ₹999/year!",
+          discountPercentage: 50,
+          targetUsers: "both",
+          expiryDate: promoExpiry,
+          buttonText: "Claim 50% Off",
+          active: true,
+        });
+
+        offers = await SubscriptionOffer.find({
+          active: true,
+          expiryDate: { $gt: now },
+        })
+          .populate("packageId")
+          .sort({ expiryDate: 1 })
+          .lean();
+      }
+    }
 
     return res.status(200).json({
       success: true,
@@ -134,28 +183,33 @@ export const getUserSubscription = async (req, res) => {
       });
     }
 
-    const [activeSubscription, pendingSubscription] = await Promise.all([
-      UserSubscription.findOne({
-        profileId,
-        status: "active",
-      })
-        .populate("packageId")
-        .populate("offerId")
-        .sort({ createdAt: -1 })
-        .lean(),
-      UserSubscription.findOne({
-        profileId,
-        status: "pending",
-      })
-        .populate("packageId")
-        .populate("offerId")
-        .sort({ createdAt: -1 })
-        .lean(),
-    ]);
+    let activeSubscription = await UserSubscription.findOne({
+      profileId,
+      status: "active",
+    })
+      .populate("packageId")
+      .populate("offerId")
+      .sort({ createdAt: -1 });
+
+    // Check if subscription has expired (e.g. 3-month trial or 1-year plan elapsed)
+    if (activeSubscription && activeSubscription.expiryDate && activeSubscription.expiryDate < Date.now()) {
+      activeSubscription.status = "expired";
+      await activeSubscription.save();
+      activeSubscription = null; // Reverts back to Starter plan automatically
+    }
+
+    const pendingSubscription = await UserSubscription.findOne({
+      profileId,
+      status: "pending",
+    })
+      .populate("packageId")
+      .populate("offerId")
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,
-      data: activeSubscription,
+      data: activeSubscription ? (activeSubscription.toObject ? activeSubscription.toObject() : activeSubscription) : null,
       pending: pendingSubscription || null,
     });
   } catch (error) {
