@@ -385,10 +385,10 @@ import { NotificationBell } from "@/components/notification-bell";
                   className="w-full text-left flex items-center gap-3 rounded-2xl border border-border/50 p-3 transition-colors hover:bg-secondary/50 cursor-pointer"
                 >
                   <img
-                    src={resolveImageUrl(u.avatarUrl, u.fullName || "User")}
+                    src={resolveImageUrl(u.avatarUrl, u.fullName || "User", u.gender, u.role)}
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || "User")}&background=random`;
+                      e.target.src = resolveImageUrl("", u.fullName || "User", u.gender, u.role);
                     }}
                     alt=""
                     className="h-10 w-10 rounded-full border border-border object-cover shrink-0"

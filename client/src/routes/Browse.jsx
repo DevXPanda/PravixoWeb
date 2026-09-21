@@ -23,6 +23,7 @@ import {
   mockBrands,
   locations,
 } from "../data/influencer";
+import { getGenderAvatar, DEFAULT_BANNER } from "../utils/avatar";
 
 import { formatINR } from "@/lib/format";
 import api from "@/lib/api";
@@ -214,10 +215,10 @@ export default function Browse() {
           isRecentlyJoined: true,
           avatar:
             resolveImageUrl(p.avatarUrl || p.avatar || p.profileImage) ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&bold=true`,
+            getGenderAvatar(name, p.gender, p.role || role),
           cover:
             resolveImageUrl(p.coverUrl || p.cover || p.bannerUrl) ||
-            `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80`,
+            DEFAULT_BANNER,
           bio:
             p.bio || "",
           verificationStatus:
@@ -971,7 +972,7 @@ export default function Browse() {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&q=80";
+                          e.target.src = DEFAULT_BANNER;
                         }}
                       />
 
@@ -1004,7 +1005,7 @@ export default function Browse() {
                         loading="lazy"
                         referrerPolicy="no-referrer"
                         className="relative z-10 h-16 w-16 rounded-full border-4 border-card bg-muted object-cover shadow-elevated"
-                       onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                       onError={(e) => { e.target.onerror = null; e.target.src = getGenderAvatar(item.name, item.gender, itemRole); }} />
 
                       <div className="mt-3 flex items-start justify-between gap-2">
 

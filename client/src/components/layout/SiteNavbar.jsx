@@ -19,6 +19,8 @@ import logoImg from "@/assets/log.png";
 import { NotificationBell } from "./NotificationBell";
 
 
+import { getGenderAvatar } from "@/utils/avatar";
+
 const baseLinks = [
   { to: "/", label: "Home" },
   { to: "/browse", label: "Browse" },
@@ -228,16 +230,18 @@ export function SiteNavbar() {
                   className="flex h-9 items-center gap-2 rounded-full border border-border bg-card pl-1 pr-3 transition-colors hover:bg-secondary"
                 >
                   <div className="flex items-center gap-2">
-                    {resolveImageUrl(profile?.avatarUrl) ? (
-                      <img src={resolveImageUrl(profile.avatarUrl)}
-                        alt=""
-                        className="h-7 w-7 rounded-full object-cover border border-border/50"
-                       onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                    ) : (
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full gradient-sunset text-[10px] font-bold text-white">
-                        {initial}
-                      </span>
-                    )}
+                    <img
+                      src={
+                        resolveImageUrl(profile?.avatarUrl) ||
+                        getGenderAvatar(profile?.fullName || profile?.name || user?.email, profile?.gender, profile?.role)
+                      }
+                      alt=""
+                      className="h-7 w-7 rounded-full object-cover border border-border/50"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = getGenderAvatar(profile?.fullName || profile?.name || user?.email, profile?.gender, profile?.role);
+                      }}
+                    />
                   </div>
                   <span className="max-w-[120px] truncate text-sm font-medium">
                     {profile?.fullName || profile?.name || user.email}

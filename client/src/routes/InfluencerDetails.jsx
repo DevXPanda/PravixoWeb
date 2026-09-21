@@ -25,6 +25,8 @@ import {
 
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { getGenderAvatar, DEFAULT_BANNER } from "../utils/avatar";
+import { cn } from "@/lib/utils";
 
 import {
   Dialog,
@@ -650,10 +652,8 @@ export default function InfluencerDetails() {
     loading: authLoading,
   } = useAuth();
 
-  const fallbackCover =
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop";
-  const fallbackAvatar =
-    "https://api.dicebear.com/9.x/avataaars/svg?seed=creator";
+  const fallbackCover = DEFAULT_BANNER;
+  const fallbackAvatar = getGenderAvatar("Creator", "male", "creator");
 
   const resolveImageUrl = (url) => {
     if (!url) return null;
@@ -839,7 +839,8 @@ export default function InfluencerDetails() {
             rating: profile.rating ?? 5,
             reviews: profile.reviewsCount ?? 0,
             available: true,
-            avatar: resolveImageUrl(profile.avatarUrl) || profile.avatar || fallbackAvatar,
+            gender: profile.gender || "",
+            avatar: resolveImageUrl(profile.avatarUrl) || profile.avatar || getGenderAvatar(profile.fullName || profile.name || "Creator", profile.gender, profile.role),
             cover: resolveImageUrl(profile.coverUrl) || profile.cover || fallbackCover,
             portfolioImages: portfolio,
             instagramHandle: profile.instagramHandle,

@@ -2212,6 +2212,8 @@ export const listAdminCampaigns = async (req, res) => {
 
 // =====================================================
 // VERIFY CAMPAIGN (APPROVE / REJECT)
+// =====================================================
+// VERIFY CAMPAIGN (APPROVE / REJECT / RESET TO PENDING / CLOSE)
 // PATCH /api/admin/campaigns/:id/verify
 // =====================================================
 export const verifyCampaign = async (req, res) => {
@@ -2219,10 +2221,12 @@ export const verifyCampaign = async (req, res) => {
     const { id } = req.params;
     const { status, verificationFeedback } = req.body;
 
-    if (!["APPROVED", "REJECTED"].includes(status)) {
+    const normalizedStatus = status === "PENDING" ? "PENDING_VERIFICATION" : status;
+
+    if (!["APPROVED", "REJECTED", "PENDING_VERIFICATION", "CLOSED"].includes(normalizedStatus)) {
       return res.status(400).json({
         success: false,
-        message: "Status must be either APPROVED or REJECTED.",
+        message: "Status must be APPROVED, REJECTED, PENDING_VERIFICATION, or CLOSED.",
       });
     }
 
@@ -2234,7 +2238,7 @@ export const verifyCampaign = async (req, res) => {
       });
     }
 
-    campaign.status = status;
+    campaign.status = normalizedStatus;
     if (verificationFeedback !== undefined) {
       campaign.verificationFeedback = verificationFeedback;
     }
@@ -2243,10 +2247,12 @@ export const verifyCampaign = async (req, res) => {
 
     // Send notification to Brand
     const adminId = req.user?._id || req.user?.profileId;
-    const notifType = status === "APPROVED" ? "campaign_approved" : "campaign_rejected";
-    const notifText = status === "APPROVED"
+    const notifType = normalizedStatus === "APPROVED" ? "campaign_approved" : normalizedStatus === "REJECTED" ? "campaign_rejected" : "campaign_updated";
+    const notifText = normalizedStatus === "APPROVED"
       ? `Great news! Your campaign "${campaign.title}" has been approved by Admin and is now live for Creators.`
-      : `Your campaign "${campaign.title}" was not approved.${verificationFeedback ? ` Reason: ${verificationFeedback}` : ""}`;
+      : normalizedStatus === "REJECTED"
+      ? `Your campaign "${campaign.title}" was not approved.${verificationFeedback ? ` Reason: ${verificationFeedback}` : ""}`
+      : `Your campaign "${campaign.title}" status has been updated to ${normalizedStatus}.`;
 
     const brandId = campaign.brandId._id || campaign.brandId;
 
@@ -2260,13 +2266,13 @@ export const verifyCampaign = async (req, res) => {
 
     // Send Web Push to Brand about approval status
     sendPushToUser(brandId, {
-      title: status === "APPROVED" ? "Campaign Approved! 🎉" : "Campaign Verification Update",
+      title: normalizedStatus === "APPROVED" ? "Campaign Approved! 🎉" : "Campaign Verification Update",
       body: notifText,
       url: `/dashboard/customer`,
     }).catch((err) => console.error("Brand push error:", err.message));
 
     // IF APPROVED -> Send Web Push & In-App Notification to ALL CREATORS
-    if (status === "APPROVED") {
+    if (normalizedStatus === "APPROVED") {
       const brand = await Profile.findById(brandId).select("fullName avatarUrl");
       const brandName = brand?.fullName || "A Brand";
 
@@ -2304,7 +2310,7 @@ export const verifyCampaign = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: `Campaign ${status === "APPROVED" ? "approved" : "rejected"} successfully.`,
+      message: `Campaign status updated to ${normalizedStatus} successfully.`,
       data: campaign,
     });
   } catch (error) {
@@ -2312,6 +2318,88 @@ export const verifyCampaign = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to verify campaign.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// DELETE CAMPAIGN (PERMANENTLY)
+// DELETE /api/admin/campaigns/:id
+// =====================================================
+export const deleteAdminCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const campaign = await Campaign.findById(id);
+    if (!campaign) {
+      return res.status(404).json({
+        success: false,
+        message: "Campaign not found.",
+      });
+    }
+
+    // Delete associated tasks, connections, favorites
+    await CampaignTask.deleteMany({ campaignId: id }).catch(() => {});
+    await Connection.deleteMany({ campaignId: id }).catch(() => {});
+    await Favorite.deleteMany({ targetId: id }).catch(() => {});
+
+    await Campaign.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Campaign deleted permanently from database.",
+    });
+  } catch (error) {
+    console.error("Admin deleteAdminCampaign error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete campaign.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// DELETE ALL TEST/DUMMY CAMPAIGNS
+// POST /api/admin/campaigns/cleanup-test
+// =====================================================
+export const deleteTestCampaigns = async (req, res) => {
+  try {
+    const testPattern = /Task 20|Task 21|test|dummy|^Test Campaign/i;
+
+    const testCampaigns = await Campaign.find({
+      $or: [
+        { title: { $regex: testPattern } },
+        { description: { $regex: testPattern } },
+        { category: { $regex: /^test$/i } },
+      ],
+    }).select("_id");
+
+    const testIds = testCampaigns.map((c) => c._id);
+
+    if (testIds.length > 0) {
+      await CampaignTask.deleteMany({ campaignId: { $in: testIds } }).catch(() => {});
+      await Connection.deleteMany({ campaignId: { $in: testIds } }).catch(() => {});
+      await Favorite.deleteMany({ targetId: { $in: testIds } }).catch(() => {});
+      const result = await Campaign.deleteMany({ _id: { $in: testIds } });
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully deleted ${result.deletedCount} test campaigns from database.`,
+        deletedCount: result.deletedCount,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "No test campaigns found to delete.",
+      deletedCount: 0,
+    });
+  } catch (error) {
+    console.error("Admin deleteTestCampaigns error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete test campaigns.",
       error: error.message,
     });
   }

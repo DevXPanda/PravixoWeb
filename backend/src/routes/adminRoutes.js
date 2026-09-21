@@ -59,6 +59,8 @@ import {
   sendAdminMessage,
   listAdminCampaigns,
   verifyCampaign,
+  deleteAdminCampaign,
+  deleteTestCampaigns,
   openAdminConversation,
   listWithdrawals,
   processWithdrawal,
@@ -71,6 +73,8 @@ router.use(adminProtect);
 // Campaign verification queues & moderation
 router.get("/campaigns", listAdminCampaigns);
 router.patch("/campaigns/:id/verify", verifyCampaign);
+router.delete("/campaigns/:id", deleteAdminCampaign);
+router.post("/campaigns/cleanup-test", deleteTestCampaigns);
 
 // Aggregate stats & overview
 router.get("/stats", getStats);

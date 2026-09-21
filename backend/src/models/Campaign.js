@@ -94,7 +94,7 @@ const campaignSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["PENDING_VERIFICATION", "APPROVED", "REJECTED"],
+      enum: ["PENDING_VERIFICATION", "APPROVED", "REJECTED", "CLOSED", "PENDING"],
       default: "PENDING_VERIFICATION",
       index: true,
     },

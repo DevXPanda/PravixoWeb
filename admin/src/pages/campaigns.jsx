@@ -19,6 +19,10 @@ import {
   Sparkles,
   Users,
   Tag,
+  Trash2,
+  RotateCcw,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -77,6 +81,8 @@ export function CampaignsPage() {
   const [rejectingCampaign, setRejectingCampaign] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [deletingCampaign, setDeletingCampaign] = useState(null);
+  const [cleaningTests, setCleaningTests] = useState(false);
 
   const fetchCampaigns = async () => {
     try {
@@ -133,6 +139,56 @@ export function CampaignsPage() {
     }
   };
 
+  const handleResetToPending = async (campaignId) => {
+    setActionLoading(true);
+    try {
+      const res = await api.patch(`/admin/campaigns/${campaignId}/verify`, {
+        status: "PENDING_VERIFICATION",
+      });
+      if (res.data.success) {
+        toast.success("Campaign status reset back to Pending Verification.");
+        setSelectedCampaign(null);
+        fetchCampaigns();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reset campaign status.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId) => {
+    setActionLoading(true);
+    try {
+      const res = await api.delete(`/admin/campaigns/${campaignId}`);
+      if (res.data.success) {
+        toast.success("Campaign permanently deleted from database.");
+        setDeletingCampaign(null);
+        setSelectedCampaign(null);
+        fetchCampaigns();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to delete campaign.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCleanupTestCampaigns = async () => {
+    setCleaningTests(true);
+    try {
+      const res = await api.post("/admin/campaigns/cleanup-test");
+      if (res.data.success) {
+        toast.success(res.data.message || "Test campaigns cleaned successfully.");
+        fetchCampaigns();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to cleanup test campaigns.");
+    } finally {
+      setCleaningTests(false);
+    }
+  };
+
   const filteredCampaigns = campaigns?.filter((c) => {
     const matchesStatus = !statusFilter || c.status === statusFilter;
     const titleLower = (c.title || "").toLowerCase();
@@ -181,6 +237,12 @@ export function CampaignsPage() {
             <XCircle className="h-3 w-3 mr-1" /> Rejected
           </Badge>
         );
+      case "CLOSED":
+        return (
+          <Badge variant="outline" className="bg-zinc-500/10 text-zinc-400 border-zinc-500/20">
+            <Clock className="h-3 w-3 mr-1" /> Closed
+          </Badge>
+        );
       case "PENDING_VERIFICATION":
       default:
         return (
@@ -194,13 +256,32 @@ export function CampaignsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-full">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold flex items-center gap-2">
-          <Megaphone className="h-6 w-6 sm:h-7 sm:w-7 text-primary shrink-0" /> Campaign Verification
-        </h1>
-        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-          Review campaigns submitted by Brands. Approve them to make them discoverable to Creators or reject if guidelines are not met.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold flex items-center gap-2">
+            <Megaphone className="h-6 w-6 sm:h-7 sm:w-7 text-primary shrink-0" /> Campaign Verification
+          </h1>
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+            Review campaigns submitted by Brands. Approve them to make them discoverable to Creators or reject if guidelines are not met.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCleanupTestCampaigns}
+            disabled={cleaningTests}
+            className="rounded-xl text-xs gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+            title="Clean all dummy and test campaigns from database"
+          >
+            {cleaningTests ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            )}
+            Clean Test Campaigns
+          </Button>
+        </div>
       </div>
 
       {/* Filter Tabs & Search */}
@@ -305,7 +386,7 @@ export function CampaignsPage() {
                 >
                   <Eye className="h-3.5 w-3.5 mr-1" /> Details
                 </Button>
-                {camp.status === "PENDING_VERIFICATION" && (
+                {camp.status === "PENDING_VERIFICATION" ? (
                   <>
                     <Button
                       size="sm"
@@ -325,7 +406,28 @@ export function CampaignsPage() {
                       <X className="h-3.5 w-3.5" />
                     </Button>
                   </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 rounded-xl text-xs px-2.5 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 border-amber-500/20"
+                    onClick={() => handleResetToPending(camp._id)}
+                    disabled={actionLoading}
+                    title="Reset back to Pending Verification"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
+                  </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-xl text-xs px-2.5 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  onClick={() => setDeletingCampaign(camp)}
+                  disabled={actionLoading}
+                  title="Delete campaign permanently"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
           ))
@@ -467,7 +569,7 @@ export function CampaignsPage() {
                         >
                           <Eye className="h-3.5 w-3.5 mr-1" /> Details
                         </Button>
-                        {camp.status === "PENDING_VERIFICATION" && (
+                        {camp.status === "PENDING_VERIFICATION" ? (
                           <>
                             <Button
                               size="sm"
@@ -487,7 +589,28 @@ export function CampaignsPage() {
                               <X className="h-3.5 w-3.5 mr-1" /> Reject
                             </Button>
                           </>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 rounded-lg text-xs px-2.5 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 border-amber-500/20"
+                            onClick={() => handleResetToPending(camp._id)}
+                            disabled={actionLoading}
+                            title="Reset back to Pending Verification"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset
+                          </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 rounded-lg text-xs px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() => setDeletingCampaign(camp)}
+                          disabled={actionLoading}
+                          title="Delete campaign"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -750,13 +873,35 @@ export function CampaignsPage() {
                 </div>
               )}
 
-              <DialogFooter className="pt-3 flex gap-2">
+              <DialogFooter className="pt-3 flex flex-wrap gap-2">
                 <Button
                   variant="outline"
-                  className="rounded-full flex-1 text-xs"
+                  className="rounded-full text-xs"
                   onClick={() => setSelectedCampaign(null)}
                 >
                   Close
+                </Button>
+                {selectedCampaign.status !== "PENDING_VERIFICATION" && (
+                  <Button
+                    variant="outline"
+                    className="rounded-full text-xs text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 border-amber-500/30"
+                    onClick={() => handleResetToPending(selectedCampaign._id)}
+                    disabled={actionLoading}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reset to Pending
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  className="rounded-full text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  onClick={() => {
+                    const c = selectedCampaign;
+                    setSelectedCampaign(null);
+                    setDeletingCampaign(c);
+                  }}
+                  disabled={actionLoading}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
                 </Button>
                 {selectedCampaign.status === "PENDING_VERIFICATION" && (
                   <>
@@ -820,6 +965,45 @@ export function CampaignsPage() {
               </Button>
             </DialogFooter>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingCampaign} onOpenChange={(open) => !open && setDeletingCampaign(null)}>
+        <DialogContent className="sm:max-w-md rounded-3xl border border-border bg-card p-6">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold text-destructive flex items-center gap-1.5">
+              <AlertTriangle className="h-5 w-5 text-red-500" /> Delete Campaign
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Are you sure you want to permanently delete this campaign? This will remove all associated tasks and applications from the entire database.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingCampaign && (
+            <div className="p-3 bg-secondary/20 rounded-xl border border-border/50 text-xs">
+              <p className="font-bold text-foreground">{deletingCampaign.title}</p>
+              <p className="text-muted-foreground text-[11px] mt-0.5">
+                Brand: {deletingCampaign.brandId?.fullName || "Unknown Brand"} · Status: {deletingCampaign.status}
+              </p>
+            </div>
+          )}
+          <DialogFooter className="pt-2 flex gap-2">
+            <Button
+              variant="outline"
+              className="rounded-full flex-1 text-xs"
+              onClick={() => setDeletingCampaign(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-full flex-1 text-xs font-semibold"
+              onClick={() => handleDeleteCampaign(deletingCampaign._id)}
+              disabled={actionLoading}
+            >
+              Delete Permanently
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

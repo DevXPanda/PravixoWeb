@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { subscribeToPush } from "../utils/pushNotification";
+import { getGenderAvatar, DEFAULT_BANNER_IMAGES } from "../utils/avatar";
 
 import {
   FaInstagram,
@@ -175,7 +176,7 @@ const LOCATION_OPTIONS = [
   "Other Location",
 ];
 
-const DEFAULT_BANNER_IMAGES = [
+const DEFAULT_BANNER_FALLBACKS = [
   "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1800&q=85",
   "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=1800&q=85",
   "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1800&q=85",
@@ -736,6 +737,7 @@ export function DashboardInfluencer() {
 
   const [fullName, setFullName] = useState("");
   const [handle, setHandle] = useState("");
+  const [gender, setGender] = useState("male");
   const [phone, setPhone] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
@@ -1055,6 +1057,7 @@ const CAMPAIGNS_PER_PAGE = 6;
     if (profile) {
       setFullName(profile.fullName || profile.displayName || "");
       setHandle(profile.handle?.replace("@", "") || "");
+      setGender(profile.gender || "male");
       setPhone(profile.phone || "");
       setCategory(profile.category || "");
       setLocation(profile.location || "");
@@ -1123,6 +1126,7 @@ const CAMPAIGNS_PER_PAGE = 6;
         id: mongoProfileId,
         fullName: fullName.trim(),
         handle: `@${handle.trim().replace(/^@+/, "")}`,
+        gender: gender,
         phone: phone.trim(),
         bio: bio.trim(),
         category: category,
@@ -1587,9 +1591,12 @@ const CAMPAIGNS_PER_PAGE = 6;
     profile?.fullName?.split(" ")[0] ||
     user?.email?.split("@")[0] ||
     "there";
+  const bannerList = DEFAULT_BANNER_IMAGES || DEFAULT_BANNER_FALLBACKS;
   const defaultBannerIndex = [...(profile?._id || profile?.userId || "creator")]
-    .reduce((total, character) => total + character.charCodeAt(0), 0) % DEFAULT_BANNER_IMAGES.length;
-  const bannerUrl = resolveImageUrl(profile?.coverUrl) || DEFAULT_BANNER_IMAGES[defaultBannerIndex];
+    .reduce((total, character) => total + character.charCodeAt(0), 0) % bannerList.length;
+  const bannerUrl = resolveImageUrl(profile?.coverUrl) || bannerList[defaultBannerIndex];
+  const creatorGender = profile?.gender || gender || "male";
+  const avatarUrl = resolveImageUrl(profile?.avatarUrl) || getGenderAvatar(profile?.fullName || displayName, creatorGender, "creator");
   const status = profile?.verificationStatus || user?.verificationStatus || "unverified";
   console.log("PROFILE FROM API:", profile);
   console.log("Verification Status:", status);
@@ -1668,21 +1675,45 @@ const CAMPAIGNS_PER_PAGE = 6;
         </section>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="flex items-start justify-between gap-4">
-  <div className="flex flex-col gap-2">
-    <p className="text-sm text-muted-foreground">
-      Creator dashboard
-    </p>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4 sm:gap-5 -mt-16 sm:-mt-20 z-10">
+            <div className="relative group shrink-0">
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="h-20 w-20 sm:h-28 sm:w-28 rounded-full border-4 border-card bg-muted object-cover shadow-elevated"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = getGenderAvatar(profile?.fullName || displayName, creatorGender, "creator");
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("dashboard");
+                  avatarFileRef.current?.click();
+                }}
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-semibold cursor-pointer backdrop-blur-[2px]"
+                title="Change profile photo"
+              >
+                <Camera className="h-5 w-5" />
+              </button>
+            </div>
 
-    <h1 className="font-display text-3xl font-bold sm:text-4xl flex items-center gap-2">
-      Hello, {displayName} 
-      {status === "verified" && (
-        <ShieldCheck className="h-8 w-8 text-blue-500 inline-block" fill="currentColor" stroke="white" title="Verified Creator" />
-      )}
-      👋
-    </h1>
-  </div>
+            <div className="flex flex-col gap-1 pt-12 sm:pt-14">
+              <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                Creator dashboard
+              </p>
+              <h1 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl flex items-center gap-2">
+                Hello, {displayName} 
+                {status === "verified" && (
+                  <ShieldCheck className="h-7 w-7 text-blue-500 inline-block" fill="currentColor" stroke="white" title="Verified Creator" />
+                )}
+                👋
+              </h1>
+            </div>
+          </div>
 
   <div className="flex flex-wrap items-center gap-2">
     <Link to={`/influencer/${profile?._id}`}>
@@ -1946,13 +1977,11 @@ const CAMPAIGNS_PER_PAGE = 6;
                       <img src={
                           resolveImageUrl(profile?.avatarUrl) ||
                           profile?.avatar ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            profile?.fullName || user?.email || "User"
-                          )}&background=random`
+                          getGenderAvatar(profile?.fullName || displayName, creatorGender, "creator")
                         }
                         alt=""
                         className="h-20 w-20 rounded-full border border-border object-cover bg-muted"
-                       onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                       onError={(e) => { e.target.onerror = null; e.target.src = getGenderAvatar(profile?.fullName || displayName, creatorGender, "creator"); }} />
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
                           <Camera className="h-4 w-4" />
@@ -1998,6 +2027,29 @@ const CAMPAIGNS_PER_PAGE = 6;
                         placeholder="@yourname"
                         className="mt-1.5"
                       />
+                    </div>
+                    <div>
+                      <Label>Gender</Label>
+                      <div className="grid grid-cols-3 gap-2 mt-1.5">
+                        {[
+                          { value: "male", label: "👨 Male" },
+                          { value: "female", label: "👩 Female" },
+                          { value: "other", label: "✨ Other" },
+                        ].map((item) => (
+                          <button
+                            key={item.value}
+                            type="button"
+                            onClick={() => setGender(item.value)}
+                            className={`py-2 px-2 text-xs font-semibold rounded-lg border transition-all ${
+                              gender === item.value
+                                ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
+                                : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                            }`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <Label>Category</Label>

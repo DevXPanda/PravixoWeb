@@ -28,6 +28,7 @@ import {
   influencers,
   mockBrands,
 } from "../data/influencer";
+import { getGenderAvatar, DEFAULT_BANNER } from "../utils/avatar";
 import { formatINR } from "@/lib/format";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -58,8 +59,8 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
     }
   };
 
-  const bannerImg = resolveImageUrl(inf.cover || inf.coverUrl || inf.bannerUrl) || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80";
-  const avatarImg = resolveImageUrl(inf.avatar || inf.avatarUrl) || `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.name || "User")}&background=random&color=fff&bold=true`;
+  const bannerImg = resolveImageUrl(inf.cover || inf.coverUrl || inf.bannerUrl) || DEFAULT_BANNER;
+  const avatarImg = resolveImageUrl(inf.avatar || inf.avatarUrl) || getGenderAvatar(inf.name || "User", inf.gender, inf.role || (isBrand ? "brand" : "creator"));
 
   return (
     <Link
@@ -77,7 +78,7 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80";
+            e.target.src = DEFAULT_BANNER;
           }}
         />
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
@@ -109,7 +110,7 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
           className="relative z-10 h-14 w-14 rounded-full border-4 border-card bg-muted object-cover shadow-elevated sm:h-20 sm:w-20"
           onError={(e) => {
             e.target.onerror = null;
-            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(inf.name || "User")}&background=random&color=fff&bold=true`;
+            e.target.src = getGenderAvatar(inf.name || "User", inf.gender, inf.role || (isBrand ? "brand" : "creator"));
           }}
         />
 
@@ -371,12 +372,11 @@ export default function Home() {
         rating: p.rating ?? 5.0,
         reviews: p.reviewsCount ?? 0,
         available: true,
+        gender: p.gender || "",
         avatar: resolveImageUrl(p.avatarUrl || p.avatar || p.profileImage) ||
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            p.fullName || p.name || "Creator"
-          )}&background=random&color=fff&bold=true`,
+          getGenderAvatar(p.fullName || p.name || "Creator", p.gender, "creator"),
         cover: resolveImageUrl(p.coverUrl || p.cover || p.bannerUrl) ||
-          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
+          DEFAULT_BANNER,
         bio: p.bio || "",
         role: p.role || "creator",
       }));
@@ -410,12 +410,11 @@ export default function Home() {
         rating: p.rating ?? 5.0,
         reviews: p.reviewsCount ?? 0,
         available: true,
+        gender: p.gender || "",
         avatar: resolveImageUrl(p.avatarUrl || p.avatar || p.profileImage) ||
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-            p.fullName || p.name || "Brand"
-          )}&background=random&color=fff&bold=true`,
+          getGenderAvatar(p.fullName || p.name || "Brand", p.gender, "brand"),
         cover: resolveImageUrl(p.coverUrl || p.cover || p.bannerUrl) ||
-          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&q=80",
+          DEFAULT_BANNER,
         bio: p.bio || "",
         role: p.role || "brand",
       }));

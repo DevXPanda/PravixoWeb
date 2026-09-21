@@ -100,13 +100,13 @@ export const registerController = async (req, res) => {
     // DEFAULT GENDER-APPROPRIATE AVATAR
     let initialAvatar = "";
     if (finalGender === "female") {
-      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}&gender=female&accessoriesProbability=30&top=longHair,straight01,straight02,curvy,bun`;
+      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}&top=bigHair,bob,bun,curly,curvy,longButNotTooLong,miaWallace,straight01,straight02,straightAndStrand&accessoriesProbability=15&facialHairProbability=0`;
     } else if (finalGender === "male") {
-      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}&gender=male&accessoriesProbability=20&top=shortFlat,shortRound,shortCurly,side`;
+      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}&top=shortFlat,shortRound,shortCurly,shortWaved,theCaesar,theCaesarAndSidePart,sides&accessoriesProbability=0&facialHairProbability=20`;
     } else if (role === "brand") {
       initialAvatar = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(finalName)}`;
     } else {
-      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}`;
+      initialAvatar = `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(finalName)}&top=shortFlat,shortRound,shortCurly,shortWaved,theCaesar,theCaesarAndSidePart,sides&accessoriesProbability=0&facialHairProbability=20`;
     }
 
     // CREATE PROFILE
