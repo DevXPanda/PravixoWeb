@@ -58,6 +58,29 @@ export function Contact() {
     },
   ];
 
+  const socials = [
+    {
+      name: "LinkedIn",
+      href: "https://linkedin.com",
+      icon: FaLinkedin,
+    },
+    {
+      name: "Instagram",
+      href: "https://instagram.com",
+      icon: FaInstagram,
+    },
+    {
+      name: "Twitter / X",
+      href: "https://twitter.com",
+      icon: FaTwitter,
+    },
+    {
+      name: "Facebook",
+      href: "https://facebook.com",
+      icon: FaFacebook,
+    },
+  ];
+
   const socialLinks = [
     {
       name: "LinkedIn",

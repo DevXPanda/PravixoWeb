@@ -53,6 +53,7 @@ export const getPackages = async (req, res) => {
       },
       {
         name: "Elite",
+        
         price: 1999,
         billingPeriod: "year",
         badge: "50% OFF",
