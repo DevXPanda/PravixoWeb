@@ -86,7 +86,14 @@ export function AvatarPickerModal({
                     }`}
                   >
                     <div className="h-16 w-16 rounded-full overflow-hidden border border-border/80 bg-muted/30">
-                      <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+                      <img
+                        src={item.url}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURIComponent(item.name)}`;
+                        }}
+                      />
                     </div>
                     <span className="text-[11px] font-medium text-center truncate w-full">
                       {item.name}
@@ -115,7 +122,14 @@ export function AvatarPickerModal({
                     }`}
                   >
                     <div className="h-16 w-16 rounded-full overflow-hidden border border-border/80 bg-muted/30">
-                      <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+                      <img
+                        src={item.url}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://api.dicebear.com/9.x/lorelei/svg?seed=${encodeURIComponent(item.name)}`;
+                        }}
+                      />
                     </div>
                     <span className="text-[11px] font-medium text-center truncate w-full">
                       {item.name}
@@ -144,7 +158,14 @@ export function AvatarPickerModal({
                     }`}
                   >
                     <div className="h-16 w-16 rounded-full overflow-hidden border border-border/80 bg-muted/30">
-                      <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+                      <img
+                        src={item.url}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURIComponent(item.name)}`;
+                        }}
+                      />
                     </div>
                     <span className="text-[11px] font-medium text-center truncate w-full">
                       {item.name}
@@ -197,7 +218,14 @@ export function AvatarPickerModal({
                     }`}
                   >
                     <div className="h-16 w-16 rounded-2xl overflow-hidden border border-border/80 bg-muted/30 shadow-inner">
-                      <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+                      <img
+                        src={item.url}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://api.dicebear.com/9.x/identicon/svg?seed=${encodeURIComponent(item.name)}`;
+                        }}
+                      />
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-sm">{item.icon}</span>
@@ -229,7 +257,14 @@ export function AvatarPickerModal({
                     }`}
                   >
                     <div className="h-16 w-16 rounded-full overflow-hidden border border-border/80 bg-muted/30">
-                      <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+                      <img
+                        src={item.url}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://api.dicebear.com/9.x/micah/svg?seed=${encodeURIComponent(item.name)}`;
+                        }}
+                      />
                     </div>
                     <span className="text-[11px] font-medium text-center truncate w-full">
                       {item.name}
@@ -251,7 +286,14 @@ export function AvatarPickerModal({
             <span className="text-xs text-muted-foreground">Selected:</span>
             {selectedUrl ? (
               <div className="h-8 w-8 rounded-full overflow-hidden border border-primary">
-                <img src={selectedUrl} alt="Selected" className="h-full w-full object-cover" />
+                <img
+                  src={selectedUrl}
+                  alt="Selected"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = `https://api.dicebear.com/9.x/micah/svg?seed=selected`;
+                  }}
+                />
               </div>
             ) : (
               <span className="text-xs text-muted-foreground italic">None</span>

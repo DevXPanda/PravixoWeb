@@ -28,16 +28,13 @@ const router = express.Router();
 router.get("/unsubscribe", unsubscribeEmailNotifications);
 router.post("/unsubscribe", unsubscribeEmailNotifications);
 router.patch("/email-notifications", protect, toggleEmailNotifications);
-
 router.get("/", listProfiles);
-
 router.get("/user/:userId", getByUserId);
-
 router.get("/:id", getById);
 
 router.post("/", createProfile);
-
 router.put("/:id", updateProfile);
+router.patch("/:id", updateProfile);
 
 // Avatar upload & delete
 router.post("/:id/avatar", upload.single("image"), uploadAvatar);
