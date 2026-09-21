@@ -646,6 +646,13 @@ export default function InfluencerDetails() {
     loading: authLoading,
   } = useAuth();
 
+  const isOwnProfile = Boolean(
+    myProfile &&
+    (String(myProfile._id) === String(profileId) ||
+     String(myProfile.id) === String(profileId) ||
+     String(myProfile.userId) === String(user?.id || user?._id))
+  );
+
   const fallbackCover = DEFAULT_BANNER;
   const fallbackAvatar = getGenderAvatar("Creator", "male", "creator");
 
@@ -2468,7 +2475,7 @@ export default function InfluencerDetails() {
                             >
                               Manage Campaign
                             </Button>
-                          ) : profile?.role === "brand" ? (
+                          ) : myProfile?.role === "brand" ? (
                             <span className="text-[11px] text-muted-foreground italic px-2">
                               Creator Opportunity
                             </span>
