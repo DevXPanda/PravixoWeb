@@ -126,6 +126,13 @@ export const submitReview = async (req, res) => {
       });
     }
 
+    if (actualReviewerId.toString() === actualTargetId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot write a review for your own profile.",
+      });
+    }
+
     const reviewer = await Profile.findById(actualReviewerId);
     const target = await Profile.findById(actualTargetId);
 
@@ -148,11 +155,7 @@ export const submitReview = async (req, res) => {
     // Check duplicate review
     const duplicateQuery = {
       reviewerId: reviewer._id,
-      $or: [
-        { targetId: target._id },
-        { creatorId: target._id },
-        { brandId: target._id },
-      ],
+      targetId: target._id,
     };
     if (validConversationId) {
       duplicateQuery.conversationId = validConversationId;
@@ -174,13 +177,17 @@ export const submitReview = async (req, res) => {
       });
     }
 
+    const targetIsCreator = target.role !== "brand";
+    const targetCreatorId = targetIsCreator ? target._id : reviewer._id;
+    const targetBrandId = targetIsCreator ? reviewer._id : target._id;
+
     // Create review with 'approved' status
     const review = await Review.create({
       targetId: target._id,
       reviewerId: reviewer._id,
-      reviewerRole: reviewer.role || (validConversationId ? "brand" : (reviewer.role || "brand")),
-      creatorId: reviewer.role === "creator" ? reviewer._id : target._id,
-      brandId: reviewer.role === "brand" ? reviewer._id : target._id,
+      reviewerRole: reviewer.role || (targetIsCreator ? "brand" : "creator"),
+      creatorId: targetCreatorId,
+      brandId: targetBrandId,
       conversationId: validConversationId,
       rating: Number(rating),
       title: title.trim(),
@@ -194,7 +201,8 @@ export const submitReview = async (req, res) => {
     // Recalculate target's average rating and reviewsCount in Profile
     try {
       const allApprovedReviews = await Review.find({
-        $or: [{ targetId: target._id }, { creatorId: target._id }, { brandId: target._id }],
+        targetId: target._id,
+        reviewerId: { $ne: target._id },
         status: { $ne: "rejected" },
         visible: true,
       });
@@ -236,12 +244,17 @@ export const listReviewsForTarget = async (req, res) => {
       });
     }
 
+    const targetObjId = new mongoose.Types.ObjectId(targetId);
+
+    // Reviews received by this target (must NOT be written by the target themselves)
     const filter = {
       $or: [
-        { targetId },
-        { creatorId: targetId },
-        { brandId: targetId },
+        { targetId: targetObjId },
+        { targetId: targetId },
+        { creatorId: targetObjId, targetId: { $exists: false } },
+        { brandId: targetObjId, targetId: { $exists: false } },
       ],
+      reviewerId: { $nin: [targetObjId, targetId] },
       visible: true,
     };
 
@@ -268,7 +281,7 @@ export const listReviewsForTarget = async (req, res) => {
           ...review,
           reviewerName: reviewerProfile?.fullName || reviewerProfile?.name || "Verified User",
           reviewerAvatar: reviewerProfile?.avatarUrl,
-          reviewerRole: review.reviewerRole || (reviewerProfile?.role || "user"),
+          reviewerRole: review.reviewerRole || (reviewerProfile?.role || "brand"),
           brandName: reviewerProfile?.fullName || reviewerProfile?.name || review.brandName || "Verified User",
           brandAvatar: reviewerProfile?.avatarUrl || review.brandAvatar,
         };
@@ -300,8 +313,16 @@ export const getAverageRating = async (req, res) => {
       });
     }
 
+    const targetObjId = new mongoose.Types.ObjectId(targetId);
+
     const reviews = await Review.find({
-      $or: [{ targetId }, { creatorId: targetId }],
+      $or: [
+        { targetId: targetObjId },
+        { targetId: targetId },
+        { creatorId: targetObjId, targetId: { $exists: false } },
+        { brandId: targetObjId, targetId: { $exists: false } },
+      ],
+      reviewerId: { $nin: [targetObjId, targetId] },
       status: "approved",
       visible: true,
     }).lean();

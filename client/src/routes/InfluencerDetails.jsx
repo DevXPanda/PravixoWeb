@@ -1345,6 +1345,11 @@ export default function InfluencerDetails() {
 
       if (!myProfile) return;
 
+      if (isOwnProfile) {
+        toast.error("You cannot review your own profile");
+        return;
+      }
+
       if (submitRating === 0) {
         toast.error(
           "Please select a star rating"
@@ -1357,6 +1362,12 @@ export default function InfluencerDetails() {
       try {
         const targetId = inf?.id || profileId;
         const reviewerId = myProfile._id || myProfile.id;
+
+        if (String(reviewerId) === String(targetId)) {
+          toast.error("You cannot review your own profile");
+          setSubmittingReview(false);
+          return;
+        }
 
         // Check if there is an active/past conversation with target
         let activeConversationId = inf?.conversationId || undefined;
@@ -2530,20 +2541,22 @@ export default function InfluencerDetails() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    size="sm"
-                    className="rounded-full gradient-sunset text-white text-xs font-semibold h-8 px-4"
-                    onClick={() => {
-                      if (!user) {
-                        toast.error("Please login to write a review");
-                        navigate("/login");
-                        return;
-                      }
-                      setIsReviewModalOpen(true);
-                    }}
-                  >
-                    ★ Write a Review
-                  </Button>
+                  {!isOwnProfile && (
+                    <Button
+                      size="sm"
+                      className="rounded-full gradient-sunset text-white text-xs font-semibold h-8 px-4"
+                      onClick={() => {
+                        if (!user) {
+                          toast.error("Please login to write a review");
+                          navigate("/login");
+                          return;
+                        }
+                        setIsReviewModalOpen(true);
+                      }}
+                    >
+                      ★ Write a Review
+                    </Button>
+                  )}
 
                   <span className="text-xs font-medium text-muted-foreground">
                     Sort by:
