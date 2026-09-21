@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   useParams,
   useNavigate,
@@ -1136,33 +1136,33 @@ export default function InfluencerDetails() {
   // REVIEWS
   // ===================================================
 
-  useEffect(() => {
-    const loadReviews = async () => {
-      const targetId = inf?.id || profileId;
-      if (!targetId) return;
+  const loadReviews = useCallback(async () => {
+    const targetId = inf?.id || profileId;
+    if (!targetId) return;
 
-      setLoadingReviews(true);
+    setLoadingReviews(true);
 
-      try {
-        const response = await api(`/api/reviews/target/${targetId}`, {
-          method: "GET",
-        });
+    try {
+      const response = await api(`/api/reviews/target/${targetId}`, {
+        method: "GET",
+      });
 
-        const resData = response?.data;
-        const reviews = Array.isArray(resData) 
-          ? resData 
-          : (Array.isArray(resData?.data) ? resData.data : []);
-        setReviewsList(reviews);
-      } catch (error) {
-        console.error("Failed to load reviews:", error);
-        setReviewsList([]);
-      } finally {
-        setLoadingReviews(false);
-      }
-    };
-
-    loadReviews();
+      const resData = response?.data;
+      const reviews = Array.isArray(resData) 
+        ? resData 
+        : (Array.isArray(resData?.data) ? resData.data : []);
+      setReviewsList(reviews);
+    } catch (error) {
+      console.error("Failed to load reviews:", error);
+      setReviewsList([]);
+    } finally {
+      setLoadingReviews(false);
+    }
   }, [inf?.id, profileId]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   // ===================================================
   // SORT REVIEWS
@@ -1359,15 +1359,22 @@ export default function InfluencerDetails() {
         const reviewerId = myProfile._id || myProfile.id;
 
         // Check if there is an active/past conversation with target
-        const canReviewCheck = await api.get(`/api/reviews/can-review/${targetId}?reviewerId=${reviewerId}`);
-        const activeConversationId = canReviewCheck.data?.data?.conversationId || (inf?.conversationId || undefined);
+        let activeConversationId = inf?.conversationId || undefined;
+        try {
+          const canReviewCheck = await api.get(`/api/reviews/can-review/${targetId}?reviewerId=${reviewerId}`);
+          if (canReviewCheck?.data?.data?.conversationId) {
+            activeConversationId = canReviewCheck.data.data.conversationId;
+          }
+        } catch {
+          // ignore eligibility check error
+        }
 
         await api.post(
           "/api/reviews",
           {
             targetId,
             reviewerId,
-            conversationId: activeConversationId || targetId,
+            conversationId: activeConversationId || undefined,
             rating: submitRating,
             title: reviewTitle,
             text: reviewText,
@@ -1375,15 +1382,16 @@ export default function InfluencerDetails() {
           }
         );
 
-        toast.success(
-          "Review submitted! It will appear on display once approved by Admin."
-        );
+        toast.success("Review submitted successfully!");
 
         setIsReviewModalOpen(false);
         setSubmitRating(0);
         setReviewTitle("");
         setReviewText("");
         setCampaignRef("");
+
+        // Immediately reload reviews on creator profile
+        await loadReviews();
       } catch (error) {
         console.error(error);
         toast.error(

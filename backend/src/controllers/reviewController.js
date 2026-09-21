@@ -91,7 +91,7 @@ export const canReview = async (req, res) => {
   }
 };
 
-// Brand ya Creator review submit karta hai (goes into 'pending' status for admin approval)
+// Brand ya Creator review submit karta hai
 export const submitReview = async (req, res) => {
   try {
     const {
@@ -109,7 +109,7 @@ export const submitReview = async (req, res) => {
     const actualReviewerId = reviewerId || (creatorId && brandId ? brandId : null);
     const actualTargetId = targetId || (creatorId && brandId ? creatorId : null);
 
-    if (!actualReviewerId || !actualTargetId || !conversationId || rating === undefined || !title || !text) {
+    if (!actualReviewerId || !actualTargetId || rating === undefined || !title || !text) {
       return res.status(400).json({
         success: false,
         message: "Required review fields are missing.",
@@ -118,8 +118,7 @@ export const submitReview = async (req, res) => {
 
     if (
       !mongoose.Types.ObjectId.isValid(actualReviewerId) ||
-      !mongoose.Types.ObjectId.isValid(actualTargetId) ||
-      !mongoose.Types.ObjectId.isValid(conversationId)
+      !mongoose.Types.ObjectId.isValid(actualTargetId)
     ) {
       return res.status(400).json({
         success: false,
@@ -137,30 +136,34 @@ export const submitReview = async (req, res) => {
       });
     }
 
-    // Verify conversation exists
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid collaboration reference.",
-      });
+    // Check optional conversation
+    let validConversationId = undefined;
+    if (conversationId && mongoose.Types.ObjectId.isValid(conversationId)) {
+      const conversation = await Conversation.findById(conversationId);
+      if (conversation) {
+        validConversationId = conversation._id;
+      }
     }
 
     // Check duplicate review
-    const existingReview = await Review.findOne({
-      conversationId,
+    const duplicateQuery = {
+      reviewerId: reviewer._id,
       $or: [
-        { reviewerId: reviewer._id },
-        reviewer.role === "brand"
-          ? { brandId: reviewer._id, creatorId: target._id }
-          : { creatorId: reviewer._id, brandId: target._id },
+        { targetId: target._id },
+        { creatorId: target._id },
+        { brandId: target._id },
       ],
-    });
+    };
+    if (validConversationId) {
+      duplicateQuery.conversationId = validConversationId;
+    }
+
+    const existingReview = await Review.findOne(duplicateQuery);
 
     if (existingReview) {
       return res.status(409).json({
         success: false,
-        message: "You have already submitted a review for this collaboration.",
+        message: "You have already submitted a review for this profile.",
       });
     }
 
@@ -171,26 +174,44 @@ export const submitReview = async (req, res) => {
       });
     }
 
-    // Create review with 'pending' status for Admin moderation
+    // Create review with 'approved' status
     const review = await Review.create({
       targetId: target._id,
       reviewerId: reviewer._id,
-      reviewerRole: reviewer.role || (reviewer._id.toString() === conversation.brandId.toString() ? "brand" : "creator"),
+      reviewerRole: reviewer.role || (validConversationId ? "brand" : (reviewer.role || "brand")),
       creatorId: reviewer.role === "creator" ? reviewer._id : target._id,
       brandId: reviewer.role === "brand" ? reviewer._id : target._id,
-      conversationId,
-      rating,
-      title,
-      text,
-      campaignRef,
-      status: "pending", // Waiting for Admin Approval
+      conversationId: validConversationId,
+      rating: Number(rating),
+      title: title.trim(),
+      text: text.trim(),
+      campaignRef: campaignRef || undefined,
+      status: "approved",
       visible: true,
       createdAt: Date.now(),
     });
 
+    // Recalculate target's average rating and reviewsCount in Profile
+    try {
+      const allApprovedReviews = await Review.find({
+        $or: [{ targetId: target._id }, { creatorId: target._id }, { brandId: target._id }],
+        status: { $ne: "rejected" },
+        visible: true,
+      });
+      const totalRating = allApprovedReviews.reduce((sum, r) => sum + (r.rating || 0), 0);
+      const avgRating = allApprovedReviews.length > 0 ? (totalRating / allApprovedReviews.length).toFixed(1) : "0";
+
+      await Profile.findByIdAndUpdate(target._id, {
+        rating: parseFloat(avgRating),
+        reviewsCount: allApprovedReviews.length,
+      });
+    } catch (profileUpdateErr) {
+      console.warn("Failed to update profile rating stats:", profileUpdateErr);
+    }
+
     return res.status(201).json({
       success: true,
-      message: "Review submitted successfully! It will be visible once approved by Admin.",
+      message: "Review submitted successfully!",
       data: review,
     });
   } catch (error) {
@@ -202,7 +223,7 @@ export const submitReview = async (req, res) => {
   }
 };
 
-// Creator ya Brand ke reviews fetch karta hai (Only approved ones for public display)
+// Creator ya Brand ke reviews fetch karta hai
 export const listReviewsForTarget = async (req, res) => {
   try {
     const targetId = req.params.targetId || req.params.creatorId;
@@ -225,8 +246,8 @@ export const listReviewsForTarget = async (req, res) => {
     };
 
     if (!includePending) {
-      // Public display only shows approved reviews
-      filter.status = "approved";
+      // Show approved and pending reviews (not rejected)
+      filter.status = { $in: ["approved", "pending"] };
     }
 
     const reviews = await Review.find(filter)
@@ -248,8 +269,8 @@ export const listReviewsForTarget = async (req, res) => {
           reviewerName: reviewerProfile?.fullName || reviewerProfile?.name || "Verified User",
           reviewerAvatar: reviewerProfile?.avatarUrl,
           reviewerRole: review.reviewerRole || (reviewerProfile?.role || "user"),
-          brandName: reviewerProfile?.fullName || review.brandName || "Verified User",
-          brandAvatar: reviewerProfile?.avatarUrl,
+          brandName: reviewerProfile?.fullName || reviewerProfile?.name || review.brandName || "Verified User",
+          brandAvatar: reviewerProfile?.avatarUrl || review.brandAvatar,
         };
       })
     );

@@ -41,7 +41,7 @@ const reviewSchema = new mongoose.Schema(
     conversationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Conversation",
-      required: true,
+      required: false,
       index: true,
     },
 
@@ -68,11 +68,11 @@ const reviewSchema = new mongoose.Schema(
       type: String,
     },
 
-    // Admin moderation status: reviews must be "approved" to be publicly visible
+    // Admin moderation status: default approved so reviews display immediately
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],
-      default: "pending",
+      default: "approved",
       index: true,
     },
 
