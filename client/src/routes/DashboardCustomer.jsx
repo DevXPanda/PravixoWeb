@@ -45,6 +45,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { CreatorOffersSidebarWidget } from "@/components/offers/CreatorOffersSidebarWidget";
 import { MultiRoleOfferForm } from "@/components/offers/CreatorOfferForm";
+import { AvatarPickerModal } from "@/components/avatar/AvatarPickerModal";
 
 const QuoraIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -256,6 +257,55 @@ export function DashboardCustomer() {
   const [followListUsers, setFollowListUsers] = useState([]);
   const [loadingFollowList, setLoadingFollowList] = useState(false);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [mediaPreviewModal, setMediaPreviewModal] = useState(null); // { type: 'avatar'|'cover', url: string, title: string }
+
+  const handleSelectAvatarPreset = async (avatarUrl) => {
+    if (!profile?._id) return;
+    try {
+      const res = await api.patch(`/profiles/${profile._id}`, { avatarUrl });
+      const updated = res?.data?.data || res?.data?.profile || res?.data;
+      if (updated && updateProfile) {
+        updateProfile(updated);
+      }
+      toast.success("Brand avatar updated successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update avatar");
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (!profile?._id) return;
+    if (!window.confirm("Are you sure you want to reset your brand logo to default?")) return;
+    try {
+      const res = await api.delete(`/profiles/${profile._id}/avatar`);
+      const updated = res?.data?.data || res?.data?.profile || res?.data;
+      if (updated && updateProfile) {
+        updateProfile(updated);
+      }
+      toast.success("Brand logo reset to default!");
+    } catch (err) {
+      console.error("Failed to reset avatar:", err);
+      toast.error("Failed to reset logo");
+    }
+  };
+
+  const handleDeleteCover = async () => {
+    if (!profile?._id) return;
+    if (!window.confirm("Are you sure you want to remove the brand banner and reset to default?")) return;
+    try {
+      const res = await api.delete(`/profiles/${profile._id}/cover`);
+      const updated = res?.data?.data || res?.data?.profile || res?.data;
+      if (updated && updateProfile) {
+        updateProfile(updated);
+      }
+      toast.success("Brand banner reset to default!");
+    } catch (err) {
+      console.error("Failed to reset banner:", err);
+      toast.error("Failed to reset banner");
+    }
+  };
 
   const fetchFollowCounts = async () => {
     if (!profile?._id) return;
@@ -1115,20 +1165,55 @@ const [submittingVerification, setSubmittingVerification] =
         </div>
       )}
 
-      {/* COVER BANNER PREVIEW */}
+      {/* COVER BANNER PREVIEW WITH HOVER/CLICK ACTIONS */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <section className="relative aspect-[1361/450] overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
+        <section className="relative group aspect-[1361/450] overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
           {resolveImageUrl(profile?.coverUrl) ? (
             <img
               src={resolveImageUrl(profile.coverUrl)}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
               Banner Preview
             </div>
           )}
+
+          {/* Banner Action Hover Overlay */}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-end p-4 gap-2 backdrop-blur-[2px]">
+            {resolveImageUrl(profile?.coverUrl) && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setMediaPreviewModal({ type: "cover", url: resolveImageUrl(profile.coverUrl), title: "Brand Banner" })}
+                className="rounded-full bg-white/90 hover:bg-white text-black font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
+              >
+                <Eye className="h-3.5 w-3.5" /> View Banner
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => coverFileRef.current?.click()}
+              className="rounded-full bg-black/75 hover:bg-black text-white font-semibold text-xs h-8 px-3 border border-white/20 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
+            >
+              <Camera className="h-3.5 w-3.5" /> Change Banner
+            </Button>
+            {profile?.coverUrl && (
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={handleDeleteCover}
+                className="rounded-full font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer"
+                title="Reset banner to default"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Reset
+              </Button>
+            )}
+          </div>
         </section>
       </div>
 
@@ -1136,7 +1221,7 @@ const [submittingVerification, setSubmittingVerification] =
         {/* LOGO & BRAND DETAILS HEADER */}
         <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left justify-between">
           <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5">
-            <div className="-mt-14 sm:-mt-20 relative z-40 flex-shrink-0">
+            <div className="-mt-14 sm:-mt-20 relative group z-40 flex-shrink-0">
               <img src={
                   resolveImageUrl(profile?.avatarUrl) ||
                   `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile?.fullName || "brand"}`
@@ -1144,6 +1229,46 @@ const [submittingVerification, setSubmittingVerification] =
                 alt=""
                 className="h-28 w-28 sm:h-36 sm:w-36 rounded-full border-4 border-background object-cover bg-background shadow-elevated"
                onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+
+              {/* Logo Quick Hover Menu Trigger Overlay */}
+              <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-[2px] p-1 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setMediaPreviewModal({ type: "avatar", url: resolveImageUrl(profile?.avatarUrl) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile?.fullName || "brand"}`, title: `${fullName || "Brand"} Logo` })}
+                  className="hover:scale-110 transition-transform p-1 text-white hover:text-amber-300"
+                  title="View full logo"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => avatarFileRef.current?.click()}
+                    className="hover:scale-110 transition-transform p-1 text-white hover:text-blue-300"
+                    title="Upload brand logo"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAvatarPickerOpen(true)}
+                    className="hover:scale-110 transition-transform p-1 text-white hover:text-pink-300"
+                    title="Choose brand avatar preset"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </button>
+                  {profile?.avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteAvatar}
+                      className="hover:scale-110 transition-transform p-1 text-white hover:text-rose-400"
+                      title="Reset brand logo to default"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="pb-2">
               <div className="flex items-center justify-center sm:justify-start gap-2">
@@ -1553,6 +1678,14 @@ const [submittingVerification, setSubmittingVerification] =
                         disabled={uploadingAvatar}
                       />
                     </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAvatarPickerOpen(true)}
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary/40 bg-primary/10 text-primary px-4 py-2 text-sm font-medium hover:bg-primary/20"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Choose Brand Icon / Avatar
+                    </button>
                     <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
                       <ImageIcon className="h-4 w-4" />
                       {uploadingCover ? "Uploading..." : "Upload banner"}
@@ -4943,6 +5076,78 @@ const [submittingVerification, setSubmittingVerification] =
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* FULL-SIZE MEDIA PREVIEW MODAL (BANNER / LOGO LIGHTBOX) */}
+      {mediaPreviewModal && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setMediaPreviewModal(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 transition-colors rounded-full hover:bg-white/10 z-50 cursor-pointer"
+            onClick={() => setMediaPreviewModal(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-card/95 border border-border/80 rounded-2xl overflow-hidden shadow-2xl p-2 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between px-3 py-2 border-b border-border/50 text-xs font-semibold text-muted-foreground">
+              <span>{mediaPreviewModal.title || "Image Preview"}</span>
+              <div className="flex items-center gap-2">
+                {mediaPreviewModal.type === "avatar" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setMediaPreviewModal(null);
+                      setIsAvatarPickerOpen(true);
+                    }}
+                    className="h-7 text-xs rounded-full"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1 text-pink-500" /> Change Brand Avatar
+                  </Button>
+                )}
+                {mediaPreviewModal.type === "cover" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setMediaPreviewModal(null);
+                      coverFileRef.current?.click();
+                    }}
+                    className="h-7 text-xs rounded-full"
+                  >
+                    <Camera className="h-3 w-3 mr-1 text-blue-500" /> Change Banner
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 flex items-center justify-center overflow-auto max-h-[80vh]">
+              <img
+                src={mediaPreviewModal.url}
+                alt={mediaPreviewModal.title}
+                className={cn(
+                  "max-h-[75vh] w-auto object-contain rounded-xl shadow-lg",
+                  mediaPreviewModal.type === "avatar" ? "max-w-[320px] rounded-full aspect-square border-4 border-primary/20" : "max-w-full"
+                )}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BRAND AVATAR PICKER MODAL */}
+      <AvatarPickerModal
+        isOpen={isAvatarPickerOpen}
+        onClose={() => setIsAvatarPickerOpen(false)}
+        role="brand"
+        currentAvatar={resolveImageUrl(profile?.avatarUrl) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile?.fullName || user?.email || "brand"}`}
+        onSelectAvatar={handleSelectAvatarPreset}
+      />
     </div>
   );
 }

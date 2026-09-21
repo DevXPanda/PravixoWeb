@@ -27,6 +27,8 @@ import api from "@/lib/api";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authApi } from "@/services/authServices";
+import { getGenderAvatar } from "@/utils/avatar";
+import { AvatarPickerModal } from "@/components/avatar/AvatarPickerModal";
 
 // =====================================================
 // TERMS
@@ -84,6 +86,8 @@ export default function Register() {
   const [role, setRole] = useState("creator");
   const [name, setName] = useState("");
   const [gender, setGender] = useState("male");
+  const [selectedAvatar, setSelectedAvatar] = useState("");
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] =
@@ -424,6 +428,7 @@ export default function Register() {
     email,
     name,
     gender: role === "creator" ? gender : undefined,
+    avatarUrl: selectedAvatar || undefined,
     password,
     otp: code,
     referralCode: role === "creator" ? referralCode : undefined,
@@ -769,7 +774,10 @@ export default function Register() {
                   <button
                     key={item.value}
                     type="button"
-                    onClick={() => setGender(item.value)}
+                    onClick={() => {
+                      setGender(item.value);
+                      setSelectedAvatar("");
+                    }}
                     className={`py-2 px-3 text-xs font-semibold rounded-xl border transition-all ${
                       gender === item.value
                         ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary"
@@ -782,6 +790,37 @@ export default function Register() {
               </div>
             </div>
           )}
+
+          {/* CHOOSE AVATAR PRESET / PERSONA */}
+          <div className="rounded-2xl border border-border/70 bg-card/40 p-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full border border-border bg-muted overflow-hidden shrink-0">
+                <img
+                  src={selectedAvatar || getGenderAvatar(name || "User", gender, role)}
+                  alt="Avatar"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  {role === "brand" ? "Brand Identity / Avatar" : "Profile Avatar"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {selectedAvatar ? "Custom avatar selected" : "Auto-generated default"}
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="rounded-full text-xs h-8 px-3 border-primary/40 text-primary hover:bg-primary/10"
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" />
+              Choose
+            </Button>
+          </div>
 
           {/* EMAIL */}
 
@@ -1026,6 +1065,15 @@ export default function Register() {
           </Link>
         </p>
       </div>
+
+      {/* AVATAR PICKER MODAL */}
+      <AvatarPickerModal
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        role={role}
+        currentAvatar={selectedAvatar || getGenderAvatar(name || "User", gender, role)}
+        onSelectAvatar={(avatarUrl) => setSelectedAvatar(avatarUrl)}
+      />
     </div>
   );
 }

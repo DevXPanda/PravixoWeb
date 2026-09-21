@@ -20,6 +20,7 @@ import {
   Tag,
   CalendarCheck,
   Gift,
+  HelpCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "./theme-provider";
@@ -47,6 +48,7 @@ const navLinks = [
   { to: "/payments", label: "Payments", icon: CreditCard },
   { to: "/subscriptions", label: "Subscriptions", icon: Sparkles },
   { to: "/client-reviews", label: "Client Reviews", icon: VideoIcon },
+  { to: "/inquiries", label: "Inquiries & Support", icon: HelpCircle },
   { to: "/blogs", label: "Blogs", icon: FileText },
   { to: "/protips", label: "ProTips", icon: Lightbulb },
   { to: "/notifications", label: "Notifications", icon: Megaphone },

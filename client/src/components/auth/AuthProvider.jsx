@@ -151,6 +151,7 @@ export function AuthProvider({ children }) {
     password,
     role,
     gender,
+    avatarUrl,
     otp,
     referralCode,
   }) => {
@@ -160,6 +161,7 @@ export function AuthProvider({ children }) {
       password,
       role,
       gender,
+      avatarUrl,
       otp,
       referralCode,
     });

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/TextArea";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 export function Contact() {
   const [formData, setFormData] = useState({
@@ -27,6 +28,7 @@ export function Contact() {
     subject: "",
     message: "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
   const contacts = [
     {
@@ -45,18 +47,18 @@ export function Contact() {
       title: "Headquarters",
       value:
         "Level 14, Pravixo Tower, MG Road, Bengaluru, Karnataka, 560001",
-      desc: "Drop by or mail official documents here.",
+      desc: "Corporate office & registered documents here.",
       icon: MapPin,
     },
     {
-      title: "Business Hours",
+      title: "Working Hours",
       value: "9:00 AM - 6:00 PM IST",
       desc: "Weekend response times may vary.",
       icon: Clock,
     },
   ];
 
-  const socials = [
+  const socialLinks = [
     {
       name: "LinkedIn",
       href: "https://linkedin.com",
@@ -79,7 +81,7 @@ export function Contact() {
     },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (
@@ -92,16 +94,25 @@ export function Contact() {
       return;
     }
 
-    toast.success(
-      "Message sent! Our customer support team will contact you shortly."
-    );
+    setSubmitting(true);
+    try {
+      const res = await api.post("/contact", formData);
+      toast.success(
+        res.data?.message || "Message sent! Our customer support team will contact you shortly."
+      );
 
-    setFormData({
-      name: "",
-      email: "",
-      subject: "",
-      message: "",
-    });
+      setFormData({
+        name: "",
+        email: "",
+        subject: "",
+        message: "",
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to send inquiry. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

@@ -684,6 +684,92 @@ export const uploadCover = async (req, res) => {
 };
 
 // =====================================================
+// DELETE / RESET AVATAR
+// DELETE /api/profiles/:id/avatar
+// =====================================================
+export const deleteAvatar = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid profile ID.",
+      });
+    }
+
+    const profile = await Profile.findByIdAndUpdate(
+      id,
+      { avatarUrl: "" },
+      { new: true }
+    );
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Avatar removed successfully.",
+      data: profile,
+    });
+  } catch (error) {
+    console.error("Delete avatar error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove avatar.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
+// DELETE / RESET COVER BANNER
+// DELETE /api/profiles/:id/cover
+// =====================================================
+export const deleteCover = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid profile ID.",
+      });
+    }
+
+    const profile = await Profile.findByIdAndUpdate(
+      id,
+      { coverUrl: "" },
+      { new: true }
+    );
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: "Profile not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Cover banner removed successfully.",
+      data: profile,
+    });
+  } catch (error) {
+    console.error("Delete cover error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to remove cover banner.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
 // UPLOAD KYC DOCUMENTS
 // POST /api/profiles/:id/kyc-documents
 // =====================================================

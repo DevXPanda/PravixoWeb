@@ -222,6 +222,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { AvatarPickerModal } from "@/components/avatar/AvatarPickerModal";
 
 export function DashboardInfluencer() {
   const navigate = useNavigate();
@@ -314,6 +315,55 @@ export function DashboardInfluencer() {
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
   const [showPushBanner, setShowPushBanner] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
+  const [mediaPreviewModal, setMediaPreviewModal] = useState(null); // { type: 'avatar'|'cover', url: string, title: string }
+
+  const handleSelectAvatarPreset = async (avatarUrl) => {
+    if (!profile || !mongoProfileId) return;
+    try {
+      const res = await apiPatch(`/profiles/${mongoProfileId}`, { avatarUrl });
+      const updated = res?.data || res?.profile || res;
+      if (updated && updateLocalProfile) {
+        updateLocalProfile(updated);
+      }
+      toast.success("Avatar updated successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update avatar");
+    }
+  };
+
+  const handleDeleteAvatar = async () => {
+    if (!profile || !mongoProfileId) return;
+    if (!window.confirm("Are you sure you want to reset your profile photo to default?")) return;
+    try {
+      const res = await apiDelete(`/profiles/${mongoProfileId}/avatar`);
+      const updated = res?.data || res?.profile || res;
+      if (updated && updateLocalProfile) {
+        updateLocalProfile(updated);
+      }
+      toast.success("Profile photo reset to default!");
+    } catch (err) {
+      console.error("Failed to delete avatar:", err);
+      toast.error("Failed to reset profile photo");
+    }
+  };
+
+  const handleDeleteCover = async () => {
+    if (!profile || !mongoProfileId) return;
+    if (!window.confirm("Are you sure you want to remove your banner and reset to default?")) return;
+    try {
+      const res = await apiDelete(`/profiles/${mongoProfileId}/cover`);
+      const updated = res?.data || res?.profile || res;
+      if (updated && updateLocalProfile) {
+        updateLocalProfile(updated);
+      }
+      toast.success("Banner reset to default!");
+    } catch (err) {
+      console.error("Failed to delete cover:", err);
+      toast.error("Failed to reset banner");
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -1364,6 +1414,24 @@ const CAMPAIGNS_PER_PAGE = 6;
     }
   };
 
+  const handleDeletePortfolioComment = async (commentId) => {
+    if (!selectedPortfolioPost?._id || !commentId) return;
+    try {
+      const res = await apiDelete(`/portfolio/${selectedPortfolioPost._id}/comments/${commentId}`);
+      const updatedComments = res?.data || (selectedPortfolioPost.comments || []).filter(c => (c._id || c.id) !== commentId);
+      setSelectedPortfolioPost((prev) => ({
+        ...prev,
+        comments: updatedComments,
+        commentsCount: Math.max(0, (prev.commentsCount || 1) - 1),
+      }));
+      setPortfolioRefreshKey((c) => c + 1);
+      toast.success("Comment deleted");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete comment");
+    }
+  };
+
   const handleSharePortfolioItem = (post) => {
     const url = `${window.location.origin}/creator/${mongoProfileId}`;
     if (navigator.clipboard) {
@@ -1664,20 +1732,54 @@ const CAMPAIGNS_PER_PAGE = 6;
         </div>
       )}
 
-      {/* COVER BANNER PREVIEW */}
+      {/* COVER BANNER PREVIEW WITH HOVER/CLICK ACTIONS */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <section className="relative aspect-[1361/450] overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
+        <section className="relative group aspect-[1361/450] overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
           <img
             src={bannerUrl}
             alt="Creator profile banner"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
           />
+
+          {/* Banner Action Hover Overlay */}
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-end p-4 gap-2 backdrop-blur-[2px]">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => setMediaPreviewModal({ type: "cover", url: bannerUrl, title: "Profile Banner" })}
+              className="rounded-full bg-white/90 hover:bg-white text-black font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
+            >
+              <Eye className="h-3.5 w-3.5" /> View Banner
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => coverFileRef.current?.click()}
+              className="rounded-full bg-black/75 hover:bg-black text-white font-semibold text-xs h-8 px-3 border border-white/20 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
+            >
+              <Camera className="h-3.5 w-3.5" /> Change Banner
+            </Button>
+            {profile?.coverUrl && (
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={handleDeleteCover}
+                className="rounded-full font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer"
+                title="Reset banner to default"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Reset
+              </Button>
+            )}
+          </div>
         </section>
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-4 sm:gap-5 -mt-16 sm:-mt-20 z-10">
+            {/* AVATAR WITH INSTA-STYLE HOVER/CLICK ACTIONS */}
             <div className="relative group shrink-0">
               <img
                 src={avatarUrl}
@@ -1688,17 +1790,46 @@ const CAMPAIGNS_PER_PAGE = 6;
                   e.target.src = getGenderAvatar(profile?.fullName || displayName, creatorGender, "creator");
                 }}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab("dashboard");
-                  avatarFileRef.current?.click();
-                }}
-                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-semibold cursor-pointer backdrop-blur-[2px]"
-                title="Change profile photo"
-              >
-                <Camera className="h-5 w-5" />
-              </button>
+              
+              {/* Quick Hover Menu Trigger Overlay */}
+              <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-[2px] p-1 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setMediaPreviewModal({ type: "avatar", url: avatarUrl, title: `${displayName}'s Profile Picture` })}
+                  className="hover:scale-110 transition-transform p-1 text-white hover:text-amber-300"
+                  title="View full profile photo"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => avatarFileRef.current?.click()}
+                    className="hover:scale-110 transition-transform p-1 text-white hover:text-blue-300"
+                    title="Upload custom photo"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAvatarPickerOpen(true)}
+                    className="hover:scale-110 transition-transform p-1 text-white hover:text-pink-300"
+                    title="Choose from Avatar Library"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </button>
+                  {profile?.avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteAvatar}
+                      className="hover:scale-110 transition-transform p-1 text-white hover:text-rose-400"
+                      title="Reset profile picture to default"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-col gap-1 pt-12 sm:pt-14">
@@ -1995,6 +2126,14 @@ const CAMPAIGNS_PER_PAGE = 6;
                             disabled={uploadingAvatar}
                           />
                         </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsAvatarPickerOpen(true)}
+                          className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary/40 bg-primary/10 text-primary px-4 py-2 text-sm font-medium hover:bg-primary/20"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Choose Avatar Persona
+                        </button>
                         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
                           <ImageIcon className="h-4 w-4" />
                           {uploadingCover ? "Uploading..." : "Upload banner"}
@@ -6850,21 +6989,38 @@ const CAMPAIGNS_PER_PAGE = 6;
                     Comments ({selectedPortfolioPost.comments?.length || selectedPortfolioPost.commentsCount || 0})
                   </p>
 
-                  {(selectedPortfolioPost.comments || []).map((comm, cIdx) => (
-                    <div key={cIdx} className="flex gap-2.5 items-start">
-                      <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
-                        <img
-                          src={resolveImageUrl(comm.userAvatar) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${comm.userName || 'Commenter'}`}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
+                  {(selectedPortfolioPost.comments || []).map((comm, cIdx) => {
+                    const commentId = comm._id || comm.id || cIdx;
+                    return (
+                      <div key={cIdx} className="group/comm flex gap-2.5 items-start justify-between">
+                        <div className="flex gap-2.5 items-start flex-1">
+                          <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
+                            <img
+                              src={resolveImageUrl(comm.userAvatar) || getGenderAvatar(comm.userName || "User", "", "creator")}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = getGenderAvatar(comm.userName || "User", "", "creator");
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
+                            <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
+                            <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePortfolioComment(commentId)}
+                          className="opacity-0 group-hover/comm:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                          title="Delete comment"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
                       </div>
-                      <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
-                        <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
-                        <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -6931,6 +7087,78 @@ const CAMPAIGNS_PER_PAGE = 6;
           </div>
         </div>
       )}
+
+      {/* FULL-SIZE MEDIA PREVIEW MODAL (BANNER / AVATAR LIGHTBOX) */}
+      {mediaPreviewModal && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 p-4 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setMediaPreviewModal(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 transition-colors rounded-full hover:bg-white/10 z-50 cursor-pointer"
+            onClick={() => setMediaPreviewModal(null)}
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-card/95 border border-border/80 rounded-2xl overflow-hidden shadow-2xl p-2 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between px-3 py-2 border-b border-border/50 text-xs font-semibold text-muted-foreground">
+              <span>{mediaPreviewModal.title || "Image Preview"}</span>
+              <div className="flex items-center gap-2">
+                {mediaPreviewModal.type === "avatar" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setMediaPreviewModal(null);
+                      setIsAvatarPickerOpen(true);
+                    }}
+                    className="h-7 text-xs rounded-full"
+                  >
+                    <Sparkles className="h-3 w-3 mr-1 text-pink-500" /> Change Avatar
+                  </Button>
+                )}
+                {mediaPreviewModal.type === "cover" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setMediaPreviewModal(null);
+                      coverFileRef.current?.click();
+                    }}
+                    className="h-7 text-xs rounded-full"
+                  >
+                    <Camera className="h-3 w-3 mr-1 text-blue-500" /> Change Banner
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="p-3 flex items-center justify-center overflow-auto max-h-[80vh]">
+              <img
+                src={mediaPreviewModal.url}
+                alt={mediaPreviewModal.title}
+                className={cn(
+                  "max-h-[75vh] w-auto object-contain rounded-xl shadow-lg",
+                  mediaPreviewModal.type === "avatar" ? "max-w-[320px] rounded-full aspect-square border-4 border-primary/20" : "max-w-full"
+                )}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AVATAR PICKER MODAL */}
+      <AvatarPickerModal
+        isOpen={isAvatarPickerOpen}
+        onClose={() => setIsAvatarPickerOpen(false)}
+        role="creator"
+        currentAvatar={resolveImageUrl(profile?.avatarUrl) || profile?.avatar || getGenderAvatar(profile?.fullName || displayName, creatorGender, "creator")}
+        onSelectAvatar={handleSelectAvatarPreset}
+      />
     </div>
   );
 }

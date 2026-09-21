@@ -672,6 +672,7 @@ export default function InfluencerDetails() {
   const [selectedPortfolioPost, setSelectedPortfolioPost] = useState(null);
   const [portfolioCommentText, setPortfolioCommentText] = useState("");
   const [submittingPortfolioComment, setSubmittingPortfolioComment] = useState(false);
+  const [showAllPortfolioModal, setShowAllPortfolioModal] = useState(false);
 
   const handleTogglePortfolioLike = async (post) => {
     if (!post?._id) return;
@@ -702,10 +703,11 @@ export default function InfluencerDetails() {
     if (!selectedPortfolioPost?._id || !portfolioCommentText.trim()) return;
     setSubmittingPortfolioComment(true);
     try {
+      const commenterAvatar = resolveImageUrl(myProfile?.avatarUrl) || (myProfile?.fullName ? getGenderAvatar(myProfile.fullName, myProfile.gender, myProfile.role) : "");
       const res = await api.post(`/portfolio/${selectedPortfolioPost._id}/comments`, {
         text: portfolioCommentText.trim(),
         userName: myProfile?.fullName || user?.email?.split("@")[0] || "Guest Brand",
-        userAvatar: resolveImageUrl(myProfile?.avatarUrl) || "",
+        userAvatar: commenterAvatar,
       });
 
       const updatedComments = res?.data?.data || [];
@@ -713,6 +715,7 @@ export default function InfluencerDetails() {
         ...prev,
         comments: Array.isArray(updatedComments) ? updatedComments : [...(prev.comments || []), {
           userName: myProfile?.fullName || "Brand Visitor",
+          userAvatar: commenterAvatar,
           text: portfolioCommentText.trim(),
           createdAt: new Date(),
         }],
@@ -725,6 +728,30 @@ export default function InfluencerDetails() {
       toast.error("Failed to post comment");
     } finally {
       setSubmittingPortfolioComment(false);
+    }
+  };
+
+  const handleDeletePortfolioComment = async (commentId) => {
+    if (!selectedPortfolioPost?._id || !commentId) return;
+    try {
+      const res = await api.delete(`/portfolio/${selectedPortfolioPost._id}/comments/${commentId}`);
+      const updatedComments = res?.data?.data || (selectedPortfolioPost.comments || []).filter(c => (c._id || c.id) !== commentId);
+      setSelectedPortfolioPost((prev) => ({
+        ...prev,
+        comments: updatedComments,
+        commentsCount: Math.max(0, (prev.commentsCount || 1) - 1),
+      }));
+      setPortfolioImages((prev) =>
+        prev.map((item) =>
+          item._id === selectedPortfolioPost._id
+            ? { ...item, comments: updatedComments, commentsCount: Math.max(0, (item.commentsCount || 1) - 1) }
+            : item
+        )
+      );
+      toast.success("Comment deleted");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete comment");
     }
   };
 
@@ -2180,60 +2207,74 @@ export default function InfluencerDetails() {
                     )}
                   </div>
 
-                  {/* Format Filter Tabs */}
-                  <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setPortfolioTab("all")}
-                      className={cn(
-                        "px-2.5 py-1 rounded-lg font-medium transition-all",
-                        portfolioTab === "all"
-                          ? "bg-background text-foreground shadow-xs font-semibold"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPortfolioTab("post")}
-                      className={cn(
-                        "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
-                        portfolioTab === "post"
-                          ? "bg-background text-foreground shadow-xs font-semibold"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <Camera className="h-3 w-3 text-blue-500" /> Posts
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPortfolioTab("reel")}
-                      className={cn(
-                        "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
-                        portfolioTab === "reel"
-                          ? "bg-background text-foreground shadow-xs font-semibold"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <Film className="h-3 w-3 text-pink-500" /> Reels
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPortfolioTab("story")}
-                      className={cn(
-                        "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
-                        portfolioTab === "story"
-                          ? "bg-background text-foreground shadow-xs font-semibold"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <Sparkles className="h-3 w-3 text-amber-500" /> Stories
-                    </button>
+                  <div className="flex items-center gap-2">
+                    {/* Format Filter Tabs */}
+                    <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setPortfolioTab("all")}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg font-medium transition-all",
+                          portfolioTab === "all"
+                            ? "bg-background text-foreground shadow-xs font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPortfolioTab("post")}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
+                          portfolioTab === "post"
+                            ? "bg-background text-foreground shadow-xs font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Camera className="h-3 w-3 text-blue-500" /> Posts
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPortfolioTab("reel")}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
+                          portfolioTab === "reel"
+                            ? "bg-background text-foreground shadow-xs font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Film className="h-3 w-3 text-pink-500" /> Reels
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPortfolioTab("story")}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
+                          portfolioTab === "story"
+                            ? "bg-background text-foreground shadow-xs font-semibold"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <Sparkles className="h-3 w-3 text-amber-500" /> Stories
+                      </button>
+                    </div>
+
+                    {/* View All Button */}
+                    {portfolio?.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setShowAllPortfolioModal(true)}
+                        className="h-8 rounded-xl text-xs font-semibold border-border hover:bg-secondary flex items-center gap-1"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-primary" /> View All ({portfolio.length})
+                      </Button>
+                    )}
                   </div>
                 </div>
 
-                {/* Portfolio Grid */}
+                {/* Portfolio Grid - Consistent Uniform 4:5 Aspect Ratio Cards */}
                 {(() => {
                   const filtered = (portfolio || []).filter((item) => {
                     if (portfolioTab === "all") return true;
@@ -2254,7 +2295,7 @@ export default function InfluencerDetails() {
 
                   return (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {filtered.map((item, index) => {
+                      {filtered.slice(0, 6).map((item, index) => {
                         const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
                         const isReel = item.type === "reel";
                         const isStory = item.type === "story";
@@ -2266,10 +2307,7 @@ export default function InfluencerDetails() {
                         return (
                           <div
                             key={item._id || index}
-                            className={cn(
-                              "group relative rounded-2xl overflow-hidden border border-border bg-black cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md",
-                              (isReel || isStory) ? "aspect-[9/16]" : "aspect-square"
-                            )}
+                            className="group relative rounded-2xl overflow-hidden border border-border bg-black cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md aspect-[4/5]"
                             onClick={() => {
                               setSelectedPortfolioPost(item);
                             }}
@@ -3158,21 +3196,44 @@ export default function InfluencerDetails() {
                     Comments ({selectedPortfolioPost.comments?.length || selectedPortfolioPost.commentsCount || 0})
                   </p>
 
-                  {(selectedPortfolioPost.comments || []).map((comm, cIdx) => (
-                    <div key={cIdx} className="flex gap-2.5 items-start">
-                      <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
-                        <img
-                          src={resolveImageUrl(comm.userAvatar) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${comm.userName || 'Commenter'}`}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
+                  {(selectedPortfolioPost.comments || []).map((comm, cIdx) => {
+                    const commentId = comm._id || comm.id || cIdx;
+                    const isCommentOwner = myProfile?._id && (comm.userId === myProfile._id || comm.userName === myProfile.fullName);
+                    const isProfileOwner = myProfile?._id && String(myProfile._id) === String(inf.id);
+                    const canDelete = isCommentOwner || isProfileOwner;
+
+                    return (
+                      <div key={cIdx} className="group/comm flex gap-2.5 items-start justify-between">
+                        <div className="flex gap-2.5 items-start flex-1">
+                          <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
+                            <img
+                              src={resolveImageUrl(comm.userAvatar) || getGenderAvatar(comm.userName || "User", "", "creator")}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = getGenderAvatar(comm.userName || "User", "", "creator");
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
+                            <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
+                            <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
+                          </div>
+                        </div>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePortfolioComment(commentId)}
+                            className="opacity-0 group-hover/comm:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                            title="Delete comment"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
                       </div>
-                      <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
-                        <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
-                        <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -3239,6 +3300,188 @@ export default function InfluencerDetails() {
           </div>
         </div>
       )}
+
+      {/* VIEW ALL PORTFOLIO DELIVERABLES FULL SCREEN MODAL */}
+      <Dialog open={showAllPortfolioModal} onOpenChange={setShowAllPortfolioModal}>
+        <DialogContent className="sm:max-w-5xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+          <DialogHeader className="pb-2 border-b border-border/60">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white shadow-sm">
+                  <Camera className="h-5 w-5" />
+                </span>
+                <div>
+                  <DialogTitle className="font-display text-xl font-bold">
+                    {inf.name}'s Complete Portfolio
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                    Browse all verified posts, reels, and stories created by {inf.name}.
+                  </DialogDescription>
+                </div>
+              </div>
+
+              {/* Format Switcher inside Modal */}
+              <div className="flex items-center gap-1 p-1 bg-muted/60 rounded-xl border border-border/60 text-xs self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setPortfolioTab("all")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-medium transition-all",
+                    portfolioTab === "all"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  All ({portfolio?.length || 0})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPortfolioTab("post")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all",
+                    portfolioTab === "post"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Camera className="h-3.5 w-3.5 text-blue-500" /> Posts ({(portfolio || []).filter(p => (p.type || "post") === "post").length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPortfolioTab("reel")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all",
+                    portfolioTab === "reel"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Film className="h-3.5 w-3.5 text-pink-500" /> Reels ({(portfolio || []).filter(p => p.type === "reel").length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPortfolioTab("story")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-all",
+                    portfolioTab === "story"
+                      ? "bg-background text-foreground shadow-xs font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Stories ({(portfolio || []).filter(p => p.type === "story").length})
+                </button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Grid inside modal */}
+          <div className="py-4">
+            {(() => {
+              const modalFiltered = (portfolio || []).filter((item) => {
+                if (portfolioTab === "all") return true;
+                const itemType = item.type || "post";
+                return itemType === portfolioTab;
+              });
+
+              if (modalFiltered.length === 0) {
+                return (
+                  <div className="text-center py-16 border border-dashed border-border rounded-2xl bg-muted/10 p-8">
+                    <Camera className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-50" />
+                    <p className="text-sm font-semibold text-foreground">No deliverables found</p>
+                    <p className="text-xs text-muted-foreground mt-1">There are no {portfolioTab === "all" ? "items" : portfolioTab + "s"} published in this category.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {modalFiltered.map((item, index) => {
+                    const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
+                    const isReel = item.type === "reel";
+                    const isStory = item.type === "story";
+                    const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
+                    const likes = item.likesCount || 0;
+                    const comments = item.commentsCount || (item.comments?.length || 0);
+                    const views = item.viewsCount || (isReel ? 1200 : 0);
+
+                    return (
+                      <div
+                        key={item._id || index}
+                        className="group relative rounded-2xl overflow-hidden border border-border bg-black cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.03] hover:shadow-lg aspect-[4/5]"
+                        onClick={() => {
+                          setSelectedPortfolioPost(item);
+                        }}
+                      >
+                        {isVideo ? (
+                          <video
+                            src={imageSrc}
+                            className="h-full w-full object-cover"
+                            preload="metadata"
+                            muted
+                            playsInline
+                          />
+                        ) : (
+                          <img
+                            src={imageSrc}
+                            alt={item.caption || "Portfolio deliverable"}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        )}
+
+                        <div className="absolute top-2 left-2 z-10">
+                          {isReel ? (
+                            <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30">
+                              <Film className="h-2.5 w-2.5" /> Reel
+                            </span>
+                          ) : isStory ? (
+                            <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
+                              <Sparkles className="h-2.5 w-2.5" /> Story
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30">
+                              <Camera className="h-2.5 w-2.5" /> Post
+                            </span>
+                          )}
+                        </div>
+
+                        {item.brandTag && (
+                          <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
+                            <span className="block truncate bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
+                              {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
+                            </span>
+                          </div>
+                        )}
+
+                        {isReel && views > 0 && (
+                          <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
+                          </div>
+                        )}
+
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
+                          {item.caption && (
+                            <p className="text-[11px] font-medium text-white/90 line-clamp-2 mb-2">
+                              {item.caption}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 text-xs font-bold">
+                            <span className="flex items-center gap-1">
+                              <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* BASIC FALLBACK LIGHTBOX */}
       {lightboxImage && (

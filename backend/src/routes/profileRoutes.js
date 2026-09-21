@@ -7,7 +7,9 @@ import {
   createProfile,
   updateProfile,
   uploadAvatar,
+  deleteAvatar,
   uploadCover,
+  deleteCover,
   uploadKycDocuments,
   unsubscribeEmailNotifications,
   toggleEmailNotifications,
@@ -37,11 +39,13 @@ router.post("/", createProfile);
 
 router.put("/:id", updateProfile);
 
-// Avatar upload
+// Avatar upload & delete
 router.post("/:id/avatar", upload.single("image"), uploadAvatar);
+router.delete("/:id/avatar", deleteAvatar);
 
-// Cover photo upload
+// Cover photo upload & delete
 router.post("/:id/cover", upload.single("image"), uploadCover);
+router.delete("/:id/cover", deleteCover);
 
 // KYC documents upload (multipart)
 router.post(

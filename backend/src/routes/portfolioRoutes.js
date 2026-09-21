@@ -6,6 +6,7 @@ import {
   removeImage,
   toggleLike,
   addComment,
+  deleteComment,
   updateItem,
 } from "../controllers/portfoliocontroller.js";
 
@@ -39,6 +40,13 @@ router.post(
   "/:id/comments",
   optionalAuth,
   addComment
+);
+
+// Delete comment on portfolio item
+router.delete(
+  "/:id/comments/:commentId",
+  optionalAuth,
+  deleteComment
 );
 
 // Update portfolio item

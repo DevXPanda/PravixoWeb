@@ -250,6 +250,58 @@ export const addComment = async (req, res) => {
 };
 
 // =====================================================
+// DELETE COMMENT ON PORTFOLIO ITEM
+// =====================================================
+export const deleteComment = async (req, res) => {
+  try {
+    const { id, commentId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid portfolio ID.",
+      });
+    }
+
+    const item = await Portfolio.findById(id);
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Portfolio item not found.",
+      });
+    }
+
+    // Filter out comment by _id or index
+    if (mongoose.Types.ObjectId.isValid(commentId)) {
+      item.comments = item.comments.filter(
+        (c) => c._id && c._id.toString() !== commentId.toString()
+      );
+    } else {
+      const idx = parseInt(commentId, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < item.comments.length) {
+        item.comments.splice(idx, 1);
+      }
+    }
+
+    item.commentsCount = item.comments.length;
+    await item.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Comment deleted successfully.",
+      data: item.comments,
+      commentsCount: item.commentsCount,
+    });
+  } catch (error) {
+    console.error("Delete comment error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete comment.",
+    });
+  }
+};
+
+// =====================================================
 // UPDATE PORTFOLIO ITEM
 // =====================================================
 export const updateItem = async (req, res) => {
