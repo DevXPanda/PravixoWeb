@@ -2200,13 +2200,13 @@ export default function InfluencerDetails() {
               </div>
 
               {/* INSTAGRAM-STYLE CREATOR PORTFOLIO / BRAND GALLERY */}
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-border/40">
                   <div className="flex items-center gap-2">
                     <span className="p-1 rounded-md bg-gradient-to-tr from-amber-500 via-pink-500 to-purple-600 text-white shadow-xs">
                       <Camera className="h-4 w-4" />
                     </span>
-                    <h2 className="font-display text-xl font-semibold">
+                    <h2 className="font-display text-lg sm:text-xl font-semibold">
                       {isBrand ? "Brand Gallery" : "Creative Portfolio & Feed"}
                     </h2>
                     {portfolio?.length > 0 && (
@@ -2216,71 +2216,69 @@ export default function InfluencerDetails() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* Format Filter Tabs */}
-                    <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setPortfolioTab("all")}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg font-medium transition-all",
-                          portfolioTab === "all"
-                            ? "bg-background text-foreground shadow-xs font-semibold"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        All
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPortfolioTab("post")}
-                        className={cn(
-                          "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
-                          portfolioTab === "post"
-                            ? "bg-background text-foreground shadow-xs font-semibold"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <Camera className="h-3 w-3 text-blue-500" /> Posts
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPortfolioTab("reel")}
-                        className={cn(
-                          "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
-                          portfolioTab === "reel"
-                            ? "bg-background text-foreground shadow-xs font-semibold"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <Film className="h-3 w-3 text-pink-500" /> Reels
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPortfolioTab("story")}
-                        className={cn(
-                          "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all",
-                          portfolioTab === "story"
-                            ? "bg-background text-foreground shadow-xs font-semibold"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        <Sparkles className="h-3 w-3 text-amber-500" /> Stories
-                      </button>
-                    </div>
+                  {/* View All Button */}
+                  {portfolio?.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowAllPortfolioModal(true)}
+                      className="h-7.5 rounded-full text-xs font-semibold border-border hover:bg-secondary flex items-center gap-1 self-start sm:self-auto shrink-0"
+                    >
+                      <Eye className="h-3.5 w-3.5 text-primary" /> View All ({portfolio.length})
+                    </Button>
+                  )}
+                </div>
 
-                    {/* View All Button */}
-                    {portfolio?.length > 0 && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setShowAllPortfolioModal(true)}
-                        className="h-8 rounded-xl text-xs font-semibold border-border hover:bg-secondary flex items-center gap-1"
-                      >
-                        <Eye className="h-3.5 w-3.5 text-primary" /> View All ({portfolio.length})
-                      </Button>
+                {/* Format Filter Tabs */}
+                <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs w-fit mb-4 overflow-x-auto max-w-full">
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioTab("all")}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg font-medium transition-all shrink-0",
+                      portfolioTab === "all"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
-                  </div>
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioTab("post")}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all shrink-0",
+                      portfolioTab === "post"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Camera className="h-3 w-3 text-blue-500" /> Posts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioTab("reel")}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all shrink-0",
+                      portfolioTab === "reel"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Film className="h-3 w-3 text-pink-500" /> Reels
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioTab("story")}
+                    className={cn(
+                      "flex items-center gap-1 px-2.5 py-1 rounded-lg font-medium transition-all shrink-0",
+                      portfolioTab === "story"
+                        ? "bg-background text-foreground shadow-xs font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Sparkles className="h-3 w-3 text-amber-500" /> Stories
+                  </button>
                 </div>
 
                 {/* Portfolio Grid - Consistent Uniform 4:5 Aspect Ratio Cards */}
