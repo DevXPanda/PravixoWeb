@@ -32,15 +32,16 @@ export function PayoutProcessedModal() {
     let eventSource = null;
     const token = localStorage.getItem("token") || "";
     let backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:5000";
+    backendUrl = backendUrl.replace(/\/+$/, "");
     if (backendUrl.endsWith("/api")) {
       backendUrl = backendUrl.slice(0, -4);
     }
 
     // Establish SSE connection to wallet events if creator profile is loaded
-    if (profile && profile.role === "creator") {
+    if (profile && profile.role === "creator" && token) {
       try {
         const streamUrl = `${backendUrl}/api/wallet/events?token=${encodeURIComponent(token)}`;
-        eventSource = new EventSource(streamUrl, { withCredentials: true });
+        eventSource = new EventSource(streamUrl);
 
         eventSource.addEventListener("payout.processed", (e) => {
           try {
@@ -51,6 +52,10 @@ export function PayoutProcessedModal() {
             console.error("Error parsing payout.processed event:", err);
           }
         });
+
+        eventSource.onerror = (err) => {
+          // Silent fallback on network issues
+        };
       } catch (err) {
         console.warn("SSE connection not established:", err);
       }

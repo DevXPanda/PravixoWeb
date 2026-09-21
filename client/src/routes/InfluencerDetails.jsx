@@ -22,6 +22,7 @@ import {
   Sparkles,
   Play,
   Eye,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
