@@ -222,7 +222,7 @@ export function Contact() {
 
                   <Input
                     required
-                    placeholder="e.g. Kushal"
+                    placeholder="e.g. Kashish"
                     value={formData.name}
                     onChange={(e) =>
                       setFormData({

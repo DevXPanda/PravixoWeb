@@ -617,7 +617,7 @@ export default function Reviews() {
                 </label>
                 <Input
                   required
-                  placeholder="e.g. Kushal (Brand Executive) or Radha"
+                  placeholder="e.g. Kashish (Brand Executive)"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="rounded-xl text-xs"
