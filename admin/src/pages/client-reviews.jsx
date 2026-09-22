@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, VideoIcon, CheckCircle2, XCircle, Star, MessageSquare, UserCheck, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "../lib/axios";
+import { resolveImageUrl } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -126,16 +127,43 @@ export default function ClientReviewsPage() {
     }
   };
 
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoSourceType, setVideoSourceType] = useState("file"); // "file" | "link"
+
   const handleSubmitVideoReview = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/admin/content/client-reviews", formData);
+      if (videoSourceType === "file") {
+        if (!videoFile) {
+          toast.error("Please choose a video file.");
+          return;
+        }
+        const fData = new FormData();
+        fData.append("reviewerName", formData.reviewerName);
+        fData.append("reviewText", formData.reviewText);
+        fData.append("rating", String(formData.rating));
+        fData.append("targetRole", formData.targetRole);
+        fData.append("video", videoFile);
+        if (formData.thumbnailUrl) {
+          fData.append("thumbnailUrl", formData.thumbnailUrl);
+        }
+        await api.post("/admin/content/client-reviews", fData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        if (!formData.videoUrl) {
+          toast.error("Please enter a video URL.");
+          return;
+        }
+        await api.post("/admin/content/client-reviews", formData);
+      }
       setOpen(false);
+      setVideoFile(null);
       setFormData({ reviewerName: "", reviewText: "", rating: 5, targetRole: "brand", videoUrl: "", thumbnailUrl: "" });
       toast.success("Client video review saved!");
       fetchData();
     } catch (err) {
-      toast.error("Error saving review");
+      toast.error(err.response?.data?.message || "Error saving review");
     }
   };
 
@@ -166,12 +194,33 @@ export default function ClientReviewsPage() {
                 <Plus className="h-4 w-4 mr-2" /> Add Featured Video Review
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-3xl max-w-lg">
+            <DialogContent className="rounded-3xl max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add Featured Client Review</DialogTitle>
                 <DialogDescription className="hidden">Add a new client review</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmitVideoReview} className="space-y-4 mt-2">
+                <div className="flex rounded-xl bg-secondary/50 p-1 border border-border/60">
+                  <button
+                    type="button"
+                    onClick={() => setVideoSourceType("file")}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                      videoSourceType === "file" ? "bg-card text-foreground shadow-sm font-bold" : "text-muted-foreground"
+                    }`}
+                  >
+                    Upload Video File
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVideoSourceType("link")}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                      videoSourceType === "link" ? "bg-card text-foreground shadow-sm font-bold" : "text-muted-foreground"
+                    }`}
+                  >
+                    Paste Video Link
+                  </button>
+                </div>
+
                 <div>
                   <Label>Reviewer Name</Label>
                   <Input value={formData.reviewerName} onChange={e => setFormData({...formData, reviewerName: e.target.value})} required className="rounded-xl" />
@@ -196,10 +245,28 @@ export default function ClientReviewsPage() {
                     </select>
                   </div>
                 </div>
-                <div>
-                  <Label>Video URL (YouTube/Vimeo/Direct)</Label>
-                  <Input value={formData.videoUrl} onChange={e => setFormData({...formData, videoUrl: e.target.value})} required placeholder="https://..." className="rounded-xl" />
-                </div>
+
+                {videoSourceType === "file" ? (
+                  <div>
+                    <Label>Video File (MP4, MOV, WebM)</Label>
+                    <Input
+                      type="file"
+                      accept="video/*"
+                      onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                      required={!formData.videoUrl}
+                      className="rounded-xl cursor-pointer"
+                    />
+                    {videoFile && (
+                      <p className="text-[11px] text-muted-foreground mt-1">Selected: {videoFile.name} ({(videoFile.size / (1024*1024)).toFixed(1)} MB)</p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <Label>Video URL (YouTube/Vimeo/Direct)</Label>
+                    <Input value={formData.videoUrl} onChange={e => setFormData({...formData, videoUrl: e.target.value})} required placeholder="https://..." className="rounded-xl" />
+                  </div>
+                )}
+
                 <div>
                   <Label>Thumbnail Image URL (Optional)</Label>
                   <Input value={formData.thumbnailUrl} onChange={e => setFormData({...formData, thumbnailUrl: e.target.value})} placeholder="https://..." className="rounded-xl" />
@@ -562,8 +629,8 @@ export default function ClientReviewsPage() {
                     <TableCell className="pl-6 font-medium text-xs">{r.reviewerName}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {r.thumbnailUrl && <img src={r.thumbnailUrl} alt="" className="w-8 h-8 rounded object-cover" onError={(e) => { e.target.style.display = 'none'; }} />}
-                        <a href={r.videoUrl} target="_blank" rel="noreferrer" className="text-primary flex items-center gap-1 hover:underline text-xs">
+                        {r.thumbnailUrl && <img src={resolveImageUrl(r.thumbnailUrl)} alt="" className="w-8 h-8 rounded object-cover" onError={(e) => { e.target.style.display = 'none'; }} />}
+                        <a href={resolveImageUrl(r.videoUrl)} target="_blank" rel="noreferrer" className="text-primary flex items-center gap-1 hover:underline text-xs">
                           <VideoIcon className="w-3.5 h-3.5" /> Watch Video
                         </a>
                       </div>

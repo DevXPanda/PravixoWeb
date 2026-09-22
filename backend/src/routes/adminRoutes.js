@@ -1,4 +1,5 @@
 import express from "express";
+import upload from "../middleware/upload.js";
 import { adminProtect } from "../middleware/auth.js";
 import {
   getStats,
@@ -106,9 +107,13 @@ router.get("/popup-settings", getPopupSettings);
 router.post("/popup-settings", updatePopupSettings);
 
 // Content Management
+const videoUploadMiddleware = upload.fields([
+  { name: "video", maxCount: 1 },
+  { name: "thumbnail", maxCount: 1 },
+]);
 router.get("/content/client-reviews", getClientReviews);
-router.post("/content/client-reviews", createClientReview);
-router.put("/content/client-reviews/:id", updateClientReview);
+router.post("/content/client-reviews", videoUploadMiddleware, createClientReview);
+router.put("/content/client-reviews/:id", videoUploadMiddleware, updateClientReview);
 router.delete("/content/client-reviews/:id", deleteClientReview);
 
 router.get("/content/blogs", getBlogs);

@@ -73,6 +73,14 @@ export const getVideoReviewById = async (req, res) => {
   }
 };
 
+const getFileUrl = (file) => {
+  if (!file) return null;
+  if (file.path && (file.path.startsWith("http://") || file.path.startsWith("https://"))) {
+    return file.path;
+  }
+  return `/uploads/${file.filename}`;
+};
+
 // =====================================
 // CREATE VIDEO REVIEW
 // POST /api/video-reviews
@@ -80,7 +88,34 @@ export const getVideoReviewById = async (req, res) => {
 
 export const createVideoReview = async (req, res) => {
   try {
-    const review = await VideoReview.create(req.body);
+    const payload = { ...req.body };
+
+    if (req.files?.video?.[0]) {
+      payload.videoUrl = getFileUrl(req.files.video[0]);
+    }
+    if (req.files?.thumbnail?.[0]) {
+      payload.thumbnailUrl = getFileUrl(req.files.thumbnail[0]);
+    }
+
+    if (payload.rating) {
+      payload.rating = Number(payload.rating);
+    }
+
+    if (!payload.videoUrl) {
+      return res.status(400).json({
+        success: false,
+        message: "A video file or video link is required.",
+      });
+    }
+
+    if (!payload.reviewerName || !payload.reviewText) {
+      return res.status(400).json({
+        success: false,
+        message: "Reviewer name and review text are required.",
+      });
+    }
+
+    const review = await VideoReview.create(payload);
 
     return res.status(201).json({
       success: true,
@@ -91,7 +126,7 @@ export const createVideoReview = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to create video review.",
+      message: error.message || "Failed to create video review.",
     });
   }
 };
@@ -112,9 +147,22 @@ export const updateVideoReview = async (req, res) => {
       });
     }
 
+    const updateData = { ...req.body };
+
+    if (req.files?.video?.[0]) {
+      updateData.videoUrl = getFileUrl(req.files.video[0]);
+    }
+    if (req.files?.thumbnail?.[0]) {
+      updateData.thumbnailUrl = getFileUrl(req.files.thumbnail[0]);
+    }
+
+    if (updateData.rating) {
+      updateData.rating = Number(updateData.rating);
+    }
+
     const review = await VideoReview.findByIdAndUpdate(
       id,
-      req.body,
+      updateData,
       {
         new: true,
         runValidators: true,
@@ -137,7 +185,7 @@ export const updateVideoReview = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to update video review.",
+      message: error.message || "Failed to update video review.",
     });
   }
 };

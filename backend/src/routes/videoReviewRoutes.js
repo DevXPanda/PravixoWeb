@@ -1,5 +1,5 @@
 import express from "express";
-
+import upload from "../middleware/upload.js";
 import {
   getVideoReviews,
   getVideoReviewById,
@@ -10,17 +10,22 @@ import {
 
 const router = express.Router();
 
+const videoUploadMiddleware = upload.fields([
+  { name: "video", maxCount: 1 },
+  { name: "thumbnail", maxCount: 1 },
+]);
+
 // Get all video reviews
 router.get("/", getVideoReviews);
 
 // Get single video review
 router.get("/:id", getVideoReviewById);
 
-// Create video review
-router.post("/", createVideoReview);
+// Create video review (supports multipart file upload or JSON)
+router.post("/", videoUploadMiddleware, createVideoReview);
 
-// Update video review
-router.put("/:id", updateVideoReview);
+// Update video review (supports multipart file upload or JSON)
+router.put("/:id", videoUploadMiddleware, updateVideoReview);
 
 // Delete video review
 router.delete("/:id", deleteVideoReview);

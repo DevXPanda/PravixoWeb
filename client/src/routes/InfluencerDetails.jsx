@@ -3131,50 +3131,51 @@ export default function InfluencerDetails() {
       {/* INSTAGRAM-STYLE INTERACTIVE LIGHTBOX & POST VIEWER */}
       {selectedPortfolioPost && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center sm:items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setSelectedPortfolioPost(null)}
         >
           <button
-            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 transition-colors rounded-full hover:bg-white/10 z-50 cursor-pointer"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 text-white hover:text-gray-300 p-2 transition-colors rounded-full bg-black/60 sm:bg-transparent hover:bg-white/20 z-[110] cursor-pointer"
             onClick={() => setSelectedPortfolioPost(null)}
+            aria-label="Close viewer"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
           </button>
 
           <div
-            className="relative w-full max-w-4xl bg-card border border-border/80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
+            className="relative w-full max-w-4xl bg-card border border-border/80 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col md:flex-row max-h-[92vh] sm:max-h-[90vh] overflow-y-auto md:overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Left Side: Media Display */}
-            <div className="md:w-3/5 bg-black flex items-center justify-center relative min-h-[300px] md:min-h-[500px]">
+            <div className="w-full md:w-3/5 bg-black flex items-center justify-center relative shrink-0 min-h-[200px] max-h-[42vh] sm:max-h-[50vh] md:max-h-none md:min-h-[500px]">
               {selectedPortfolioPost.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url || "") ? (
                 <video
                   src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
                   controls
                   autoPlay
                   playsInline
-                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                  className="max-h-[42vh] sm:max-h-[50vh] md:max-h-[70vh] w-full h-full object-contain"
                 />
               ) : (
                 <img
                   src={resolveImageUrl(selectedPortfolioPost.imageUrl || selectedPortfolioPost.url)}
                   alt={selectedPortfolioPost.caption || "Portfolio deliverable"}
-                  className="max-h-[70vh] w-auto max-w-full object-contain"
+                  className="max-h-[42vh] sm:max-h-[50vh] md:max-h-[70vh] w-full h-full object-contain"
                 />
               )}
 
               {/* Format Badge Overlay */}
-              <div className="absolute top-3 left-3">
+              <div className="absolute top-3 left-3 z-10">
                 {selectedPortfolioPost.type === "reel" ? (
-                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-xs font-bold px-2.5 py-1 rounded-full border border-pink-500/30">
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full border border-pink-500/30">
                     <Film className="h-3 w-3" /> Reel
                   </span>
                 ) : selectedPortfolioPost.type === "story" ? (
-                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-xs font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full border border-amber-500/30">
                     <Sparkles className="h-3 w-3" /> Story
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-500/30">
+                  <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-[11px] sm:text-xs font-bold px-2.5 py-1 rounded-full border border-blue-500/30">
                     <Camera className="h-3 w-3" /> Post
                   </span>
                 )}
@@ -3182,35 +3183,35 @@ export default function InfluencerDetails() {
             </div>
 
             {/* Right Side: Creator info, Brand tag, Caption, Live Comments & Actions */}
-            <div className="md:w-2/5 flex flex-col justify-between border-t md:border-t-0 md:border-l border-border bg-card">
+            <div className="w-full md:w-2/5 flex flex-col justify-between border-t md:border-t-0 md:border-l border-border bg-card flex-1 min-h-0">
               {/* Header */}
-              <div className="p-4 border-b border-border flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-9 w-9 rounded-full overflow-hidden border border-border bg-muted">
+              <div className="p-3 sm:p-4 border-b border-border flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full overflow-hidden border border-border bg-muted shrink-0">
                     <img
                       src={resolveImageUrl(inf.avatarUrl || inf.avatar) || "https://api.dicebear.com/9.x/avataaars/svg?seed=Creator"}
                       alt={inf.name}
                       className="h-full w-full object-cover"
                     />
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold leading-tight">{inf.name}</h4>
-                    <p className="text-[10px] text-muted-foreground">{inf.handle || "@creator"}</p>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold leading-tight truncate">{inf.name}</h4>
+                    <p className="text-[10px] text-muted-foreground truncate">{inf.handle || "@creator"}</p>
                   </div>
                 </div>
 
-                <Badge variant="secondary" className="text-[10px] font-bold">
+                <Badge variant="secondary" className="text-[10px] font-bold shrink-0">
                   {inf.category || "Creator"}
                 </Badge>
               </div>
 
               {/* Scrollable Caption & Comments List */}
-              <div className="flex-1 p-4 overflow-y-auto max-h-[300px] md:max-h-[360px] space-y-3.5 text-xs">
+              <div className="flex-1 p-3 sm:p-4 overflow-y-auto max-h-[220px] md:max-h-[360px] space-y-3 text-xs">
                 {/* Brand Collab Partnership Tag */}
                 {selectedPortfolioPost.brandTag && (
-                  <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-500 font-semibold flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Paid partnership with <span className="underline">{selectedPortfolioPost.brandTag.startsWith("@") ? selectedPortfolioPost.brandTag : `@${selectedPortfolioPost.brandTag}`}</span></span>
+                  <div className="p-2 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-500 font-semibold flex items-center gap-2 text-xs">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Paid partnership with <span className="underline">{selectedPortfolioPost.brandTag.startsWith("@") ? selectedPortfolioPost.brandTag : `@${selectedPortfolioPost.brandTag}`}</span></span>
                   </div>
                 )}
 
@@ -3224,8 +3225,8 @@ export default function InfluencerDetails() {
                         className="h-full w-full object-cover"
                       />
                     </div>
-                    <div className="flex-1">
-                      <p className="leading-relaxed">
+                    <div className="flex-1 min-w-0">
+                      <p className="leading-relaxed break-words">
                         <span className="font-bold mr-1.5">{inf.name}</span>
                         {selectedPortfolioPost.caption}
                       </p>
@@ -3239,7 +3240,7 @@ export default function InfluencerDetails() {
                 )}
 
                 {/* Comments Section */}
-                <div className="border-t border-border/50 pt-3 space-y-2.5">
+                <div className="border-t border-border/50 pt-2.5 space-y-2">
                   <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
                     Comments ({selectedPortfolioPost.comments?.length || selectedPortfolioPost.commentsCount || 0})
                   </p>
@@ -3252,7 +3253,7 @@ export default function InfluencerDetails() {
 
                     return (
                       <div key={cIdx} className="group/comm flex gap-2.5 items-start justify-between">
-                        <div className="flex gap-2.5 items-start flex-1">
+                        <div className="flex gap-2.5 items-start flex-1 min-w-0">
                           <div className="h-6 w-6 rounded-full overflow-hidden shrink-0 border border-border bg-muted">
                             <img
                               src={resolveImageUrl(comm.userAvatar) || getGenderAvatar(comm.userName || "User", "", "creator")}
@@ -3264,9 +3265,9 @@ export default function InfluencerDetails() {
                               }}
                             />
                           </div>
-                          <div className="flex-1 bg-secondary/30 p-2 rounded-xl">
-                            <p className="font-bold text-[11px] leading-none mb-1">{comm.userName || "Pravixo User"}</p>
-                            <p className="text-[11px] text-foreground leading-tight">{comm.text}</p>
+                          <div className="flex-1 min-w-0 bg-secondary/30 p-2 rounded-xl">
+                            <p className="font-bold text-[11px] leading-none mb-1 truncate">{comm.userName || "Pravixo User"}</p>
+                            <p className="text-[11px] text-foreground leading-tight break-words">{comm.text}</p>
                           </div>
                         </div>
                         {canDelete && (
@@ -3286,7 +3287,7 @@ export default function InfluencerDetails() {
               </div>
 
               {/* Bottom Action Bar: Like, Share, Stats, Add Comment */}
-              <div className="p-4 border-t border-border bg-card space-y-2.5">
+              <div className="p-3 sm:p-4 border-t border-border bg-card space-y-2 shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <button

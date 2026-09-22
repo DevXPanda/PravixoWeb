@@ -1831,9 +1831,30 @@ export const getClientReviews = async (req, res) => {
   }
 };
 
+const getFileUrl = (file) => {
+  if (!file) return null;
+  if (file.path && (file.path.startsWith("http://") || file.path.startsWith("https://"))) {
+    return file.path;
+  }
+  return `/uploads/${file.filename}`;
+};
+
 export const createClientReview = async (req, res) => {
   try {
-    const review = await VideoReview.create(req.body);
+    const payload = { ...req.body };
+    if (req.files?.video?.[0]) {
+      payload.videoUrl = getFileUrl(req.files.video[0]);
+    }
+    if (req.files?.thumbnail?.[0]) {
+      payload.thumbnailUrl = getFileUrl(req.files.thumbnail[0]);
+    }
+    if (payload.rating) {
+      payload.rating = Number(payload.rating);
+    }
+    if (!payload.videoUrl) {
+      return res.status(400).json({ success: false, message: "A video file or URL is required." });
+    }
+    const review = await VideoReview.create(payload);
     res.status(201).json({ success: true, data: review });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -1842,7 +1863,17 @@ export const createClientReview = async (req, res) => {
 
 export const updateClientReview = async (req, res) => {
   try {
-    const review = await VideoReview.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = { ...req.body };
+    if (req.files?.video?.[0]) {
+      updateData.videoUrl = getFileUrl(req.files.video[0]);
+    }
+    if (req.files?.thumbnail?.[0]) {
+      updateData.thumbnailUrl = getFileUrl(req.files.thumbnail[0]);
+    }
+    if (updateData.rating) {
+      updateData.rating = Number(updateData.rating);
+    }
+    const review = await VideoReview.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.status(200).json({ success: true, data: review });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
