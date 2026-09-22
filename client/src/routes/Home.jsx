@@ -62,12 +62,19 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
   const bannerImg = resolveImageUrl(inf.cover || inf.coverUrl || inf.bannerUrl) || DEFAULT_BANNER;
   const avatarImg = resolveImageUrl(inf.avatar || inf.avatarUrl) || getGenderAvatar(inf.name || "User", inf.gender, inf.role || (isBrand ? "brand" : "creator"));
 
+  const hasBarter = Boolean(inf.isBarterAllowed);
+  const priceNum = Number(inf.startingPrice || 0);
+  const isPureBarter = hasBarter && priceNum === 0;
+
   return (
     <Link
       to={targetUrl}
       onClick={handleClick}
-      className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated"
+      className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-border/80 bg-card shadow-card transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-primary/40 hover:shadow-primary/10 card-3d"
     >
+      {/* Light sweep hover effect */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.04] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-20" />
+
       {/* COVER / BANNER */}
       <div className="relative aspect-[1361/450] w-full overflow-hidden bg-muted">
         <img
@@ -75,79 +82,108 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
           alt={inf.name}
           loading="lazy"
           referrerPolicy="no-referrer"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
           onError={(e) => {
             e.target.onerror = null;
             e.target.src = DEFAULT_BANNER;
           }}
         />
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
-        <Badge
-          className="
-            absolute right-2 top-2
-            rounded-full border-0
-            bg-white/90 text-black
-            dark:bg-zinc-800/90 dark:text-white
-            backdrop-blur
-            px-2 py-0.5 sm:px-3 sm:py-1
-            text-[10px] sm:text-xs
-            transition-colors duration-300
-            hover:bg-yellow-400 hover:text-black
-            dark:hover:bg-yellow-400 dark:hover:text-black
-          "
-        >
-          {inf.category}
-        </Badge>
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+
+        {/* Category & Badge */}
+        <div className="absolute right-2 top-2 flex items-center gap-1.5 z-10">
+          <Badge
+            className="
+              rounded-full border-0
+              bg-black/60 text-white
+              dark:bg-zinc-900/80 dark:text-white
+              backdrop-blur-md
+              px-2.5 py-0.5 sm:px-3 sm:py-1
+              text-[10px] sm:text-xs font-semibold
+              shadow-sm
+              transition-colors duration-300
+              group-hover:bg-primary group-hover:text-white
+            "
+          >
+            {inf.category}
+          </Badge>
+        </div>
+
+        {hasBarter && (
+          <div className="absolute left-2 top-2 z-10">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/90 text-white backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold shadow-md animate-pulse">
+              <span>🤝</span> Barter
+            </span>
+          </div>
+        )}
       </div>
 
       {/* PROFILE CONTENT */}
       <div className="-mt-7 flex flex-1 flex-col px-3 pb-3 sm:-mt-10 sm:px-5 sm:pb-5">
-        <img
-          src={avatarImg}
-          alt={inf.name}
-          loading="lazy"
-          referrerPolicy="no-referrer"
-          className="relative z-10 h-14 w-14 rounded-full border-4 border-card bg-muted object-cover shadow-elevated sm:h-20 sm:w-20"
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = getGenderAvatar(inf.name || "User", inf.gender, inf.role || (isBrand ? "brand" : "creator"));
-          }}
-        />
+        <div className="relative inline-block w-fit">
+          <img
+            src={avatarImg}
+            alt={inf.name}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            className="relative z-10 h-14 w-14 rounded-full border-4 border-card bg-muted object-cover shadow-elevated transition-transform duration-300 group-hover:scale-105 group-hover:ring-2 group-hover:ring-primary/40 sm:h-20 sm:w-20"
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = getGenderAvatar(inf.name || "User", inf.gender, inf.role || (isBrand ? "brand" : "creator"));
+            }}
+          />
+        </div>
 
         <div className="mt-2.5 flex items-start justify-between gap-2 sm:mt-3">
           <div className="min-w-0">
-            <h3 className="truncate font-display text-xs font-semibold sm:text-base text-foreground">
+            <h3 className="truncate font-display text-xs font-bold sm:text-base text-foreground group-hover:text-primary transition-colors">
               {inf.name}
             </h3>
-            <p className="truncate text-[10px] text-muted-foreground sm:text-xs">
+            <p className="truncate text-[10px] text-muted-foreground sm:text-xs font-medium">
               {inf.handle}
             </p>
           </div>
-          <span className="flex shrink-0 items-center gap-0.5 text-xs font-medium text-amber-500 sm:text-sm">
-            <Star className="h-3 w-3 fill-current sm:h-4 sm:w-4" />
+          <span className="flex shrink-0 items-center gap-0.5 text-xs font-bold text-amber-500 sm:text-sm bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+            <Star className="h-3 w-3 fill-current sm:h-3.5 sm:w-3.5" />
             {inf.rating || 5.0}
           </span>
         </div>
 
         <div className="mt-auto pt-3">
           {/* LOCATION + FOLLOWERS */}
-          <div className="mt-3 flex flex-col justify-between gap-1 border-t border-border pt-3 text-[10px] sm:mt-4 sm:flex-row sm:items-center sm:text-sm">
-            <span className="flex items-center gap-0.5 truncate text-muted-foreground">
-              <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          <div className="mt-2 flex flex-col justify-between gap-1 border-t border-border/80 pt-2.5 text-[10px] sm:mt-3 sm:flex-row sm:items-center sm:text-xs">
+            <span className="flex items-center gap-1 truncate text-muted-foreground font-medium">
+              <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary/70" />
               {inf.location?.split(",")[0] || "India"}
             </span>
-            <span>
-              <strong>{formatFollowers(inf.followers || 0)}</strong>{" "}
-              <span className="text-muted-foreground">followers</span>
+            <span className="font-semibold text-foreground">
+              {formatFollowers(inf.followers || 0)}{" "}
+              <span className="text-muted-foreground font-normal">followers</span>
             </span>
           </div>
 
-          {/* PRICE */}
-          <div className="mt-1.5 flex items-center justify-between text-[10px] sm:mt-2 sm:text-sm">
-            <span className="text-muted-foreground">From</span>
-            <span className="font-display text-xs font-bold text-gradient-sunset sm:text-lg">
-              {formatINR(inf.startingPrice || 0)}
+          {/* PRICE / BARTER */}
+          <div className="mt-2 flex items-center justify-between text-[11px] sm:text-sm">
+            <span className="text-muted-foreground font-medium text-[10px] sm:text-xs">
+              {isPureBarter ? "Collaboration" : "Starting from"}
             </span>
+
+            {isPureBarter ? (
+              <span className="inline-flex items-center gap-1 font-display text-xs font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full shadow-xs transition-transform duration-300 group-hover:scale-105">
+                <span>🤝</span> Barter Deal
+              </span>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span className="font-display text-xs font-black text-gradient-sunset sm:text-base">
+                  {formatINR(priceNum)}
+                </span>
+                {hasBarter && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-md">
+                    🤝 Barter
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -368,6 +404,7 @@ export default function Home() {
           (p.quoraFollowers || 0) +
           (p.twitterFollowers || 0),
         startingPrice: p.startingPrice || 0,
+        isBarterAllowed: Boolean(p.isBarterAllowed),
         location: p.location || "India",
         rating: p.rating ?? 5.0,
         reviews: p.reviewsCount ?? 0,
@@ -406,6 +443,7 @@ export default function Home() {
         category: p.category || "General",
         followers: 0,
         startingPrice: p.startingPrice || 0,
+        isBarterAllowed: Boolean(p.isBarterAllowed),
         location: p.location || "India",
         rating: p.rating ?? 5.0,
         reviews: p.reviewsCount ?? 0,
@@ -506,93 +544,163 @@ export default function Home() {
       )}
 
       {/* HERO */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden pt-6 pb-12 sm:pb-16">
         {/* Background Banner Image */}
         <div className="absolute inset-0 -z-10">
           <img
             src={heroBanner}
             alt="Featured creators across fashion, fitness, tech, beauty, travel and food"
-            className="h-full w-full scale-110 object-cover blur-sm"
+            className="h-full w-full scale-105 object-cover blur-xs"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/75 to-background" />
-          <div className="absolute inset-0 bg-background/40" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/85 via-background/80 to-background" />
+          <div className="absolute inset-0 bg-background/30" />
         </div>
 
-        {/* Gradient Blobs */}
-        <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute -left-32 -top-40 h-96 w-96 rounded-full gradient-warm opacity-20 blur-3xl animate-blob" />
+        {/* 3D Ambient Gradient Blobs */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -left-32 -top-40 h-[32rem] w-[32rem] rounded-full gradient-warm opacity-25 blur-3xl animate-blob" />
           <div
-            className="absolute right-0 top-20 h-[28rem] w-[28rem] rounded-full gradient-pink opacity-20 blur-3xl animate-blob"
+            className="absolute right-0 top-10 h-[30rem] w-[30rem] rounded-full gradient-pink opacity-25 blur-3xl animate-blob"
             style={{ animationDelay: "4s" }}
           />
+          <div
+            className="absolute left-1/3 bottom-0 h-[24rem] w-[24rem] rounded-full gradient-sunset opacity-15 blur-3xl animate-blob"
+            style={{ animationDelay: "8s" }}
+          />
         </div>
 
-        <div className="mx-auto max-w-7xl px-6 pt-24 pb-8 sm:px-8 sm:pt-28 lg:px-8">
-          <div className="mx-auto max-w-5xl text-center">
+        <div className="mx-auto max-w-7xl px-6 pt-16 pb-8 sm:px-8 sm:pt-20 lg:px-8">
+          <div className="mx-auto max-w-5xl text-center relative">
+
+            {/* 3D Floating Badges around Hero (GPU-accelerated) */}
+            <div className="hidden lg:block">
+              <div className="absolute -left-12 top-6 animate-float z-20">
+                <div className="flex items-center gap-2 rounded-2xl border border-primary/20 bg-card/85 px-3.5 py-2 shadow-xl backdrop-blur-md transition-transform hover:scale-105 select-none">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-xs">
+                    <Zap className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[11px] font-bold text-foreground">AI Matching</p>
+                    <p className="text-[9px] text-muted-foreground">Vetted in seconds</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute -right-8 top-12 animate-float z-20" style={{ animationDelay: "2.5s" }}>
+                <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-card/85 px-3.5 py-2 shadow-xl backdrop-blur-md transition-transform hover:scale-105 select-none">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-xs">
+                    <span className="text-xs">🤝</span>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[11px] font-bold text-foreground">Barter & Paid Deals</p>
+                    <p className="text-[9px] text-emerald-500 font-semibold">100% Verified</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="absolute -left-6 bottom-4 animate-float z-20" style={{ animationDelay: "4s" }}>
+                <div className="flex items-center gap-2 rounded-2xl border border-border/80 bg-card/85 px-3.5 py-2 shadow-xl backdrop-blur-md transition-transform hover:scale-105 select-none">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-xs">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-[11px] font-bold text-foreground">Escrow Protection</p>
+                    <p className="text-[9px] text-muted-foreground">Safe collaboration</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Top Pill */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary backdrop-blur-sm shadow-xs mb-4">
+              <span className="flex h-2 w-2 rounded-full bg-primary animate-ping" />
+              <span>India's Leading Creator & Brand Marketplace</span>
+            </div>
 
             {/* Heading */}
-            <h1 className="mt-4 text-center font-display font-bold leading-[1.05] tracking-tight">
-              <span className="block text-[clamp(2.5rem,5.5vw,5rem)] text-foreground">
+            <h1 className="mt-2 text-center font-display font-black leading-[1.05] tracking-tight">
+              <span className="block text-[clamp(2.5rem,5.5vw,5.2rem)] text-foreground">
                 Find the right influencers
               </span>
-              <span className="block text-[clamp(2.5rem,5.5vw,5rem)] text-gradient-sunset">
+              <span className="block text-[clamp(2.5rem,5.5vw,5.2rem)] text-gradient-sunset drop-shadow-sm">
                 for your Brand in Minutes.
               </span>
             </h1>
 
             {/* Description */}
-            <p className="mx-auto mt-6 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Discover vetted influencers across every niche. Launch campaigns
-              in days, not weeks. Get measurable results.
+            <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg leading-relaxed">
+              Discover verified influencers and top brands across every category. Support for cash budgets and barter collaborations with end-to-end safe escrow protection.
             </p>
 
-            {/* Search Input */}
+            {/* Search Input with 3D Glow Container */}
             <form
               onSubmit={handleSearch}
-              className="mx-auto mt-8 flex max-w-xl items-center gap-2 rounded-full border border-border bg-card/90 p-2 shadow-soft backdrop-blur focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20"
+              className="mx-auto mt-8 flex max-w-2xl items-center gap-2 rounded-full border border-border/80 bg-card/95 p-2 shadow-xl backdrop-blur-md focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15 transition-all duration-300"
             >
-              <Search className="ml-3 h-5 w-5 shrink-0 text-muted-foreground" />
+              <Search className="ml-3.5 h-5 w-5 shrink-0 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Try 'fashion creator in Paris'"
+                placeholder="Search creators by niche, location, handle, or 'barter'..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground"
+                className="flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground font-medium"
               />
               <Button
                 type="submit"
                 size="sm"
-                className="rounded-full gradient-sunset border-0 px-5 text-white shadow-glow"
+                className="rounded-full gradient-sunset border-0 px-6 py-2.5 text-white shadow-glow hover:opacity-95 transition-all hover:scale-105 active:scale-95 text-xs font-bold"
               >
-                Search <ArrowRight className="ml-1 h-4 w-4" />
+                Search <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             </form>
 
-            {/* Payment info buttons right under search */}
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
+            {/* Interactive Quick Search Pills */}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <span className="text-[11px] font-bold text-muted-foreground mr-1 uppercase tracking-wider">Quick:</span>
+              {[
+                { label: "🤝 Barter Deals", query: "barter" },
+                { label: "👗 Fashion", query: "fashion" },
+                { label: "💻 Tech", query: "tech" },
+                { label: "🍕 Food", query: "food" },
+                { label: "💪 Fitness", query: "fitness" },
+                { label: "✈️ Travel", query: "travel" },
+              ].map((pill) => (
+                <button
+                  key={pill.label}
+                  type="button"
+                  onClick={() => navigate(`/browse?q=${encodeURIComponent(pill.query)}`)}
+                  className="rounded-full border border-border/80 bg-card/70 px-3 py-1 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-all duration-200 shadow-xs cursor-pointer hover:scale-105 active:scale-95"
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Payment info buttons */}
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-full text-xs font-medium"
+                className="rounded-full text-xs font-semibold border-border/80 bg-background/60 backdrop-blur hover:bg-accent hover:border-primary/40 shadow-xs"
                 onClick={() =>
                   navigate("/protection-info", {
                     state: { type: "creator" },
                   })
                 }
               >
-                How do I get paid? (Creators)
+                💰 How do I get paid? (Creators)
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="rounded-full text-xs font-medium"
+                className="rounded-full text-xs font-semibold border-border/80 bg-background/60 backdrop-blur hover:bg-accent hover:border-primary/40 shadow-xs"
                 onClick={() =>
                   navigate("/protection-info", {
                     state: { type: "brand" },
                   })
                 }
               >
-                How is my money protected? (Brands)
+                🛡️ How is my money protected? (Brands)
               </Button>
             </div>
 
@@ -602,7 +710,7 @@ export default function Home() {
                 <Link to="/register?role=brand">
                   <Button
                     size="lg"
-                    className="min-w-[210px] justify-center rounded-full gradient-sunset border-0 text-white shadow-glow transition-transform hover:scale-105 hover:opacity-95"
+                    className="min-w-[210px] justify-center rounded-full gradient-sunset border-0 text-white shadow-glow transition-transform hover:scale-105 hover:opacity-95 font-bold"
                   >
                     I'm a brand
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -611,7 +719,7 @@ export default function Home() {
                 <Link to="/register?role=creator">
                   <Button
                     size="lg"
-                    className="min-w-[210px] justify-center rounded-full gradient-sunset border-0 text-white shadow-glow transition-transform hover:scale-105 hover:opacity-95"
+                    className="min-w-[210px] justify-center rounded-full gradient-sunset border-0 text-white shadow-glow transition-transform hover:scale-105 hover:opacity-95 font-bold"
                   >
                     I'm an influencer
                     <ArrowRight className="ml-2 h-4 w-4" />
@@ -638,7 +746,7 @@ export default function Home() {
           </div>
           <Link
             to="/browse"
-            className="text-sm font-medium text-amber-500 hover:text-amber-400 transition-colors"
+            className="text-sm font-semibold text-primary hover:underline transition-colors flex items-center gap-1"
           >
             All categories →
           </Link>
@@ -649,16 +757,17 @@ export default function Home() {
             <Link
               key={c.name}
               to={`/browse?category=${encodeURIComponent(c.name)}`}
-              className="group rounded-3xl border border-border bg-card p-6 shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-elevated"
+              className="group relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 shadow-card transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 card-3d"
             >
-              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-2xl transition-transform duration-300 group-hover:scale-110">
+              <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="mb-4 inline-flex h-13 w-13 items-center justify-center rounded-2xl bg-secondary/80 text-2xl transition-transform duration-300 group-hover:scale-115 group-hover:rotate-3 shadow-xs">
                 {c.emoji}
               </div>
-              <h3 className="font-display font-semibold text-foreground">
+              <h3 className="font-display font-bold text-foreground group-hover:text-primary transition-colors text-base">
                 {c.name}
               </h3>
               {c.count && (
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground font-medium">
                   {c.count.toLocaleString()} creators
                 </p>
               )}

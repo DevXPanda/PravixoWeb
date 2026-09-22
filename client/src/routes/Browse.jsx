@@ -202,6 +202,8 @@ export default function Browse() {
           followers,
           startingPrice:
             Number(p.startingPrice || 0),
+          isBarterAllowed:
+            Boolean(p.isBarterAllowed),
           location:
             p.location ||
             "India",
@@ -1059,18 +1061,28 @@ export default function Browse() {
                         </div>
 
                         <div className="mt-2 flex items-center justify-between text-xs">
-
                           <span className="text-muted-foreground">
-                            Starting from
+                            {item.isBarterAllowed && (!item.startingPrice || item.startingPrice === 0)
+                              ? "Deal Type"
+                              : "Starting from"}
                           </span>
 
-                          <span className="font-display text-sm font-bold text-gradient-sunset">
-                            {formatINR(
-                              item.startingPrice ||
-                                0
-                            )}
-                          </span>
-
+                          {item.isBarterAllowed && (!item.startingPrice || item.startingPrice === 0) ? (
+                            <span className="inline-flex items-center gap-1 font-display text-xs font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shadow-xs">
+                              <span>🤝</span> Barter Available
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-display text-sm font-bold text-gradient-sunset">
+                                {formatINR(item.startingPrice || 0)}
+                              </span>
+                              {item.isBarterAllowed && (
+                                <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.2 rounded-md">
+                                  🤝 Barter
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                       </div>
