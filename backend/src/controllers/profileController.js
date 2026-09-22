@@ -20,8 +20,8 @@ export const listProfiles = async (req, res) => {
       filter.role = role;
     }
 
-    if (category) {
-      filter.category = category;
+    if (category && category !== "All") {
+      filter.category = { $regex: category.trim(), $options: "i" };
     }
 
     // Always exclude soft-deleted and suspended profiles

@@ -305,19 +305,20 @@ export default function Browse() {
         selectedCategory &&
         selectedCategory !== "All"
       ) {
-        const itemCategory = String(
-          item.category || ""
-        )
-          .trim()
-          .toLowerCase();
+        const filterCategory = String(selectedCategory).trim().toLowerCase();
+        const itemCategories = String(item.category || "")
+          .split(",")
+          .map((c) => c.trim().toLowerCase())
+          .filter(Boolean);
 
-        const filterCategory = String(
-          selectedCategory
-        )
-          .trim()
-          .toLowerCase();
+        const matchesCategory = itemCategories.some(
+          (cat) =>
+            cat === filterCategory ||
+            cat.includes(filterCategory) ||
+            filterCategory.includes(cat)
+        );
 
-        if (itemCategory !== filterCategory) {
+        if (!matchesCategory) {
           return false;
         }
       }
