@@ -3649,9 +3649,11 @@ const [submittingVerification, setSubmittingVerification] =
           </div>
         ) : activeTab === "offers" ? (
           <div className="space-y-6">
+            <MultiRoleOfferForm profileId={profile?._id} role="brand" />
+
             <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
               <h2 className="font-display text-xl font-bold flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" /> Special Offers & Creator Deals
+                <Sparkles className="h-6 w-6 text-primary" /> Creator Deals & Flash Discounts
               </h2>
               <p className="text-xs text-muted-foreground mt-1">
                 Explore limited-time promotional deals and discounts created by verified creators for your brand campaigns.

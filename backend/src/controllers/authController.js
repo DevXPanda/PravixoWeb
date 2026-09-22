@@ -280,6 +280,7 @@ export const registerController = async (req, res) => {
 
         website: profile.website,
         companySize: profile.companySize,
+        isBarterAllowed: Boolean(profile.isBarterAllowed),
 
         gstNumber: profile.gstNumber,
         gstCertificateStorageId:
@@ -437,6 +438,7 @@ export const loginController = async (req, res) => {
 
         website: profile.website,
         companySize: profile.companySize,
+        isBarterAllowed: Boolean(profile.isBarterAllowed),
 
         gstNumber: profile.gstNumber,
         gstCertificateStorageId:
@@ -566,6 +568,7 @@ export const getMeController = async (req, res) => {
 
         website: profile.website,
         companySize: profile.companySize,
+        isBarterAllowed: Boolean(profile.isBarterAllowed),
 
         gstNumber: profile.gstNumber,
         gstCertificateStorageId:
