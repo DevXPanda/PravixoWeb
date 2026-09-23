@@ -1699,6 +1699,40 @@ export default function Messages() {
                               </Button>
                             )}
 
+                            {/* Quick Barter Shipping Action Button in Top Header */}
+                            {(conn.barterDetails?.isBarter || conn.appliedTier?.reward?.toLowerCase().includes("barter") || conn.appliedTier?.perks?.toLowerCase().includes("product") || conn.appliedTier?.cashAmount === 0 || camp?.isBarterAllowed) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (profile.role === "creator") {
+                                    if (conn.barterDetails?.creatorShippingAddress) {
+                                      setCreatorAddressForm({ ...conn.barterDetails.creatorShippingAddress });
+                                    }
+                                    setShippingAddressModalOpen(true);
+                                  } else {
+                                    if (conn.barterDetails) {
+                                      setBrandShipmentForm({
+                                        productName: conn.barterDetails.productName || "",
+                                        productValue: conn.barterDetails.productValue || "",
+                                        productDescription: conn.barterDetails.productDescription || "",
+                                        courierPartner: conn.barterDetails.courierPartner || "BlueDart",
+                                        trackingNumber: conn.barterDetails.trackingNumber || "",
+                                        trackingUrl: conn.barterDetails.trackingUrl || "",
+                                        shippingStatus: conn.barterDetails.shippingStatus || "DISPATCHED",
+                                      });
+                                    }
+                                    setBrandShipmentModalOpen(true);
+                                  }
+                                }}
+                                className="h-7 rounded-full bg-emerald-500/10 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/20 text-[11px] font-semibold px-2.5 flex items-center gap-1 cursor-pointer"
+                                title="Barter Product Seeding & Tracking"
+                              >
+                                <Package className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>{profile.role === "creator" ? (conn.barterDetails?.creatorShippingAddress?.addressLine1 ? "📦 Address Saved" : "📍 Add Address") : "🚚 Dispatch Product"}</span>
+                              </Button>
+                            )}
+
                             <Button
                               size="sm"
                               variant="ghost"
