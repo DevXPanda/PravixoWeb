@@ -315,18 +315,19 @@ export default function Messages() {
   /*
    * ----------------------------------------------------
    * OPEN CONVERSATION FROM recipientId QUERY PARAM
-   * Finds existing conversation or creates new one
+   * Finds existing conversation or creates new one and opens it
    * ----------------------------------------------------
    */
   useEffect(() => {
-    if (!queryRecipientId || !profile?._id || !conversations || recipientHandling) return;
+    if (!queryRecipientId || !profile?._id || recipientHandling) return;
 
     const handleRecipient = async () => {
       setRecipientHandling(true);
       try {
-        // Check if there's already a conversation with this recipient
-        const existing = conversations.find((conv) => {
+        // 1. Check if there's already a conversation with this recipient in existing list
+        let existing = conversations.find((conv) => {
           const otherId =
+            conv.otherProfile?._id ||
             conv.creatorId?._id || conv.creatorId ||
             conv.brandId?._id || conv.brandId ||
             conv.adminId?._id || conv.adminId;
@@ -338,7 +339,7 @@ export default function Messages() {
           setSearchParams({ conversationId: existing._id }, { replace: true });
           openConversation(existing);
         } else {
-          // No existing conversation — create one via API
+          // No existing conversation in state — create or find one via backend API
           const myRole = profile.role; // 'creator' or 'brand'
           const payload =
             myRole === "creator"
@@ -346,13 +347,22 @@ export default function Messages() {
               : { brandId: profile._id, creatorId: queryRecipientId };
 
           const res = await api.post("/api/conversations", payload);
-          const convId = res?.data?.data || res?.data?.conversation?._id;
+          const targetConv = res?.data?.conversation;
+          const convId = res?.data?.data || targetConv?._id;
 
-          // Reload conversations so the new one appears in the list
-          await fetchConversations();
+          // Reload fresh conversations list
+          const convListRes = await api.get(`/api/conversations?profileId=${profile._id}&role=${profile.role}`);
+          const freshList = convListRes?.data?.data || convListRes?.data || [];
+          setConversations(Array.isArray(freshList) ? freshList : []);
 
           if (convId) {
             setSearchParams({ conversationId: convId }, { replace: true });
+            const matched = Array.isArray(freshList) ? freshList.find((c) => String(c._id) === String(convId)) : null;
+            if (matched) {
+              openConversation(matched);
+            } else if (targetConv) {
+              openConversation(targetConv);
+            }
           }
         }
       } catch (err) {
@@ -363,7 +373,6 @@ export default function Messages() {
       }
     };
 
-    // Wait until conversations have loaded before running
     handleRecipient();
   }, [queryRecipientId, profile?._id, conversations.length]);
 
