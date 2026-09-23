@@ -85,6 +85,7 @@ export const influencers = [
     category: "Lifestyle",
     followers: 125000,
     startingPrice: 15000,
+    isBarterAllowed: true,
     location: "Delhi, India",
     rating: 4.8,
     reviews: 24,

@@ -286,12 +286,17 @@ export default function Browse() {
             ?.toLowerCase()
             .includes(q);
 
+        const matchesBarter =
+          (q === "barter" || q === "barter deals" || q === "barter deal" || q.includes("barter")) &&
+          Boolean(item.isBarterAllowed);
+
         if (
           !matchesName &&
           !matchesHandle &&
           !matchesCategory &&
           !matchesLocation &&
-          !matchesBio
+          !matchesBio &&
+          !matchesBarter
         ) {
           return false;
         }

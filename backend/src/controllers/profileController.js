@@ -39,16 +39,20 @@ export const listProfiles = async (req, res) => {
         )
     );
 
-    // Search fullName, handle and category
+    // Search fullName, handle, category, and barter deals
     if (search) {
       const s = search.toLowerCase().trim();
 
-      profiles = profiles.filter(
-        (profile) =>
+      profiles = profiles.filter((profile) => {
+        const matchesBarter = s === "barter" || s === "barter deals" || s === "barter deal" ? Boolean(profile.isBarterAllowed) : false;
+        return (
+          matchesBarter ||
           profile.fullName?.toLowerCase().includes(s) ||
           profile.handle?.toLowerCase().includes(s) ||
-          profile.category?.toLowerCase().includes(s)
-      );
+          profile.category?.toLowerCase().includes(s) ||
+          (Boolean(profile.isBarterAllowed) && s.includes("barter"))
+        );
+      });
     }
 
     const results = await Promise.all(
