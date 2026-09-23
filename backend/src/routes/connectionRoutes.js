@@ -18,6 +18,9 @@ import {
   getCollaborationDetails,
   getCollaborationDeliverables,
   deleteConnection,
+  updateShippingAddress,
+  updateBarterShipping,
+  confirmProductReceived,
 } from "../controllers/connectionController.js";
 
 const router = express.Router();
@@ -37,6 +40,12 @@ router.patch("/:connectionId/agree-amount", protect, agreeCollaborationAmount);
 router.get("/:connectionId/collaboration", protect, getCollaborationDetails);
 
 router.get("/:connectionId/deliverables", protect, getCollaborationDeliverables);
+
+router.patch("/:connectionId/shipping-address", protect, updateShippingAddress);
+
+router.patch("/:connectionId/barter-shipping", protect, updateBarterShipping);
+
+router.patch("/:connectionId/confirm-product-received", protect, confirmProductReceived);
 
 router.get("/collaboration-details", protect, getCollaborationDetails);
 

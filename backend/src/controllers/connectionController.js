@@ -1198,3 +1198,127 @@ export const deleteConnection = async (req, res) => {
     });
   }
 };
+
+// Update Shipping Address by Creator
+export const updateShippingAddress = async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const { fullName, phone, addressLine1, city, state, pincode } = req.body;
+
+    const connection = await Connection.findById(connectionId);
+    if (!connection) {
+      return res.status(404).json({ success: false, message: "Connection not found." });
+    }
+
+    if (!connection.barterDetails) {
+      connection.barterDetails = { isBarter: true };
+    } else {
+      connection.barterDetails.isBarter = true;
+    }
+
+    connection.barterDetails.creatorShippingAddress = {
+      fullName: fullName || "",
+      phone: phone || "",
+      addressLine1: addressLine1 || "",
+      city: city || "",
+      state: state || "",
+      pincode: pincode || "",
+    };
+
+    connection.updatedAt = Date.now();
+    await connection.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Shipping address updated successfully.",
+      data: connection,
+    });
+  } catch (error) {
+    console.error("Update shipping address error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Update Barter Shipment / Tracking by Brand
+export const updateBarterShipping = async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const {
+      productName,
+      productValue,
+      productDescription,
+      courierPartner,
+      trackingNumber,
+      trackingUrl,
+      shippingStatus,
+    } = req.body;
+
+    const connection = await Connection.findById(connectionId);
+    if (!connection) {
+      return res.status(404).json({ success: false, message: "Connection not found." });
+    }
+
+    if (!connection.barterDetails) {
+      connection.barterDetails = {};
+    }
+
+    connection.barterDetails.isBarter = true;
+    if (productName) connection.barterDetails.productName = productName;
+    if (productValue != null) connection.barterDetails.productValue = Number(productValue);
+    if (productDescription) connection.barterDetails.productDescription = productDescription;
+    if (courierPartner) connection.barterDetails.courierPartner = courierPartner;
+    if (trackingNumber) connection.barterDetails.trackingNumber = trackingNumber;
+    if (trackingUrl) connection.barterDetails.trackingUrl = trackingUrl;
+
+    if (shippingStatus) {
+      connection.barterDetails.shippingStatus = shippingStatus;
+      if (shippingStatus === "DISPATCHED" && !connection.barterDetails.shippedAt) {
+        connection.barterDetails.shippedAt = Date.now();
+      }
+      if (shippingStatus === "DELIVERED" && !connection.barterDetails.deliveredAt) {
+        connection.barterDetails.deliveredAt = Date.now();
+      }
+    }
+
+    connection.updatedAt = Date.now();
+    await connection.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Barter shipping details updated successfully.",
+      data: connection,
+    });
+  } catch (error) {
+    console.error("Update barter shipping error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Confirm Product Received by Creator
+export const confirmProductReceived = async (req, res) => {
+  try {
+    const { connectionId } = req.params;
+    const connection = await Connection.findById(connectionId);
+    if (!connection) {
+      return res.status(404).json({ success: false, message: "Connection not found." });
+    }
+
+    if (!connection.barterDetails) {
+      connection.barterDetails = {};
+    }
+
+    connection.barterDetails.shippingStatus = "CONFIRMED_BY_CREATOR";
+    connection.barterDetails.creatorConfirmedAt = Date.now();
+    connection.updatedAt = Date.now();
+    await connection.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Product reception confirmed! You can now proceed with deliverables.",
+      data: connection,
+    });
+  } catch (error) {
+    console.error("Confirm product received error:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

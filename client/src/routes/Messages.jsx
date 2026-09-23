@@ -33,6 +33,16 @@ import {
   Video as VideoIcon,
   Loader2,
   X,
+  Truck,
+  Package,
+  MapPin,
+  Mic,
+  Square,
+  Volume2,
+  Clock,
+  MessageSquareQuote,
+  CornerDownRight,
+  AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
@@ -117,6 +127,53 @@ export default function Messages() {
   const [deleteChatModalOpen, setDeleteChatModalOpen] = useState(false);
   const [selectedConversationForDelete, setSelectedConversationForDelete] = useState(null);
   const [isDeletingConversation, setIsDeletingConversation] = useState(false);
+
+  // AI Pitch Generator Assistant States
+  const [aiPitchModalOpen, setAiPitchModalOpen] = useState(false);
+  const [aiPitchTone, setAiPitchTone] = useState("professional");
+  const [aiPitchCustomPoints, setAiPitchCustomPoints] = useState("");
+  const [isGeneratingAiPitch, setIsGeneratingAiPitch] = useState(false);
+  const [generatedAiPitch, setGeneratedAiPitch] = useState("");
+
+  // Barter Shipment & Tracking States
+  const [shippingAddressModalOpen, setShippingAddressModalOpen] = useState(false);
+  const [creatorAddressForm, setCreatorAddressForm] = useState({
+    fullName: "",
+    phone: "",
+    addressLine1: "",
+    city: "",
+    state: "",
+    pincode: "",
+  });
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+
+  const [brandShipmentModalOpen, setBrandShipmentModalOpen] = useState(false);
+  const [brandShipmentForm, setBrandShipmentForm] = useState({
+    productName: "",
+    productValue: "",
+    productDescription: "",
+    courierPartner: "BlueDart",
+    trackingNumber: "",
+    trackingUrl: "",
+    shippingStatus: "DISPATCHED",
+  });
+  const [isSavingShipment, setIsSavingShipment] = useState(false);
+  const [isConfirmingDelivery, setIsConfirmingDelivery] = useState(false);
+
+  // Voice Recording States (Audio Note in Chat)
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordingTimerRef = useRef(null);
+
+  // Video Timestamp Review Feedback States
+  const [timestampModalOpen, setTimestampModalOpen] = useState(false);
+  const [targetVideoSubmission, setTargetVideoSubmission] = useState(null);
+  const [timestampSeconds, setTimestampSeconds] = useState(0);
+  const [timestampFeedbackComment, setTimestampFeedbackComment] = useState("");
+  const [isSubmittingTimestampComment, setIsSubmittingTimestampComment] = useState(false);
+  const videoReviewPlayerRef = useRef(null);
 
   // Touch handling for mobile Unsend / Delete Chat
   const touchTimer = useRef(null);
@@ -819,6 +876,161 @@ export default function Messages() {
       );
     } finally {
       setSending(false);
+    }
+  };
+
+  /*
+   * ----------------------------------------------------
+   * VOICE AUDIO NOTE RECORDING HANDLERS
+   * ----------------------------------------------------
+   */
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecordingVoice(true);
+      setRecordingDuration(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access error:", err);
+      toast.error("Microphone permission required to record voice notes.");
+    }
+  };
+
+  const handleCancelRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream?.getTracks().forEach((t) => t.stop());
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    audioChunksRef.current = [];
+    setIsRecordingVoice(false);
+    setRecordingDuration(0);
+  };
+
+  const handleSendVoiceNote = async () => {
+    if (!mediaRecorderRef.current || !activeConversation?._id || !profile?._id) return;
+
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+
+    mediaRecorderRef.current.onstop = async () => {
+      try {
+        setSending(true);
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const audioFile = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" });
+
+        const formData = new FormData();
+        formData.append("conversationId", activeConversation._id);
+        formData.append("senderId", profile._id);
+        formData.append("messageType", "voice_note");
+        formData.append("text", `🎤 Voice Note (${Math.floor(recordingDuration / 60)}:${(recordingDuration % 60).toString().padStart(2, "0")})`);
+        formData.append("file", audioFile);
+        formData.append(
+          "metadata",
+          JSON.stringify({
+            duration: recordingDuration,
+            mediaType: "audio",
+          })
+        );
+
+        const response = await api.post("/api/messages", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        const newMessage = response?.data?.data || response?.data;
+        if (newMessage) {
+          setMessages((prev) => [...prev, newMessage]);
+        }
+
+        setIsRecordingVoice(false);
+        setRecordingDuration(0);
+        audioChunksRef.current = [];
+        await fetchConversations();
+        toast.success("Voice note sent!");
+      } catch (err) {
+        console.error("Voice note send error:", err);
+        toast.error("Failed to send voice note.");
+      } finally {
+        setSending(false);
+        mediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+      }
+    };
+
+    mediaRecorderRef.current.stop();
+  };
+
+  /*
+   * ----------------------------------------------------
+   * VIDEO TIMESTAMP REVIEW FEEDBACK HANDLERS
+   * ----------------------------------------------------
+   */
+  const handleOpenTimestampReview = (submissionMeta) => {
+    setTargetVideoSubmission(submissionMeta);
+    setTimestampSeconds(0);
+    setTimestampFeedbackComment("");
+    setTimestampModalOpen(true);
+  };
+
+  const handleSendTimestampFeedback = async (e) => {
+    e.preventDefault();
+    if (!activeConversation?._id || !profile?._id || !targetVideoSubmission || !timestampFeedbackComment.trim()) {
+      return;
+    }
+
+    try {
+      setIsSubmittingTimestampComment(true);
+      const minutes = Math.floor(timestampSeconds / 60);
+      const seconds = Math.floor(timestampSeconds % 60);
+      const formattedTimestamp = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+      const response = await api.post("/api/messages", {
+        conversationId: activeConversation._id,
+        senderId: profile._id,
+        messageType: "timestamp_feedback",
+        text: `⏱️ [${formattedTimestamp}] ${timestampFeedbackComment.trim()}`,
+        metadata: {
+          timestampSeconds: Math.floor(timestampSeconds),
+          formattedTimestamp,
+          feedbackText: timestampFeedbackComment.trim(),
+          videoUrl: targetVideoSubmission.contentUrl,
+          submissionId: targetVideoSubmission.submissionId,
+          deliverableType: targetVideoSubmission.deliverableType || "REEL",
+        },
+      });
+
+      const newMessage = response?.data?.data || response?.data;
+      if (newMessage) {
+        setMessages((prev) => [...prev, newMessage]);
+      }
+
+      toast.success(`Timestamp feedback placed at ${formattedTimestamp}!`);
+      setTimestampModalOpen(false);
+      setTimestampFeedbackComment("");
+      await fetchConversations();
+    } catch (err) {
+      console.error("Timestamp feedback error:", err);
+      toast.error("Failed to post timestamp review feedback.");
+    } finally {
+      setIsSubmittingTimestampComment(false);
     }
   };
 
@@ -1611,6 +1823,150 @@ export default function Messages() {
                                   </div>
                                 )}
 
+                                {/* Barter / Product Seeding Tracking Section */}
+                                {(conn.barterDetails?.isBarter || conn.appliedTier?.reward?.toLowerCase().includes("barter") || conn.appliedTier?.perks?.toLowerCase().includes("product") || conn.appliedTier?.cashAmount === 0) && (
+                                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-3.5 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <Package className="h-4 w-4 text-emerald-600" />
+                                        <span className="text-xs font-bold text-foreground">
+                                          Barter Product Seeding & Tracking
+                                        </span>
+                                      </div>
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "text-[10px] uppercase font-bold px-2 py-0.5",
+                                          conn.barterDetails?.shippingStatus === "CONFIRMED_BY_CREATOR" && "bg-emerald-500/20 text-emerald-700 border-emerald-500/40",
+                                          conn.barterDetails?.shippingStatus === "DELIVERED" && "bg-blue-500/20 text-blue-700 border-blue-500/40",
+                                          conn.barterDetails?.shippingStatus === "DISPATCHED" && "bg-amber-500/20 text-amber-700 border-amber-500/40",
+                                          (!conn.barterDetails?.shippingStatus || conn.barterDetails?.shippingStatus === "NOT_SHIPPED") && "bg-secondary text-muted-foreground"
+                                        )}
+                                      >
+                                        {conn.barterDetails?.shippingStatus ? conn.barterDetails.shippingStatus.replace(/_/g, " ") : "NOT SHIPPED"}
+                                      </Badge>
+                                    </div>
+
+                                    {/* Shipping Info Card */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-background/80 p-3 rounded-xl border border-border/60">
+                                      <div>
+                                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">Product Gifted</p>
+                                        <p className="font-bold text-foreground mt-0.5">
+                                          {conn.barterDetails?.productName || "Collaboration Product Box"}
+                                          {conn.barterDetails?.productValue ? ` (Est. ₹${conn.barterDetails.productValue.toLocaleString()})` : ""}
+                                        </p>
+                                        {conn.barterDetails?.productDescription && (
+                                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{conn.barterDetails.productDescription}</p>
+                                        )}
+                                      </div>
+
+                                      <div>
+                                        <p className="text-[10px] text-muted-foreground uppercase font-semibold">Shipping / Tracking</p>
+                                        {conn.barterDetails?.trackingNumber ? (
+                                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                            <span className="font-mono font-bold text-foreground">{conn.barterDetails.courierPartner}: {conn.barterDetails.trackingNumber}</span>
+                                            {conn.barterDetails?.trackingUrl && (
+                                              <a
+                                                href={conn.barterDetails.trackingUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-0.5"
+                                              >
+                                                Track <ExternalLink className="h-2.5 w-2.5" />
+                                              </a>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <p className="text-[11px] text-muted-foreground italic mt-0.5">Tracking not yet provided by brand.</p>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Actions for Creator and Brand */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                      {/* Creator Action: Provide Address or Confirm Received */}
+                                      {profile?.role === "creator" ? (
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              if (conn.barterDetails?.creatorShippingAddress) {
+                                                setCreatorAddressForm({ ...conn.barterDetails.creatorShippingAddress });
+                                              }
+                                              setShippingAddressModalOpen(true);
+                                            }}
+                                            className="h-8 rounded-full text-xs font-semibold gap-1"
+                                          >
+                                            <MapPin className="h-3.5 w-3.5 text-primary" />
+                                            {conn.barterDetails?.creatorShippingAddress?.addressLine1 ? "Update Address" : "Provide Shipping Address"}
+                                          </Button>
+
+                                          {conn.barterDetails?.shippingStatus !== "CONFIRMED_BY_CREATOR" && (
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              disabled={isConfirmingDelivery}
+                                              onClick={async () => {
+                                                try {
+                                                  setIsConfirmingDelivery(true);
+                                                  await api.patch(`/connections/${conn._id}/confirm-product-received`);
+                                                  toast.success("Product marked as received!");
+                                                  await fetchConversations();
+                                                } catch (err) {
+                                                  toast.error("Failed to confirm product");
+                                                } finally {
+                                                  setIsConfirmingDelivery(false);
+                                                }
+                                              }}
+                                              className="h-8 rounded-full gradient-sunset text-white text-xs font-bold px-3.5 shadow-glow"
+                                            >
+                                              {isConfirmingDelivery ? "Confirming..." : "✓ Confirm Product Received"}
+                                            </Button>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        /* Brand Action: Dispatch & Update Tracking */
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={() => {
+                                              if (conn.barterDetails) {
+                                                setBrandShipmentForm({
+                                                  productName: conn.barterDetails.productName || "",
+                                                  productValue: conn.barterDetails.productValue || "",
+                                                  productDescription: conn.barterDetails.productDescription || "",
+                                                  courierPartner: conn.barterDetails.courierPartner || "BlueDart",
+                                                  trackingNumber: conn.barterDetails.trackingNumber || "",
+                                                  trackingUrl: conn.barterDetails.trackingUrl || "",
+                                                  shippingStatus: conn.barterDetails.shippingStatus || "DISPATCHED",
+                                                });
+                                              }
+                                              setBrandShipmentModalOpen(true);
+                                            }}
+                                            className="h-8 rounded-full gradient-sunset text-white text-xs font-bold px-3.5 shadow-glow gap-1"
+                                          >
+                                            <Truck className="h-3.5 w-3.5" />
+                                            Update Shipping & Tracking
+                                          </Button>
+
+                                          {conn.barterDetails?.creatorShippingAddress?.addressLine1 ? (
+                                            <Badge variant="outline" className="text-[10px] text-foreground bg-secondary/50">
+                                              📍 Ship to: {conn.barterDetails.creatorShippingAddress.city}, {conn.barterDetails.creatorShippingAddress.pincode}
+                                            </Badge>
+                                          ) : (
+                                            <Badge variant="outline" className="text-[10px] text-amber-600 bg-amber-500/10 border-amber-500/20">
+                                              Waiting for creator's address
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                                   <span>
                                     Agreed at: {conn.agreedAt ? new Date(conn.agreedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Recently"}
@@ -1829,34 +2185,49 @@ export default function Messages() {
                                   </div>
                                 )}
 
-                                {/* BRAND DIRECT APPROVAL / REJECT CONTROLS */}
-                                {profile.role === "brand" && (item.metadata.status === "SUBMITTED" || item.metadata.status === "RESUBMITTED" || !item.metadata.status) && (
-                                  <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-2 justify-end">
+                                {/* BRAND DIRECT APPROVAL / REJECT / TIMESTAMP REVIEW CONTROLS */}
+                                <div className="pt-2 border-t border-border/50 flex flex-wrap items-center gap-2 justify-end">
+                                  {/* Timestamp Review Button for Videos/Reels */}
+                                  {(item.metadata.deliverableType === "REEL" || item.metadata.deliverableType === "VIDEO" || item.metadata.contentUrl?.match(/\.(mp4|mov|webm|avi|mkv|m4v)$/i)) && (
                                     <Button
                                       size="sm"
-                                      variant="outline"
-                                      disabled={actionProcessingId === item.metadata.submissionId}
-                                      onClick={() => {
-                                        setSelectedSubmissionForRework(item.metadata.submissionId);
-                                        setReworkFeedbackText("");
-                                        setReworkModalOpen(true);
-                                      }}
-                                      className="h-8 rounded-full border-red-500/30 text-red-600 hover:bg-red-500/10 text-xs font-semibold px-3"
+                                      type="button"
+                                      variant="secondary"
+                                      onClick={() => handleOpenTimestampReview(item.metadata)}
+                                      className="h-8 rounded-full bg-secondary text-foreground hover:bg-secondary/80 text-xs font-semibold px-3 gap-1 border border-border/80"
                                     >
-                                      <XCircle className="h-3.5 w-3.5 mr-1" /> Request Rework
+                                      <Clock className="h-3.5 w-3.5 text-primary" /> Timestamp Note
                                     </Button>
+                                  )}
 
-                                    <Button
-                                      size="sm"
-                                      disabled={actionProcessingId === item.metadata.submissionId}
-                                      onClick={() => handleApproveSubmission(item.metadata.submissionId)}
-                                      className="h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 shadow-sm"
-                                    >
-                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
-                                      {actionProcessingId === item.metadata.submissionId ? "Approving..." : "Approve Deliverable"}
-                                    </Button>
-                                  </div>
-                                )}
+                                  {profile.role === "brand" && (item.metadata.status === "SUBMITTED" || item.metadata.status === "RESUBMITTED" || !item.metadata.status) && (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={actionProcessingId === item.metadata.submissionId}
+                                        onClick={() => {
+                                          setSelectedSubmissionForRework(item.metadata.submissionId);
+                                          setReworkFeedbackText("");
+                                          setReworkModalOpen(true);
+                                        }}
+                                        className="h-8 rounded-full border-red-500/30 text-red-600 hover:bg-red-500/10 text-xs font-semibold px-3"
+                                      >
+                                        <XCircle className="h-3.5 w-3.5 mr-1" /> Request Rework
+                                      </Button>
+
+                                      <Button
+                                        size="sm"
+                                        disabled={actionProcessingId === item.metadata.submissionId}
+                                        onClick={() => handleApproveSubmission(item.metadata.submissionId)}
+                                        className="h-8 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 shadow-sm"
+                                      >
+                                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                        {actionProcessingId === item.metadata.submissionId ? "Approving..." : "Approve Deliverable"}
+                                      </Button>
+                                    </>
+                                  )}
+                                </div>
 
                                 {/* Card Footer Timestamp & Link */}
                                 <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/30">
@@ -1873,6 +2244,118 @@ export default function Messages() {
                                       <span>Open full size</span> <ExternalLink className="h-2.5 w-2.5" />
                                     </a>
                                   )}
+                                </div>
+                              </div>
+                            ) : item.messageType === "voice_note" || (item.metadata && item.metadata.mediaType === "audio") ? (
+                              /* VOICE AUDIO NOTE BUBBLE */
+                              <div
+                                onTouchStart={() => isMine && handleTouchStartMessage(item._id)}
+                                onTouchEnd={handleTouchEnd}
+                                onTouchCancel={handleTouchEnd}
+                                className={`rounded-2xl p-3 text-sm shadow-md space-y-2 min-w-[240px] sm:min-w-[280px] ${
+                                  isMine
+                                    ? "rounded-br-md gradient-sunset text-white"
+                                    : "rounded-bl-md bg-secondary/90 text-foreground border border-border/60"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className={`p-2 rounded-full ${isMine ? "bg-white/20 text-white" : "bg-primary/10 text-primary"}`}>
+                                    <Mic className="h-4 w-4 animate-pulse" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <span className="text-xs font-bold block">{isMine ? "You sent a voice note" : "Voice Note"}</span>
+                                    <span className={`text-[10px] ${isMine ? "text-white/80" : "text-muted-foreground"}`}>
+                                      {item.metadata?.duration ? `${Math.floor(item.metadata.duration / 60)}:${(item.metadata.duration % 60).toString().padStart(2, "0")}` : "Voice message"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {item.metadata?.contentUrl && (
+                                  <audio
+                                    src={resolveImageUrl(item.metadata.contentUrl)}
+                                    controls
+                                    className="w-full h-8 rounded-lg outline-none"
+                                  />
+                                )}
+
+                                <div
+                                  className={`flex items-center gap-1.5 text-[10px] ${
+                                    isMine ? "text-white/80 justify-end" : "text-muted-foreground justify-start"
+                                  }`}
+                                >
+                                  <span>
+                                    {item.createdAt
+                                      ? new Date(item.createdAt).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : ""}
+                                  </span>
+                                  {isMine && (
+                                    item.read ? (
+                                      <CheckCheck className="h-3 w-3 text-cyan-200" title="Read" />
+                                    ) : (
+                                      <Check className="h-3 w-3 text-white/60" title="Sent" />
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            ) : item.messageType === "timestamp_feedback" || (item.metadata && item.metadata.timestampSeconds !== undefined) ? (
+                              /* VIDEO TIMESTAMP REVIEW FEEDBACK BUBBLE */
+                              <div
+                                onTouchStart={() => isMine && handleTouchStartMessage(item._id)}
+                                onTouchEnd={handleTouchEnd}
+                                onTouchCancel={handleTouchEnd}
+                                className={`rounded-2xl p-3.5 text-sm shadow-md space-y-2 max-w-[340px] sm:max-w-[420px] ${
+                                  isMine
+                                    ? "rounded-br-md bg-gradient-to-br from-indigo-900 to-slate-900 text-white border border-indigo-500/30"
+                                    : "rounded-bl-md bg-secondary/95 text-foreground border border-border/80"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-white/10">
+                                  <div className="flex items-center gap-1.5 text-indigo-400 font-bold text-xs">
+                                    <Clock className="h-3.5 w-3.5" />
+                                    <span>Video Review Note</span>
+                                  </div>
+                                  <span className="bg-indigo-500/20 text-indigo-300 font-mono font-bold text-xs px-2 py-0.5 rounded-full border border-indigo-500/30">
+                                    ⏱️ {item.metadata?.formattedTimestamp || "0:00"}
+                                  </span>
+                                </div>
+
+                                <p className="text-xs font-medium leading-relaxed whitespace-pre-wrap">
+                                  {item.metadata?.feedbackText || item.text}
+                                </p>
+
+                                {item.metadata?.videoUrl && (
+                                  <div className="rounded-xl overflow-hidden bg-black/80 border border-border/40 p-1.5 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-1.5 text-[11px] text-slate-300 truncate">
+                                      <Film className="h-3.5 w-3.5 text-primary shrink-0" />
+                                      <span className="truncate">{item.metadata.deliverableType || "Deliverable Video"}</span>
+                                    </div>
+                                    <a
+                                      href={resolveImageUrl(item.metadata.videoUrl)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-primary hover:underline text-[10px] font-bold shrink-0 flex items-center gap-0.5"
+                                    >
+                                      <span>Watch</span> <ExternalLink className="h-2.5 w-2.5" />
+                                    </a>
+                                  </div>
+                                )}
+
+                                <div
+                                  className={`flex items-center gap-1.5 text-[10px] ${
+                                    isMine ? "text-white/60 justify-end" : "text-muted-foreground justify-start"
+                                  }`}
+                                >
+                                  <span>
+                                    {item.createdAt
+                                      ? new Date(item.createdAt).toLocaleTimeString([], {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })
+                                      : ""}
+                                  </span>
                                 </div>
                               </div>
                             ) : item.messageType === "media" || (item.metadata && item.metadata.contentUrl) ? (
@@ -2036,6 +2519,24 @@ export default function Messages() {
                     <Paperclip className="h-4 w-4" />
                   </Button>
 
+                  {/* AI Pitch & Proposal Generator Button for Creators */}
+                  {profile?.role === "creator" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setGeneratedAiPitch("");
+                        setAiPitchModalOpen(true);
+                      }}
+                      className="h-8 px-2 rounded-xl text-primary bg-primary/10 hover:bg-primary/20 shrink-0 flex items-center gap-1 font-semibold text-xs transition"
+                      title="AI Pitch Generator Assistant"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+                      <span className="hidden sm:inline">AI Pitch</span>
+                    </Button>
+                  )}
+
                   {/* Creator Direct Work Submission Action (For verified deliverables) */}
                   {profile?.role === "creator" && activeConversation.connection && (
                     <Button
@@ -2055,22 +2556,69 @@ export default function Messages() {
                     </Button>
                   )}
 
-                  <input
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder={attachedMedia ? "Add a caption..." : "Type a message..."}
-                    disabled={sending}
-                    className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
-                  />
+                  {isRecordingVoice ? (
+                    /* LIVE RECORDING STATE CONTROLS */
+                    <div className="flex-1 flex items-center justify-between px-3 py-1 bg-red-500/10 border border-red-500/30 rounded-xl animate-pulse">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping" />
+                        <span className="text-xs font-bold text-red-600">
+                          Recording Voice Note: {Math.floor(recordingDuration / 60)}:{(recordingDuration % 60).toString().padStart(2, "0")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleCancelRecording}
+                          className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive rounded-lg"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleSendVoiceNote}
+                          disabled={sending}
+                          className="h-7 px-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1"
+                        >
+                          <Send className="h-3 w-3" /> Send
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder={attachedMedia ? "Add a caption..." : "Type a message..."}
+                        disabled={sending}
+                        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                      />
 
-                  <button
-                    type="submit"
-                    disabled={(!message.trim() && !attachedMedia) || sending}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl gradient-sunset text-white disabled:cursor-not-allowed disabled:opacity-50 transition-all hover:scale-105 active:scale-95 shadow-glow"
-                    aria-label="Send message"
-                  >
-                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </button>
+                      {/* Microphone Voice Note Button */}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleStartRecording}
+                        disabled={sending}
+                        className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 shrink-0 transition"
+                        title="Record Voice Note"
+                      >
+                        <Mic className="h-4 w-4" />
+                      </Button>
+
+                      <button
+                        type="submit"
+                        disabled={(!message.trim() && !attachedMedia) || sending}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl gradient-sunset text-white disabled:cursor-not-allowed disabled:opacity-50 transition-all hover:scale-105 active:scale-95 shadow-glow cursor-pointer"
+                        aria-label="Send message"
+                      >
+                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </button>
+                    </>
+                  )}
                 </div>
               </form>
             </>
@@ -2415,6 +2963,475 @@ export default function Messages() {
               Cancel
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI PITCH & PROPOSAL ASSISTANT MODAL */}
+      <Dialog open={aiPitchModalOpen} onOpenChange={setAiPitchModalOpen}>
+        <DialogContent className="max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2 text-foreground">
+              <Sparkles className="h-5 w-5 text-primary animate-pulse" /> AI Pitch & Proposal Assistant
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Generate a high-converting, professional pitch tailored to this brand in seconds.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Tone Selector */}
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-2">Select Pitch Tone</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: "professional", label: "💼 Professional" },
+                  { id: "creative", label: "✨ Creative" },
+                  { id: "high_energy", label: "🔥 High-Energy" },
+                  { id: "barter_focus", label: "🤝 Barter Deal" },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setAiPitchTone(t.id)}
+                    className={cn(
+                      "py-2 px-1 text-xs font-semibold rounded-xl border transition-all text-center",
+                      aiPitchTone === t.id
+                        ? "gradient-sunset text-white border-0 shadow-glow"
+                        : "bg-secondary/40 border-border text-foreground hover:bg-secondary"
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Optional Custom Highlights */}
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1.5">
+                Key Deliverables or Highlights (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 1 dedicated reel + 2 story sequence, delivered in 3 days"
+                value={aiPitchCustomPoints}
+                onChange={(e) => setAiPitchCustomPoints(e.target.value)}
+                className="w-full rounded-xl border border-input bg-background p-2.5 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+              />
+            </div>
+
+            {/* Generate Button */}
+            <Button
+              type="button"
+              disabled={isGeneratingAiPitch}
+              onClick={async () => {
+                try {
+                  setIsGeneratingAiPitch(true);
+                  const brandName = activeConversation?.otherProfile?.fullName || "Brand";
+                  const res = await api.post("/ai/pitch", {
+                    brandName,
+                    brandNiche: activeConversation?.otherProfile?.category || "",
+                    creatorName: profile?.fullName || "Creator",
+                    creatorCategory: profile?.category || "Content Creation",
+                    creatorFollowers: (profile?.instagramFollowers || 0) + (profile?.youtubeFollowers || 0),
+                    tone: aiPitchTone,
+                    customPoints: aiPitchCustomPoints,
+                  });
+                  if (res?.data?.data?.pitch) {
+                    setGeneratedAiPitch(res.data.data.pitch);
+                    toast.success("AI Pitch drafted!");
+                  }
+                } catch (err) {
+                  console.error("AI pitch error:", err);
+                  toast.error("Failed to generate AI pitch");
+                } finally {
+                  setIsGeneratingAiPitch(false);
+                }
+              }}
+              className="w-full rounded-2xl gradient-sunset text-white text-xs font-bold h-10 shadow-glow flex items-center justify-center gap-2 hover:opacity-95"
+            >
+              {isGeneratingAiPitch ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Drafting Pitch...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" /> Generate Pitch
+                </>
+              )}
+            </Button>
+
+            {/* Generated Output Preview */}
+            {generatedAiPitch && (
+              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-primary flex items-center gap-1.5">
+                    <CheckCheck className="h-3.5 w-3.5" /> Generated Pitch
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedAiPitch);
+                      toast.success("Copied to clipboard!");
+                    }}
+                    className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <p className="text-xs leading-relaxed text-foreground whitespace-pre-wrap">{generatedAiPitch}</p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setMessage(generatedAiPitch);
+                    setAiPitchModalOpen(false);
+                    toast.success("Pitch inserted into message box!");
+                  }}
+                  className="w-full rounded-xl bg-primary text-primary-foreground text-xs font-bold h-8"
+                >
+                  Use this Pitch in Chat
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAiPitchModalOpen(false)}
+              className="w-full rounded-full text-xs h-9"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CREATOR SHIPPING ADDRESS MODAL */}
+      <Dialog open={shippingAddressModalOpen} onOpenChange={setShippingAddressModalOpen}>
+        <DialogContent className="max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2 text-foreground">
+              <MapPin className="h-5 w-5 text-primary" /> Delivery / Shipping Address
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Provide your delivery address so the brand can dispatch your barter package.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!activeConversation?.connection?._id) return;
+              try {
+                setIsSavingAddress(true);
+                await api.patch(`/connections/${activeConversation.connection._id}/shipping-address`, creatorAddressForm);
+                toast.success("Shipping address saved and shared with brand!");
+                setShippingAddressModalOpen(false);
+                await fetchConversations();
+              } catch (err) {
+                toast.error("Failed to save shipping address");
+              } finally {
+                setIsSavingAddress(false);
+              }
+            }}
+            className="space-y-3 pt-2"
+          >
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Full Name / Receiver Name</label>
+              <input
+                required
+                type="text"
+                placeholder="Receiver full name"
+                value={creatorAddressForm.fullName}
+                onChange={(e) => setCreatorAddressForm({ ...creatorAddressForm, fullName: e.target.value })}
+                className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Phone Number</label>
+              <input
+                required
+                type="tel"
+                placeholder="Mobile number for delivery"
+                value={creatorAddressForm.phone}
+                onChange={(e) => setCreatorAddressForm({ ...creatorAddressForm, phone: e.target.value })}
+                className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Street Address / House No.</label>
+              <input
+                required
+                type="text"
+                placeholder="Flat / House No, Street, Landmark"
+                value={creatorAddressForm.addressLine1}
+                onChange={(e) => setCreatorAddressForm({ ...creatorAddressForm, addressLine1: e.target.value })}
+                className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">City</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="City"
+                  value={creatorAddressForm.city}
+                  onChange={(e) => setCreatorAddressForm({ ...creatorAddressForm, city: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">State</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="State"
+                  value={creatorAddressForm.state}
+                  onChange={(e) => setCreatorAddressForm({ ...creatorAddressForm, state: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Pincode</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="Pincode"
+                  value={creatorAddressForm.pincode}
+                  onChange={(e) => setCreatorAddressForm({ ...creatorAddressForm, pincode: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShippingAddressModalOpen(false)}
+                className="rounded-full text-xs h-9"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingAddress}
+                className="rounded-full gradient-sunset text-white text-xs font-bold px-5 h-9 shadow-glow"
+              >
+                {isSavingAddress ? "Saving..." : "Save Delivery Address"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* BRAND SHIPMENT & TRACKING UPDATE MODAL */}
+      <Dialog open={brandShipmentModalOpen} onOpenChange={setBrandShipmentModalOpen}>
+        <DialogContent className="max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2 text-foreground">
+              <Truck className="h-5 w-5 text-primary" /> Product Dispatch & Tracking
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Update shipment status and tracking details for the creator.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!activeConversation?.connection?._id) return;
+              try {
+                setIsSavingShipment(true);
+                await api.patch(`/connections/${activeConversation.connection._id}/barter-shipping`, brandShipmentForm);
+                toast.success("Shipment details updated!");
+                setBrandShipmentModalOpen(false);
+                await fetchConversations();
+              } catch (err) {
+                toast.error("Failed to update shipment");
+              } finally {
+                setIsSavingShipment(false);
+              }
+            }}
+            className="space-y-3 pt-2"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Product Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Skin Care Starter Kit"
+                  value={brandShipmentForm.productName}
+                  onChange={(e) => setBrandShipmentForm({ ...brandShipmentForm, productName: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Product Value (MRP ₹)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 4500"
+                  value={brandShipmentForm.productValue}
+                  onChange={(e) => setBrandShipmentForm({ ...brandShipmentForm, productValue: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Courier Partner</label>
+              <select
+                value={brandShipmentForm.courierPartner}
+                onChange={(e) => setBrandShipmentForm({ ...brandShipmentForm, courierPartner: e.target.value })}
+                className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="BlueDart">BlueDart</option>
+                <option value="Delhivery">Delhivery</option>
+                <option value="Shiprocket">Shiprocket</option>
+                <option value="DTDC">DTDC</option>
+                <option value="IndiaPost">IndiaPost</option>
+                <option value="Shadowfax">Shadowfax</option>
+                <option value="XpressBees">XpressBees</option>
+                <option value="Other">Other Courier</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">AWB / Tracking No.</label>
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g. 1284918239"
+                  value={brandShipmentForm.trackingNumber}
+                  onChange={(e) => setBrandShipmentForm({ ...brandShipmentForm, trackingNumber: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground block mb-1">Shipment Status</label>
+                <select
+                  value={brandShipmentForm.shippingStatus}
+                  onChange={(e) => setBrandShipmentForm({ ...brandShipmentForm, shippingStatus: e.target.value })}
+                  className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="DISPATCHED">Dispatched 📦</option>
+                  <option value="IN_TRANSIT">In Transit 🚚</option>
+                  <option value="DELIVERED">Delivered 🏠</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">Tracking URL (Optional)</label>
+              <input
+                type="url"
+                placeholder="https://track.courier.com/..."
+                value={brandShipmentForm.trackingUrl}
+                onChange={(e) => setBrandShipmentForm({ ...brandShipmentForm, trackingUrl: e.target.value })}
+                className="w-full rounded-xl border border-input bg-background p-2 text-xs outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBrandShipmentModalOpen(false)}
+                className="rounded-full text-xs h-9"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingShipment}
+                className="rounded-full gradient-sunset text-white text-xs font-bold px-5 h-9 shadow-glow"
+              >
+                {isSavingShipment ? "Saving..." : "Update Tracking Info"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* VIDEO TIMESTAMP REVIEW & MARKER MODAL */}
+      <Dialog open={timestampModalOpen} onOpenChange={setTimestampModalOpen}>
+        <DialogContent className="max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg font-bold flex items-center gap-2 text-foreground">
+              <Clock className="h-5 w-5 text-indigo-500" /> Video Timestamp Review
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Pause or scrub to the exact second in the deliverable video and leave actionable revision notes.
+            </DialogDescription>
+          </DialogHeader>
+
+          {targetVideoSubmission?.contentUrl && (
+            <div className="space-y-4 pt-2">
+              <div className="rounded-2xl overflow-hidden bg-black border border-border/80 relative">
+                <video
+                  ref={videoReviewPlayerRef}
+                  src={resolveImageUrl(targetVideoSubmission.contentUrl)}
+                  controls
+                  playsInline
+                  onTimeUpdate={(e) => setTimestampSeconds(e.target.currentTime)}
+                  className="w-full max-h-56 object-contain rounded-xl"
+                />
+              </div>
+
+              {/* Current Timestamp Indicator */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-indigo-500" />
+                  <span className="text-xs font-semibold text-foreground">Target Timestamp Marker:</span>
+                </div>
+                <span className="font-mono font-bold text-sm bg-indigo-600 text-white px-3 py-1 rounded-xl shadow-sm">
+                  {Math.floor(timestampSeconds / 60)}:{(Math.floor(timestampSeconds % 60)).toString().padStart(2, "0")}
+                </span>
+              </div>
+
+              <form onSubmit={handleSendTimestampFeedback} className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-foreground block mb-1">Feedback / Timestamp Note</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="e.g. Please zoom in on the product label at this moment, or adjust background audio volume..."
+                    value={timestampFeedbackComment}
+                    onChange={(e) => setTimestampFeedbackComment(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-background p-2.5 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+                  />
+                </div>
+
+                <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setTimestampModalOpen(false)}
+                    className="rounded-full text-xs h-9"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={!timestampFeedbackComment.trim() || isSubmittingTimestampComment}
+                    className="rounded-full bg-gradient-to-r from-indigo-600 to-primary hover:opacity-90 text-white text-xs font-bold px-5 h-9 shadow-glow"
+                  >
+                    {isSubmittingTimestampComment ? "Posting..." : "Post Timestamp Note to Chat"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

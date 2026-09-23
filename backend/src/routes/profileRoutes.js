@@ -4,6 +4,7 @@ import {
   listProfiles,
   getByUserId,
   getById,
+  getByHandle,
   createProfile,
   updateProfile,
   uploadAvatar,
@@ -30,6 +31,7 @@ router.post("/unsubscribe", unsubscribeEmailNotifications);
 router.patch("/email-notifications", protect, toggleEmailNotifications);
 router.get("/", listProfiles);
 router.get("/user/:userId", getByUserId);
+router.get("/handle/:handle", getByHandle);
 router.get("/:id", getById);
 
 router.post("/", createProfile);

@@ -180,6 +180,63 @@ const connectionSchema = new mongoose.Schema({
     default: false,
   },
 
+  // Barter / Product Seeding & Shipment Tracking
+  barterDetails: {
+    isBarter: {
+      type: Boolean,
+      default: false,
+    },
+    productName: {
+      type: String,
+      default: "",
+    },
+    productValue: {
+      type: Number,
+      default: 0,
+    },
+    productDescription: {
+      type: String,
+      default: "",
+    },
+    shippingStatus: {
+      type: String,
+      enum: ["NOT_SHIPPED", "DISPATCHED", "IN_TRANSIT", "DELIVERED", "CONFIRMED_BY_CREATOR"],
+      default: "NOT_SHIPPED",
+    },
+    courierPartner: {
+      type: String,
+      default: "",
+    },
+    trackingNumber: {
+      type: String,
+      default: "",
+    },
+    trackingUrl: {
+      type: String,
+      default: "",
+    },
+    shippedAt: {
+      type: Number,
+      default: null,
+    },
+    deliveredAt: {
+      type: Number,
+      default: null,
+    },
+    creatorConfirmedAt: {
+      type: Number,
+      default: null,
+    },
+    creatorShippingAddress: {
+      fullName: { type: String, default: "" },
+      phone: { type: String, default: "" },
+      addressLine1: { type: String, default: "" },
+      city: { type: String, default: "" },
+      state: { type: String, default: "" },
+      pincode: { type: String, default: "" },
+    },
+  },
+
   // Task 11: Creator Payout Release
   payoutId: {
     type: mongoose.Schema.Types.ObjectId,

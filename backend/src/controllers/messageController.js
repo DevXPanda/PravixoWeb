@@ -7,7 +7,16 @@ import { sendPushToUser } from "../utils/webPush.js";
 // Send message (text or image/video media)
 export const sendMessage = async (req, res) => {
   try {
-    const { conversationId, senderId, text } = req.body;
+    const { conversationId, senderId, text, messageType: requestedType, metadata: rawMetadata } = req.body;
+
+    let parsedMetadata = null;
+    if (rawMetadata) {
+      try {
+        parsedMetadata = typeof rawMetadata === "string" ? JSON.parse(rawMetadata) : rawMetadata;
+      } catch {
+        parsedMetadata = null;
+      }
+    }
 
     let actualSenderId = req.user?._id || senderId;
 
@@ -24,7 +33,30 @@ export const sendMessage = async (req, res) => {
     }
 
     const hasFile = Boolean(req.file);
-    const messageText = (text && text.trim()) || (hasFile ? (req.file.mimetype?.startsWith("video/") ? "🎥 Video" : "📷 Photo") : "");
+    const isAudio = hasFile && (req.file.mimetype?.startsWith("audio/") || req.file.originalname?.endsWith(".webm") || req.file.originalname?.endsWith(".mp3") || req.file.originalname?.endsWith(".wav") || req.file.originalname?.endsWith(".ogg"));
+    
+    let resolvedMessageType = requestedType || "text";
+    if (hasFile) {
+      if (isAudio || requestedType === "voice_note") {
+        resolvedMessageType = "voice_note";
+      } else if (req.file.mimetype?.startsWith("video/")) {
+        resolvedMessageType = "media";
+      } else {
+        resolvedMessageType = "media";
+      }
+    } else if (requestedType === "timestamp_feedback") {
+      resolvedMessageType = "timestamp_feedback";
+    }
+
+    const defaultFallbackText = isAudio || resolvedMessageType === "voice_note"
+      ? "🎤 Voice Note"
+      : req.file?.mimetype?.startsWith("video/")
+      ? "🎥 Video"
+      : hasFile
+      ? "📷 Photo"
+      : "💬 Message";
+
+    const messageText = (text && text.trim()) || defaultFallbackText;
 
     if (!conversationId || !actualSenderId || (!messageText && !hasFile)) {
       return res.status(400).json({
@@ -41,23 +73,26 @@ export const sendMessage = async (req, res) => {
       } else {
         fileUrl = `/uploads/${req.file.filename}`;
       }
-      fileType = req.file.mimetype?.startsWith("video/") ? "video" : "image";
+      fileType = isAudio ? "audio" : req.file.mimetype?.startsWith("video/") ? "video" : "image";
     }
+
+    const finalMetadata = hasFile
+      ? {
+          contentUrl: fileUrl,
+          mediaType: fileType,
+          fileName: req.file.originalname,
+          fileSize: req.file.size,
+          ...(parsedMetadata || {}),
+        }
+      : parsedMetadata || null;
 
     const message = await Message.create({
       conversationId,
       senderId: actualSenderId,
       text: messageText,
       read: false,
-      messageType: hasFile ? "media" : "text",
-      metadata: hasFile
-        ? {
-            contentUrl: fileUrl,
-            mediaType: fileType,
-            fileName: req.file.originalname,
-            fileSize: req.file.size,
-          }
-        : null,
+      messageType: resolvedMessageType,
+      metadata: finalMetadata,
     });
 
     const conversation = await Conversation.findById(conversationId);

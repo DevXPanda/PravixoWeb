@@ -185,6 +185,28 @@ const profileSchema = new mongoose.Schema(
       default: "",
     },
 
+    mediaKitBio: {
+      type: String,
+      default: "",
+    },
+
+    mediaKitTagline: {
+      type: String,
+      default: "",
+    },
+
+    audienceHighlights: {
+      topAgeGroup: { type: String, default: "18-24 (45%)" },
+      topGender: { type: String, default: "Female (62%)" },
+      topLocations: { type: String, default: "Mumbai, Delhi, Bangalore" },
+      avgViewsPerReel: { type: String, default: "45K - 120K" },
+    },
+
+    pastBrandsWorkedWith: {
+      type: [String],
+      default: [],
+    },
+
     companySize: {
       type: String,
       default: "",

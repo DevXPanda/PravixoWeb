@@ -1030,22 +1030,59 @@ const CAMPAIGNS_PER_PAGE = 6;
     }
   };
 
-  const handleManualSync = async (connectionId, platform) => {
+  const handleQuickVerify = async (platform, handle, followers) => {
+    if (!mongoProfileId) return;
+    if (!handle?.trim()) {
+      toast.error(`Please enter your ${platform} handle first.`);
+      return;
+    }
     setSyncingPlatform(platform);
-    const toastId = toast.loading(`Synchronizing ${platform.toUpperCase()} analytics...`);
+    const toastId = toast.loading(`Verifying ${platform.toUpperCase()} account & auditing metrics...`);
     try {
-      const res = await syncConnection({ connectionId });
-      if (res.success) {
-        toast.success(`${platform.toUpperCase()} metrics updated successfully!`, { id: toastId });
+      const res = await apiPost("/social/verify-connect", {
+        profileId: mongoProfileId,
+        ownerType: profile?.role || "creator",
+        platform,
+        handle: handle.trim(),
+        followers: Number(followers) || undefined,
+      });
+      if (res?.success) {
+        toast.success(`✓ ${platform.toUpperCase()} verified and live metrics imported!`, { id: toastId });
+        if (fetchProfile) fetchProfile();
+        setSelectedChartPlatform(platform);
       } else {
-        toast.error(`Sync failed: ${res.error}`, { id: toastId });
+        toast.error("Verification failed.", { id: toastId });
       }
     } catch (err) {
-      const e = err ;
-      toast.error(e.message || "Failed to trigger sync", { id: toastId });
+      console.error(err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to verify social platform", { id: toastId });
     } finally {
       setSyncingPlatform(null);
     }
+  };
+
+  const handleLiveReSync = async (connectionId, platform) => {
+    if (!connectionId) return;
+    setSyncingPlatform(platform);
+    const toastId = toast.loading(`Fetching live ${platform.toUpperCase()} engagement & audience metrics...`);
+    try {
+      const res = await apiPost(`/social/${connectionId}/sync-live`);
+      if (res?.success) {
+        toast.success(`✓ Synced live data for ${platform.toUpperCase()}!`, { id: toastId });
+        if (fetchProfile) fetchProfile();
+      } else {
+        toast.error("Sync failed.", { id: toastId });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || err?.message || "Live sync failed", { id: toastId });
+    } finally {
+      setSyncingPlatform(null);
+    }
+  };
+
+  const handleManualSync = async (connectionId, platform) => {
+    return handleLiveReSync(connectionId, platform);
   };
 
   const handleDisconnect = async (connectionId, platform) => {
@@ -1053,6 +1090,7 @@ const CAMPAIGNS_PER_PAGE = 6;
     try {
       await disconnectPlatform({ connectionId });
       toast.success(`Disconnected verified ${platform.toUpperCase()} account.`);
+      if (fetchProfile) fetchProfile();
     } catch (err) {
       const e = err ;
       toast.error(e.message || "Failed to disconnect account.");
@@ -1847,6 +1885,16 @@ const CAMPAIGNS_PER_PAGE = 6;
           </div>
 
   <div className="flex flex-wrap items-center gap-2">
+    {profile?.handle && (
+      <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
+        <Button
+          variant="default"
+          className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-md hover:opacity-90 cursor-pointer"
+        >
+          <Sparkles className="h-3.5 w-3.5" /> Media Kit
+        </Button>
+      </Link>
+    )}
     <Link to={`/influencer/${profile?._id}`}>
       <Button
         variant="outline"
@@ -1874,13 +1922,14 @@ const CAMPAIGNS_PER_PAGE = 6;
     <Button
       variant="outline"
       onClick={() => {
-        const url = `${window.location.origin}/influencer/${profile?._id}`;
+        const handleClean = profile?.handle?.replace("@", "") || profile?._id;
+        const url = `${window.location.origin}/c/${handleClean}`;
         navigator.clipboard.writeText(url);
-        toast.success("Profile link copied to clipboard!");
+        toast.success("Media Kit shareable link copied to clipboard!");
       }}
-      className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+      className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
     >
-      <Share2 className="h-3.5 w-3.5 text-primary" /> Share Link
+      <Share2 className="h-3.5 w-3.5 text-primary" /> Share Media Kit
     </Button>
 
     {(() => {
@@ -2688,20 +2737,52 @@ const CAMPAIGNS_PER_PAGE = 6;
                                   </div>
                                 </div>
 
-                                <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-2">
-                                  {plat.oauth ? (
-                                    <Button
-                                      size="sm"
-                                      variant={isVerified ? "ghost" : "outline"}
-                                      className="w-full text-[11px] h-7 rounded-lg border-border"
-                                      onClick={() => handleOAuthConnect(plat.id)}
-                                    >
-                                      {isVerified ? "Reconnect OAuth" : "OAuth Verify"}
-                                    </Button>
+                                <div className="pt-2 border-t border-border/40 flex flex-col gap-1.5">
+                                  {isVerified ? (
+                                    <div className="flex items-center gap-1.5 w-full">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex-1 text-[11px] h-7 rounded-lg border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 text-sky-600 gap-1 font-semibold"
+                                        disabled={syncingPlatform === plat.id}
+                                        onClick={() => handleLiveReSync(conn?._id, plat.id)}
+                                      >
+                                        <RotateCw className={cn("h-3 w-3", syncingPlatform === plat.id && "animate-spin")} />
+                                        {syncingPlatform === plat.id ? "Syncing..." : "Live Sync"}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-[11px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
+                                        onClick={() => handleDisconnect(conn?._id, plat.id)}
+                                        title="Disconnect verified account"
+                                      >
+                                        Disconnect
+                                      </Button>
+                                    </div>
                                   ) : (
-                                    <span className="text-[10px] text-muted-foreground italic w-full text-center">
-                                      Manual Verification
-                                    </span>
+                                    <div className="flex items-center gap-1.5 w-full">
+                                      <Button
+                                        size="sm"
+                                        className="flex-1 text-[11px] h-7 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1"
+                                        disabled={syncingPlatform === plat.id}
+                                        onClick={() => handleQuickVerify(plat.id, plat.handle, plat.followers)}
+                                      >
+                                        <ShieldCheck className="h-3 w-3" />
+                                        {syncingPlatform === plat.id ? "Auditing..." : "Quick Verify"}
+                                      </Button>
+                                      {plat.oauth && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-[11px] h-7 px-2 border-border text-muted-foreground hover:text-foreground rounded-lg"
+                                          onClick={() => handleOAuthConnect(plat.id)}
+                                          title="OAuth Login verification"
+                                        >
+                                          OAuth
+                                        </Button>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               </div>

@@ -25,6 +25,8 @@ import {
   AlertCircle,
   Download,
   FileCheck,
+  RotateCcw,
+  CheckCheck,
 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -39,6 +41,8 @@ export function AgreementModal({ isOpen, onClose, connectionId }) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [versions, setVersions] = useState([]);
   const [selectedVersion, setSelectedVersion] = useState(null);
+  const [signatureType, setSignatureType] = useState("DIGITAL_ACCEPTANCE"); // "DIGITAL_ACCEPTANCE" | "DRAWN_SIGNATURE"
+  const [signatureName, setSignatureName] = useState("");
 
   const fetchAgreement = async () => {
     if (!connectionId) return;
@@ -92,7 +96,8 @@ export function AgreementModal({ isOpen, onClose, connectionId }) {
     try {
       setSigning(true);
       const res = await api.post(`/api/agreements/${agreement._id}/sign`, {
-        signatureMethod: "DIGITAL_ACCEPTANCE",
+        signatureMethod: signatureType === "DRAWN_SIGNATURE" ? "DRAWN_SIGNATURE" : "DIGITAL_ACCEPTANCE",
+        signatureName: signatureName?.trim() || undefined,
       });
       if (res.data?.success && res.data.data) {
         setAgreement(res.data.data);
@@ -358,7 +363,61 @@ export function AgreementModal({ isOpen, onClose, connectionId }) {
               </div>
 
               {!hasCurrentUserSigned && (isBrand || isCreator) && (
-                <div className="pt-2 border-t border-border/60 space-y-3 print:hidden">
+                <div className="pt-3 border-t border-border/60 space-y-4 print:hidden bg-secondary/10 -mx-4 -mb-4 p-4 sm:-mx-5 sm:-mb-5 rounded-b-2xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-foreground">Choose Signature Method:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSignatureType("DIGITAL_ACCEPTANCE")}
+                        className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
+                          signatureType === "DIGITAL_ACCEPTANCE"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        ⚡ 1-Click Acceptance
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignatureType("DRAWN_SIGNATURE");
+                          if (!signatureName) setSignatureName(profile?.fullName || user?.fullName || "");
+                        }}
+                        className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${
+                          signatureType === "DRAWN_SIGNATURE"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        ✍️ Legal E-Signature
+                      </button>
+                    </div>
+                  </div>
+
+                  {signatureType === "DRAWN_SIGNATURE" && (
+                    <div className="space-y-2 p-3 bg-card border border-border rounded-xl">
+                      <label className="text-[11px] font-semibold text-muted-foreground block">
+                        Type Your Legal Full Name:
+                      </label>
+                      <input
+                        type="text"
+                        value={signatureName}
+                        onChange={(e) => setSignatureName(e.target.value)}
+                        placeholder="Enter full legal name"
+                        className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background text-foreground focus:ring-1 focus:ring-primary outline-none"
+                      />
+                      {signatureName && (
+                        <div className="mt-2 p-3 bg-secondary/20 rounded-lg border border-border/50 text-center">
+                          <span className="text-[10px] text-muted-foreground block mb-0.5">E-Signature Preview:</span>
+                          <span className="font-serif italic text-lg text-primary tracking-wide">
+                            {signatureName}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <label className="flex items-start gap-2.5 cursor-pointer text-xs text-foreground select-none">
                     <input
                       type="checkbox"
@@ -366,22 +425,22 @@ export function AgreementModal({ isOpen, onClose, connectionId }) {
                       onChange={(e) => setAgreedToTerms(e.target.checked)}
                       className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary"
                     />
-                    <span className="leading-snug">
-                      I agree to the terms of this Collaboration Agreement and confirm my digital acceptance for Version {agreement.version}.
+                    <span className="leading-snug text-muted-foreground">
+                      I have read, understood, and legally agree to the terms of this Collaboration Agreement (Version {agreement.version}).
                     </span>
                   </label>
 
                   <div className="flex justify-end">
                     <Button
                       onClick={handleSignAgreement}
-                      disabled={signing || !agreedToTerms}
+                      disabled={signing || !agreedToTerms || (signatureType === "DRAWN_SIGNATURE" && !signatureName.trim())}
                       className="rounded-full px-6 text-xs font-bold h-9 bg-primary hover:bg-primary/90 text-primary-foreground shadow-md gap-1.5"
                     >
                       {signing ? (
                         <>Signing Agreement...</>
                       ) : (
                         <>
-                          <PenTool className="h-3.5 w-3.5" /> Sign Agreement
+                          <PenTool className="h-3.5 w-3.5" /> Confirm & Legally Sign
                         </>
                       )}
                     </Button>

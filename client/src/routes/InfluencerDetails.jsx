@@ -114,6 +114,15 @@ const fetchPortfolio = async (profileId) => {
   return res.data?.data || res.data;
 };
 
+const fetchSocialConnections = async (profileId) => {
+  try {
+    const res = await api.get(`/social/profile/${profileId}`);
+    return res.data?.data || res.data || [];
+  } catch {
+    return [];
+  }
+};
+
 
 // =====================================================
 // LOADER
@@ -146,20 +155,22 @@ export const loader = async ({ params }) => {
 
       if (profile) {
         let portfolioImages = [];
+        let socialConnections = [];
 
         try {
-          const portfolioResponse =
-            await fetchPortfolio(
-              profile._id || profile.id
-            );
+          const [portfolioResponse, socialResponse] = await Promise.all([
+            fetchPortfolio(profile._id || profile.id),
+            fetchSocialConnections(profile._id || profile.id),
+          ]);
 
           const portfolioData =
             portfolioResponse?.data || portfolioResponse || [];
 
           portfolioImages = Array.isArray(portfolioData) ? portfolioData : [];
+          socialConnections = Array.isArray(socialResponse) ? socialResponse : [];
         } catch (portfolioError) {
           console.error(
-            "Portfolio fetch failed:",
+            "Portfolio / social fetch failed:",
             portfolioError
           );
         }
@@ -318,6 +329,9 @@ export const loader = async ({ params }) => {
 
           hiredCount:
             profile.hiredCount || 0,
+
+          socialConnections:
+            socialConnections || [],
         };
       }
     } catch (error) {
@@ -1550,149 +1564,81 @@ export default function InfluencerDetails() {
   // SOCIAL PLATFORMS
   // ===================================================
 
+  const getPlatformVerifiedInfo = (platformKey) => {
+    const found = inf?.socialConnections?.find((c) => c.platform?.toLowerCase() === platformKey.toLowerCase());
+    return {
+      isVerified: Boolean(found?.verified),
+      engagementRate: found?.engagementRate || null,
+      views: found?.views || null,
+    };
+  };
+
   const socialCards = [
     {
       label: "Instagram",
-
-      handle:
-        inf.instagramHandle,
-
-      followers:
-        inf.instagramFollowers,
-
-      href:
-        inf.instagramHandle
-          ? `https://instagram.com/${inf.instagramHandle.replace(
-            "@",
-            ""
-          )}`
-          : "",
-
-      iconClass:
-        "text-pink-600",
-
-      hoverClass:
-        "hover:border-pink-200 hover:bg-pink-50/30",
+      handle: inf.instagramHandle,
+      followers: inf.instagramFollowers,
+      href: inf.instagramHandle
+        ? `https://instagram.com/${inf.instagramHandle.replace("@", "")}`
+        : "",
+      iconClass: "text-pink-600",
+      hoverClass: "hover:border-pink-200 hover:bg-pink-50/30",
+      ...getPlatformVerifiedInfo("instagram"),
     },
-
     {
       label: "Facebook",
-
-      handle:
-        inf.facebookHandle,
-
-      followers:
-        inf.facebookFollowers,
-
-      href:
-        inf.facebookHandle
-          ? `https://facebook.com/${inf.facebookHandle.replace(
-            "@",
-            ""
-          )}`
-          : "",
-
-      iconClass:
-        "text-blue-600",
-
-      hoverClass:
-        "hover:border-blue-200 hover:bg-blue-50/30",
+      handle: inf.facebookHandle,
+      followers: inf.facebookFollowers,
+      href: inf.facebookHandle
+        ? `https://facebook.com/${inf.facebookHandle.replace("@", "")}`
+        : "",
+      iconClass: "text-blue-600",
+      hoverClass: "hover:border-blue-200 hover:bg-blue-50/30",
+      ...getPlatformVerifiedInfo("facebook"),
     },
-
     {
       label: "LinkedIn",
-
-      handle:
-        inf.linkedinHandle,
-
-      followers:
-        inf.linkedinFollowers,
-
-      href:
-        inf.linkedinHandle
-          ? `https://linkedin.com/in/${inf.linkedinHandle.replace(
-            "in/",
-            ""
-          ).replace("@", "")}`
-          : "",
-
-      iconClass:
-        "text-blue-800",
-
-      hoverClass:
-        "hover:border-blue-300 hover:bg-blue-50/30",
+      handle: inf.linkedinHandle,
+      followers: inf.linkedinFollowers,
+      href: inf.linkedinHandle
+        ? `https://linkedin.com/in/${inf.linkedinHandle.replace("in/", "").replace("@", "")}`
+        : "",
+      iconClass: "text-blue-800",
+      hoverClass: "hover:border-blue-300 hover:bg-blue-50/30",
+      ...getPlatformVerifiedInfo("linkedin"),
     },
-
     {
       label: "YouTube",
-
-      handle:
-        inf.youtubeHandle,
-
-      followers:
-        inf.youtubeFollowers,
-
-      href:
-        inf.youtubeHandle
-          ? `https://youtube.com/@${inf.youtubeHandle.replace(
-            "@",
-            ""
-          )}`
-          : "",
-
-      iconClass:
-        "text-red-600",
-
-      hoverClass:
-        "hover:border-red-200 hover:bg-red-50/30",
+      handle: inf.youtubeHandle,
+      followers: inf.youtubeFollowers,
+      href: inf.youtubeHandle
+        ? `https://youtube.com/@${inf.youtubeHandle.replace("@", "")}`
+        : "",
+      iconClass: "text-red-600",
+      hoverClass: "hover:border-red-200 hover:bg-red-50/30",
+      ...getPlatformVerifiedInfo("youtube"),
     },
-
     {
       label: "Quora",
-
-      handle:
-        inf.quoraHandle,
-
-      followers:
-        inf.quoraFollowers,
-
-      href:
-        inf.quoraHandle
-          ? `https://quora.com/profile/${inf.quoraHandle.replace(
-            "@",
-            ""
-          )}`
-          : "",
-
-      iconClass:
-        "text-red-700",
-
-      hoverClass:
-        "hover:border-red-200 hover:bg-red-50/30",
+      handle: inf.quoraHandle,
+      followers: inf.quoraFollowers,
+      href: inf.quoraHandle
+        ? `https://quora.com/profile/${inf.quoraHandle.replace("@", "")}`
+        : "",
+      iconClass: "text-red-700",
+      hoverClass: "hover:border-red-200 hover:bg-red-50/30",
+      ...getPlatformVerifiedInfo("quora"),
     },
-
     {
       label: "X (Twitter)",
-
-      handle:
-        inf.twitterHandle,
-
-      followers:
-        inf.twitterFollowers,
-
-      href:
-        inf.twitterHandle
-          ? `https://x.com/${inf.twitterHandle.replace(
-            "@",
-            ""
-          )}`
-          : "",
-
-      iconClass:
-        "text-sky-500",
-
-      hoverClass:
-        "hover:border-sky-200 hover:bg-sky-50/30",
+      handle: inf.twitterHandle,
+      followers: inf.twitterFollowers,
+      href: inf.twitterHandle
+        ? `https://x.com/${inf.twitterHandle.replace("@", "")}`
+        : "",
+      iconClass: "text-sky-500",
+      hoverClass: "hover:border-sky-200 hover:bg-sky-50/30",
+      ...getPlatformVerifiedInfo("twitter"),
     },
   ].filter(
     (item) => item.handle
@@ -1942,6 +1888,17 @@ export default function InfluencerDetails() {
                   </Button>
                 )}
 
+              {inf.role !== "brand" && inf.handle && (
+                <Link to={`/c/${inf.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
+                  <Button
+                    variant="outline"
+                    className="rounded-full h-9 px-3.5 flex items-center gap-1.5 text-xs font-bold bg-gradient-to-r from-amber-500/10 to-rose-500/10 border-amber-500/30 text-amber-600 hover:text-amber-700 hover:bg-amber-500/20"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Media Kit
+                  </Button>
+                </Link>
+              )}
+
               <Button
                 variant="outline"
                 size="icon"
@@ -2154,7 +2111,7 @@ export default function InfluencerDetails() {
                         }
                         target="_blank"
                         rel="noreferrer"
-                        className={`flex h-28 flex-col items-center justify-center rounded-2xl border border-border bg-card p-4 text-center shadow-sm transition-all group ${social.hoverClass}`}
+                        className={`flex min-h-[7.5rem] flex-col items-center justify-center rounded-2xl border border-border bg-card p-3.5 text-center shadow-sm transition-all group ${social.hoverClass}`}
                       >
 
                         <div className="flex items-center gap-1.5 justify-center mb-1">
@@ -2163,11 +2120,13 @@ export default function InfluencerDetails() {
                             platform={
                               social.label
                             }
-                            className={`h-6 w-6 group-hover:scale-110 transition-transform ${social.iconClass}`}
+                            className={`h-5 w-5 group-hover:scale-110 transition-transform ${social.iconClass}`}
                           />
 
                           {social.isVerified && (
-                            <ShieldCheck className="h-4 w-4 text-primary" />
+                            <span title="Verified & Audited Live Metrics" className="inline-flex items-center text-sky-500">
+                              <ShieldCheck className="h-4 w-4" />
+                            </span>
                           )}
 
                         </div>
@@ -2179,8 +2138,13 @@ export default function InfluencerDetails() {
                           )}
                         </div>
 
-                        <div className="text-xs text-muted-foreground">
-                          {social.label}
+                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-0.5">
+                          <span>{social.label}</span>
+                          {social.isVerified && social.engagementRate && (
+                            <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-500/10 px-1 rounded">
+                              {social.engagementRate}% ER
+                            </span>
+                          )}
                         </div>
 
                       </a>

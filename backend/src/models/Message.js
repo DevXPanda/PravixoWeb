@@ -51,7 +51,7 @@ const messageSchema = new mongoose.Schema(
     },
     messageType: {
       type: String,
-      enum: ["text", "media", "deliverable_submission", "agreement_document", "system"],
+      enum: ["text", "media", "voice_note", "timestamp_feedback", "deliverable_submission", "agreement_document", "system"],
       default: "text",
     },
     metadata: {

@@ -657,6 +657,12 @@ const upgradeSubscription = async ({ profileId, packageId, offerId }) => api.pos
   const [campActive, setCampActive] = useState(true);
   const [campaignDialogOpen, setCampaignDialogOpen] = useState(false);
   const [savingCampaign, setSavingCampaign] = useState(false);
+
+  // AI Smart Matchmaker State
+  const [aiMatchesModalOpen, setAiMatchesModalOpen] = useState(false);
+  const [selectedCampaignForAiMatches, setSelectedCampaignForAiMatches] = useState(null);
+  const [aiMatchedCreators, setAiMatchedCreators] = useState([]);
+  const [loadingAiMatches, setLoadingAiMatches] = useState(false);
   
   const [showVerificationDialog, setShowVerificationDialog] =
   useState(false);
@@ -1326,6 +1332,77 @@ const [submittingVerification, setSubmittingVerification] =
       toast.success("Removed from favorites");
     } catch (e) {
       toast.error("Failed to remove from favorites");
+    }
+  };
+
+  // Deliverable Submissions Load & Review Handlers (Feature 6)
+  const loadCollabSubmissions = async (collabId) => {
+    if (!collabId) return;
+    setLoadingSubmissions(true);
+    try {
+      const res = await api.get(`/api/submissions/${collabId}/submissions`);
+      if (res.data?.success && res.data.data) {
+        setCollabSubmissionsList(res.data.data.submissions || []);
+      }
+    } catch (err) {
+      console.error("Load submissions error:", err);
+      toast.error(err.response?.data?.message || "Failed to load deliverable submissions.");
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedCollabForSubmissions?._id) {
+      loadCollabSubmissions(selectedCollabForSubmissions._id);
+    }
+  }, [selectedCollabForSubmissions]);
+
+  const handleApproveSubmission = async (submissionId) => {
+    if (!submissionId) return;
+    setReviewingSubmissionId(submissionId);
+    try {
+      const res = await api.patch(`/api/submissions/${submissionId}/approve`);
+      if (res.data?.success) {
+        toast.success(res.data.message || "Deliverable approved successfully!");
+        if (selectedCollabForSubmissions?._id) {
+          loadCollabSubmissions(selectedCollabForSubmissions._id);
+        }
+        setRequestsRefreshKey((k) => k + 1);
+      }
+    } catch (err) {
+      console.error("Approve submission error:", err);
+      toast.error(err.response?.data?.message || "Failed to approve deliverable.");
+    } finally {
+      setReviewingSubmissionId(null);
+    }
+  };
+
+  const handleRejectSubmission = async () => {
+    if (!rejectingSubmission?._id) return;
+    if (!submissionRejectionReason.trim()) {
+      toast.error("Please enter a constructive rework reason for the creator.");
+      return;
+    }
+    setReviewingSubmissionId(rejectingSubmission._id);
+    try {
+      const res = await api.patch(`/api/submissions/${rejectingSubmission._id}/reject`, {
+        rejectionReason: submissionRejectionReason.trim(),
+      });
+      if (res.data?.success) {
+        toast.success("Rework feedback sent to creator!");
+        setRejectingSubmission(null);
+        setSubmissionRejectionReason("");
+        if (selectedCollabForSubmissions?._id) {
+          loadCollabSubmissions(selectedCollabForSubmissions._id);
+        }
+        setRequestsRefreshKey((k) => k + 1);
+      }
+    } catch (err) {
+      console.error("Reject submission error:", err);
+      toast.error(err.response?.data?.message || "Failed to request rework.");
+    } finally {
+      setReviewingSubmissionId(null);
     }
   };
 
@@ -3000,20 +3077,54 @@ const [submittingVerification, setSubmittingVerification] =
                             (r) => String(r.campaignId?._id || r.campaignId) === String(camp._id)
                           ).length;
                           return (
-                            <Button
-                              size="sm"
-                              variant={reqsCount > 0 ? "default" : "outline"}
-                              className={cn(
-                                "btn-bouncy h-8 rounded-full text-xs px-3.5 flex items-center gap-1.5 font-bold",
-                                reqsCount > 0
-                                  ? "gradient-sunset border-0 text-white shadow-glow"
-                                  : "border-border text-muted-foreground hover:text-foreground"
-                              )}
-                              onClick={() => setSelectedCampaignForRequests(camp)}
-                            >
-                              <Users className="h-3.5 w-3.5" />
-                              Requests {reqsCount > 0 && <span className="ml-0.5 px-1.5 py-0.2 bg-white text-black rounded-full text-[10px] font-bold">{reqsCount}</span>}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant={reqsCount > 0 ? "default" : "outline"}
+                                className={cn(
+                                  "btn-bouncy h-8 rounded-full text-xs px-3.5 flex items-center gap-1.5 font-bold",
+                                  reqsCount > 0
+                                    ? "gradient-sunset border-0 text-white shadow-glow"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                                )}
+                                onClick={() => setSelectedCampaignForRequests(camp)}
+                              >
+                                <Users className="h-3.5 w-3.5" />
+                                Requests {reqsCount > 0 && <span className="ml-0.5 px-1.5 py-0.2 bg-white text-black rounded-full text-[10px] font-bold">{reqsCount}</span>}
+                              </Button>
+
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="btn-bouncy h-8 rounded-full text-xs px-3 flex items-center gap-1 font-bold border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 shadow-xs"
+                                onClick={async () => {
+                                  setSelectedCampaignForAiMatches(camp);
+                                  setAiMatchesModalOpen(true);
+                                  setLoadingAiMatches(true);
+                                  try {
+                                    const res = await api.get("/ai/smart-matches", {
+                                      params: {
+                                        campaignId: camp._id,
+                                        category: camp.category,
+                                        maxBudget: camp.maxBudgetPerCreator || camp.totalBudget,
+                                        minFollowers: camp.minFollowers,
+                                        location: camp.location,
+                                        isBarter: camp.isBarterAllowed,
+                                      },
+                                    });
+                                    setAiMatchedCreators(res?.data?.data || []);
+                                  } catch (err) {
+                                    console.error("Failed to load AI matches:", err);
+                                    toast.error("Failed to fetch smart matches");
+                                  } finally {
+                                    setLoadingAiMatches(false);
+                                  }
+                                }}
+                              >
+                                <Sparkles className="h-3.5 w-3.5 text-primary animate-pulse" />
+                                AI Matches
+                              </Button>
+                            </div>
                           );
                         })()}
 
@@ -6442,6 +6553,317 @@ const [submittingVerification, setSubmittingVerification] =
           </div>
         </div>
       )}
+      {/* AI SMART MATCHES MODAL */}
+      <Dialog open={aiMatchesModalOpen} onOpenChange={setAiMatchesModalOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] flex flex-col rounded-3xl border border-border bg-card p-6 shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <DialogTitle className="font-display text-lg font-bold flex items-center gap-2 text-foreground">
+                  <Sparkles className="h-5 w-5 text-primary animate-pulse" /> AI Smart Matched Creators
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  AI-ranked creators tailored for &quot;
+                  <span className="font-semibold text-foreground">{selectedCampaignForAiMatches?.title || "Campaign"}</span>&quot;
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
+            {loadingAiMatches ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+                <p className="text-xs font-semibold text-foreground">Analyzing creator synergies & niches...</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Ranking by engagement, budget compatibility, and audience relevance.</p>
+              </div>
+            ) : aiMatchedCreators.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-border rounded-2xl p-6">
+                <Users className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-foreground">No creators found matching this specific criteria.</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Try broadening your campaign budget or category filters.</p>
+              </div>
+            ) : (
+              aiMatchedCreators.map((creator) => {
+                const avatarSrc = resolveImageUrl(creator.avatarUrl || creator.avatar) || getGenderAvatar(creator.fullName, creator.gender, "creator");
+                const followersCount = (creator.followers || 0).toLocaleString();
+
+                return (
+                  <div
+                    key={creator._id}
+                    className="p-4 rounded-2xl border border-border/80 bg-secondary/20 hover:border-primary/40 hover:bg-secondary/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <img
+                        src={avatarSrc}
+                        alt={creator.fullName}
+                        className="h-12 w-12 rounded-full object-cover border border-border aspect-square shrink-0"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = getGenderAvatar(creator.fullName, creator.gender, "creator");
+                        }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-bold text-xs text-foreground truncate group-hover:text-primary transition">
+                            {creator.fullName}
+                          </h4>
+                          <span className="text-[10px] font-mono text-muted-foreground">{creator.handle}</span>
+                          {creator.isBarterAllowed && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-emerald-500/30 text-emerald-600 bg-emerald-500/10">
+                              🤝 Barter
+                            </Badge>
+                          )}
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {creator.category || "Creator"} · {followersCount} followers · {creator.location || "India"}
+                        </p>
+
+                        {/* Match Reasons */}
+                        {creator.matchReasons && creator.matchReasons.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {creator.matchReasons.map((reason, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center text-[9px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20"
+                              >
+                                ✓ {reason}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-2 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40">
+                      {/* Match Score Badge */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                        <Sparkles className="h-3 w-3" />
+                        <span className="text-xs font-black">{creator.matchScore}% Match</span>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          navigate(`/messages?recipientId=${creator._id}`);
+                        }}
+                        className="rounded-full gradient-sunset text-white text-xs font-bold px-4 h-8 shadow-glow"
+                      >
+                        Invite & Chat
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="pt-2 border-t border-border/40">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAiMatchesModalOpen(false)}
+              className="rounded-full text-xs h-9 w-full sm:w-auto"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELIVERABLES SUBMISSIONS & PROOF REVIEW MODAL (Feature 6) */}
+      <Dialog
+        open={Boolean(selectedCollabForSubmissions)}
+        onOpenChange={(open) => !open && setSelectedCollabForSubmissions(null)}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col rounded-3xl border border-border bg-card p-6 shadow-2xl">
+          <DialogHeader className="shrink-0 pb-3 border-b border-border/50">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <DialogTitle className="font-display text-lg font-bold flex items-center gap-2 text-foreground">
+                  <Film className="h-5 w-5 text-primary" /> Deliverables Tracker & Proof Review
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Review submitted videos, posts, reels, and stories with approval & rework controls.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
+            {loadingSubmissions ? (
+              <div className="py-16 text-center text-xs text-muted-foreground space-y-2">
+                <Loader2 className="h-7 w-7 animate-spin text-primary mx-auto" />
+                <p>Loading creator deliverables...</p>
+              </div>
+            ) : collabSubmissionsList.length === 0 ? (
+              <div className="py-14 text-center rounded-2xl border border-dashed border-border p-6 bg-secondary/10">
+                <Film className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="font-semibold text-xs text-foreground">No Deliverables Uploaded Yet</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  The creator has not yet uploaded proof for this collaboration. Submissions will appear here once uploaded.
+                </p>
+              </div>
+            ) : (
+              collabSubmissionsList.map((sub) => {
+                const isApproved = sub.status === "APPROVED";
+                const isRejected = sub.status === "REJECTED";
+                const isVideo = sub.deliverableType === "REEL" || sub.deliverableType === "VIDEO" || sub.contentUrl?.match(/\.(mp4|mov|webm|avi|mkv)$/i);
+
+                return (
+                  <div
+                    key={sub._id}
+                    className="p-4 rounded-2xl border border-border/80 bg-secondary/15 hover:border-border transition-all space-y-3"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/40 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs uppercase tracking-wider text-foreground">
+                          {sub.deliverableType} · Version {sub.version || 1}
+                        </span>
+                        <Badge
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 font-bold border",
+                            isApproved
+                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                              : isRejected
+                              ? "bg-red-500/10 text-red-500 border-red-500/30"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                          )}
+                        >
+                          {isApproved ? "✓ Approved" : isRejected ? "Rework Needed" : "⏳ Under Review"}
+                        </Badge>
+                      </div>
+
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        Submitted: {new Date(sub.submittedAt || sub.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Media Preview Box */}
+                    {sub.contentUrl && (
+                      <div className="rounded-xl overflow-hidden bg-black/90 border border-border flex items-center justify-center max-h-[360px]">
+                        {isVideo ? (
+                          <video
+                            src={resolveImageUrl(sub.contentUrl)}
+                            controls
+                            playsInline
+                            className="max-h-[340px] w-auto object-contain rounded-xl"
+                          />
+                        ) : (
+                          <img
+                            src={resolveImageUrl(sub.contentUrl)}
+                            alt="Submission"
+                            className="max-h-[340px] w-auto object-contain rounded-xl cursor-pointer"
+                            onClick={() => window.open(resolveImageUrl(sub.contentUrl), "_blank")}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {sub.caption && (
+                      <div className="p-2.5 rounded-xl bg-background/60 border border-border/50 text-xs">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground block mb-0.5">Creator Notes</span>
+                        <p className="whitespace-pre-wrap">{sub.caption}</p>
+                      </div>
+                    )}
+
+                    {isRejected && sub.rejectionReason && (
+                      <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-600">
+                        <span className="text-[10px] uppercase font-bold block mb-0.5">Your Feedback to Creator:</span>
+                        <p>{sub.rejectionReason}</p>
+                      </div>
+                    )}
+
+                    {/* Brand Action Buttons */}
+                    {(!isApproved && !isRejected) && (
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={reviewingSubmissionId === sub._id}
+                          onClick={() => {
+                            setRejectingSubmission(sub);
+                            setSubmissionRejectionReason("");
+                          }}
+                          className="rounded-full text-xs font-semibold h-8 border-red-500/30 text-red-600 hover:bg-red-500/10 px-4"
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" /> Request Rework
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={reviewingSubmissionId === sub._id}
+                          onClick={() => handleApproveSubmission(sub._id)}
+                          className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 px-5 shadow-sm"
+                        >
+                          <Check className="h-3.5 w-3.5 mr-1" />
+                          {reviewingSubmissionId === sub._id ? "Approving..." : "Approve Work"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="pt-2 border-t border-border/40">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedCollabForSubmissions(null)}
+              className="rounded-full text-xs"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rework Reason Dialog */}
+      <Dialog
+        open={Boolean(rejectingSubmission)}
+        onOpenChange={(open) => !open && setRejectingSubmission(null)}
+      >
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base font-bold text-foreground">
+              Request Deliverable Rework
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Provide clear, constructive feedback on what the creator needs to change.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <Textarea
+              placeholder="Explain required changes (e.g., 'Please highlight the product logo clearly in the first 3 seconds, and fix the caption tag...')"
+              value={submissionRejectionReason}
+              onChange={(e) => setSubmissionRejectionReason(e.target.value)}
+              className="text-xs min-h-[100px] rounded-xl"
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRejectingSubmission(null)}
+              className="rounded-full text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={reviewingSubmissionId === rejectingSubmission?._id || !submissionRejectionReason.trim()}
+              onClick={handleRejectSubmission}
+              className="rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4"
+            >
+              Send Rework Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

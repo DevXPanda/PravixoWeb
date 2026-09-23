@@ -37,6 +37,7 @@ import referralRoutes from "./routes/referralRoutes.js";
 import internalRoutes from "./routes/internalRoutes.js";
 import followRoutes from "./routes/followRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 // const { router: pushRouter } = require('./routes/push');
 
 const app = express();
@@ -139,12 +140,11 @@ app.use("/api/v1/referrals", referralRoutes);
 
 app.use("/api/follows", followRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/ai", aiRoutes);
 
 app.use("/internal", internalRoutes);
 app.use("/api/internal", internalRoutes);
 
 app.use("/api/push", pushRouter );
-
-
 
 export default app;

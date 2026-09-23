@@ -33,6 +33,7 @@ import OAuthCallback from "./routes/OAuthCallback";
 
 import DashboardCustomer from "./routes/DashboardCustomer";
 import DashboardInfluencer from "./routes/DashboardInfluencer";
+import CreatorMediaKit from "./routes/CreatorMediaKit";
 import Unsubscribe from "./routes/Unsubscribe";
 import PayoutProcessedModal from "./components/collaboration/PayoutProcessedModal";
 
@@ -94,6 +95,16 @@ function Layout() {
           <Route
             path="/brand/:id"
             element={<InfluencerDetails />}
+          />
+
+          <Route
+            path="/c/:handle"
+            element={<CreatorMediaKit />}
+          />
+
+          <Route
+            path="/creator/:handle"
+            element={<CreatorMediaKit />}
           />
 
           <Route path="/login" element={<Login />} />

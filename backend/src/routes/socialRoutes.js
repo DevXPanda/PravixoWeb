@@ -9,6 +9,8 @@ import {
   disconnectPlatform,
   getOAuthClientIds,
   exchangeOAuthCode,
+  verifyAndConnectPlatform,
+  syncLivePlatformStats,
 } from "../controllers/socialController.js";
 
 const router = express.Router();
@@ -26,6 +28,18 @@ router.post(
   "/oauth/exchange",
   exchangeOAuthCode
 );
+
+// Instant Verification & Live Re-Sync
+router.post(
+  "/verify-connect",
+  verifyAndConnectPlatform
+);
+
+router.post(
+  "/:connectionId/sync-live",
+  syncLivePlatformStats
+);
+
 // =====================================================
 // SOCIAL CONNECTIONS
 // =====================================================

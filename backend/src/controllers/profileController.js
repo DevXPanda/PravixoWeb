@@ -244,6 +244,76 @@ export const getById = async (req, res) => {
 };
 
 // =====================================================
+// GET PROFILE BY HANDLE (FOR MEDIA KIT / PUBLIC PORTFOLIO)
+// GET /api/profiles/handle/:handle
+// =====================================================
+
+export const getByHandle = async (req, res) => {
+  try {
+    let { handle } = req.params;
+    if (!handle) {
+      return res.status(400).json({
+        success: false,
+        message: "Handle parameter is required.",
+      });
+    }
+
+    handle = handle.trim().replace(/^@/, "");
+
+    // Search by handle (case insensitive) or if not found and is valid ObjectId, search by ID
+    let profile = await Profile.findOne({
+      handle: { $regex: new RegExp(`^@?${handle}$`, "i") },
+    }).lean();
+
+    if (!profile && mongoose.Types.ObjectId.isValid(handle)) {
+      profile = await Profile.findById(handle).lean();
+    }
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: `Creator profile with handle @${handle} was not found.`,
+      });
+    }
+
+    // Attach reviews & ratings
+    const reviews = await Review.find({
+      creatorId: profile._id,
+      visible: true,
+    }).lean();
+
+    const rating =
+      reviews.length === 0
+        ? 5.0
+        : Math.round(
+            (
+              reviews.reduce(
+                (sum, review) => sum + Number(review.rating || 0),
+                0
+              ) / reviews.length
+            ) * 10
+          ) / 10;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ...profile,
+        rating,
+        reviewsCount: reviews.length,
+        reviews,
+      },
+    });
+  } catch (error) {
+    console.error("Get profile by handle error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch creator profile by handle.",
+      error: error.message,
+    });
+  }
+};
+
+// =====================================================
 // CREATE PROFILE
 // Convex: profiles.create
 // =====================================================
