@@ -40,6 +40,7 @@ import {
   Play,
   ShieldCheck,
   IndianRupee,
+  Loader2,
 } from "lucide-react";
 
 
