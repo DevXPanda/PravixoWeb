@@ -313,6 +313,7 @@ export function DashboardInfluencer() {
 
   const profileKey = mongoProfileId || "none";
   const [portfolioRefreshKey, setPortfolioRefreshKey] = useState(0);
+  const [socialRefreshKey, setSocialRefreshKey] = useState(0);
   const [showPushBanner, setShowPushBanner] = useState(false);
   const [enablingPush, setEnablingPush] = useState(false);
   const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
@@ -410,7 +411,7 @@ export function DashboardInfluencer() {
   );
 
   const connections = useRestQuery(
-    `social-${profileKey}`,
+    `social-${profileKey}-${socialRefreshKey}`,
     () => apiGet(`/social/profile/${mongoProfileId}`),
     hasValidMongoProfileId
   );
@@ -1046,8 +1047,9 @@ const CAMPAIGNS_PER_PAGE = 6;
         handle: handle.trim(),
         followers: Number(followers) || undefined,
       });
-      if (res?.success) {
+      if (res?.success || res?._id || res?.data) {
         toast.success(`✓ ${platform.toUpperCase()} verified and live metrics imported!`, { id: toastId });
+        setSocialRefreshKey((k) => k + 1);
         if (fetchProfile) fetchProfile();
         setSelectedChartPlatform(platform);
       } else {
@@ -1067,8 +1069,9 @@ const CAMPAIGNS_PER_PAGE = 6;
     const toastId = toast.loading(`Fetching live ${platform.toUpperCase()} engagement & audience metrics...`);
     try {
       const res = await apiPost(`/social/${connectionId}/sync-live`);
-      if (res?.success) {
+      if (res?.success || res?._id || res?.data) {
         toast.success(`✓ Synced live data for ${platform.toUpperCase()}!`, { id: toastId });
+        setSocialRefreshKey((k) => k + 1);
         if (fetchProfile) fetchProfile();
       } else {
         toast.error("Sync failed.", { id: toastId });
@@ -1090,6 +1093,7 @@ const CAMPAIGNS_PER_PAGE = 6;
     try {
       await disconnectPlatform({ connectionId });
       toast.success(`Disconnected verified ${platform.toUpperCase()} account.`);
+      setSocialRefreshKey((k) => k + 1);
       if (fetchProfile) fetchProfile();
     } catch (err) {
       const e = err ;
