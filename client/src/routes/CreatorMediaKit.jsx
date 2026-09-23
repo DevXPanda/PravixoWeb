@@ -49,7 +49,7 @@ const QuoraIcon = (props) => (
 export default function CreatorMediaKit() {
   const { handle } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [creator, setCreator] = useState(null);
   const [portfolio, setPortfolio] = useState([]);
@@ -107,6 +107,11 @@ export default function CreatorMediaKit() {
 
     loadMediaKit();
   }, [handle]);
+
+  const isOwnProfile =
+    (profile?._id && creator?._id && String(profile._id) === String(creator._id)) ||
+    (profile?.handle && creator?.handle && profile.handle.replace("@", "").toLowerCase() === creator.handle.replace("@", "").toLowerCase()) ||
+    (user?._id && creator?.userId && String(user._id) === String(creator.userId));
 
   const totalFollowers =
     (creator?.instagramFollowers || 0) +
@@ -199,11 +204,19 @@ export default function CreatorMediaKit() {
             >
               <Download className="w-3.5 h-3.5 text-blue-400" /> Download PDF
             </Button>
-            <Link to={`/influencer/${creator._id}`}>
-              <Button size="sm" className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer">
-                <MessageCircle className="w-3.5 h-3.5" /> Hire @{rawHandle}
-              </Button>
-            </Link>
+            {isOwnProfile ? (
+              <Link to="/dashboard/creator">
+                <Button size="sm" className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer">
+                  <Sparkles className="w-3.5 h-3.5" /> Edit My Profile
+                </Button>
+              </Link>
+            ) : (
+              <Link to={`/influencer/${creator._id}`}>
+                <Button size="sm" className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer">
+                  <MessageCircle className="w-3.5 h-3.5" /> Hire @{rawHandle}
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -272,11 +285,19 @@ export default function CreatorMediaKit() {
 
             {/* Quick Action in Header */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 print:hidden">
-              <Link to={`/messages?with=${creator._id}`} className="w-full sm:w-auto">
-                <Button className="w-full rounded-full bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold px-6 shadow-lg shadow-orange-500/20 cursor-pointer">
-                  <Zap className="w-4 h-4 mr-1.5" /> Book Collaboration
-                </Button>
-              </Link>
+              {isOwnProfile ? (
+                <Link to="/dashboard/creator" className="w-full sm:w-auto">
+                  <Button className="w-full rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 shadow-lg cursor-pointer">
+                    <Sparkles className="w-4 h-4 mr-1.5 text-primary" /> Edit My Media Kit
+                  </Button>
+                </Link>
+              ) : (
+                <Link to={`/messages?recipientId=${creator._id}`} className="w-full sm:w-auto">
+                  <Button className="w-full rounded-full bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold px-6 shadow-lg shadow-orange-500/20 cursor-pointer">
+                    <Zap className="w-4 h-4 mr-1.5" /> Book Collaboration
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </section>
