@@ -298,7 +298,7 @@ export default function Messages() {
    * ----------------------------------------------------
    */
   useEffect(() => {
-    if (!queryConversationId || !conversations.length) return;
+    if (!queryConversationId || !profile?._id) return;
 
     // Prevent re-opening already active conversation
     if (activeConvIdRef.current === queryConversationId) return;
@@ -309,8 +309,20 @@ export default function Messages() {
 
     if (conversation) {
       openConversation(conversation);
+    } else {
+      // If conversation is not yet in conversations list (e.g. newly created without messages or direct URL), fetch its details
+      api.get(`/api/conversations/${queryConversationId}?profileId=${profile._id}`)
+        .then((res) => {
+          const convData = res?.data?.data;
+          if (convData && convData._id) {
+            openConversation(convData);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch conversation details from URL:", err);
+        });
     }
-  }, [queryConversationId, conversations]);
+  }, [queryConversationId, conversations, profile?._id]);
 
   /*
    * ----------------------------------------------------
@@ -1530,76 +1542,84 @@ export default function Messages() {
           }`}
         >
 
-          {activeConversation ? (
-            <>
+          {activeConversation ? (() => {
+            const otherProfile =
+              activeConversation.otherProfile ||
+              (activeConversation.creatorId && typeof activeConversation.creatorId === "object" && String(activeConversation.creatorId._id) !== String(profile?._id)
+                ? activeConversation.creatorId
+                : activeConversation.brandId && typeof activeConversation.brandId === "object" && String(activeConversation.brandId._id) !== String(profile?._id)
+                ? activeConversation.brandId
+                : activeConversation.creatorId || activeConversation.brandId);
 
-              {/* CHAT HEADER */}
-              <div className="flex items-center gap-3 border-b border-border px-4 py-3 shrink-0">
+            return (
+              <>
+                {/* CHAT HEADER */}
+                <div className="flex items-center gap-3 border-b border-border px-4 py-3 shrink-0">
 
-                {/* MOBILE BACK */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveConversation(null)
-                  }
-                  className="rounded-xl p-2 hover:bg-secondary lg:hidden"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
+                  {/* MOBILE BACK */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveConversation(null)
+                    }
+                    className="rounded-xl p-2 hover:bg-secondary lg:hidden"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
 
-                {/* AVATAR */}
-                <img src={
-                    resolveImageUrl(otherProfile?.avatarUrl) ||
-                    `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
+                  {/* AVATAR */}
+                  <img src={
+                      resolveImageUrl(otherProfile?.avatarUrl) ||
+                      `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
+                        otherProfile?.fullName ||
+                          "User"
+                      )}`
+                    }
+                    alt={
                       otherProfile?.fullName ||
-                        "User"
-                    )}`
-                  }
-                  alt={
-                    otherProfile?.fullName ||
-                    "User"
-                  }
-                  className="h-11 w-11 rounded-2xl object-cover"
-                 onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                      "User"
+                    }
+                    className="h-11 w-11 rounded-2xl object-cover"
+                   onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
 
-                {/* NAME */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="truncate font-display font-semibold">
+                  {/* NAME */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h2 className="truncate font-display font-semibold">
+                        {otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")
+                          ? "Pravixo Admin"
+                          : otherProfile?.fullName || "Unknown User"}
+                      </h2>
+                      {(otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")) && (
+                        <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20">
+                          🛡️ Pravixo Team
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
                       {otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")
-                        ? "Pravixo Admin"
-                        : otherProfile?.fullName || "Unknown User"}
-                    </h2>
-                    {(otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")) && (
-                      <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20">
-                        🛡️ Pravixo Team
-                      </span>
-                    )}
+                        ? "Official Support & Platform Coordination"
+                        : activeConversation.status === "active"
+                        ? "Active conversation"
+                        : activeConversation.status}
+                    </p>
                   </div>
 
-                  <p className="text-xs text-muted-foreground">
-                    {otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")
-                      ? "Official Support & Platform Coordination"
-                      : activeConversation.status === "active"
-                      ? "Active conversation"
-                      : activeConversation.status}
-                  </p>
+                  {/* DELETE / CHAT OPTIONS */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedConversationForDelete(activeConversation);
+                      setDeleteChatModalOpen(true);
+                    }}
+                    className="rounded-xl p-2 text-muted-foreground hover:bg-secondary hover:text-red-500"
+                    title="Delete or Archive Chat"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+
                 </div>
-
-                {/* DELETE / CHAT OPTIONS */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedConversationForDelete(activeConversation);
-                    setDeleteChatModalOpen(true);
-                  }}
-                  className="rounded-xl p-2 text-muted-foreground hover:bg-secondary hover:text-red-500"
-                  title="Delete or Archive Chat"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </button>
-
-              </div>
 
               {/* COLLABORATION & PAYMENT NEGOTIATION BAR (CLEAN & COLLAPSIBLE) */}
               {activeConversation.connection && (
@@ -2665,7 +2685,8 @@ export default function Messages() {
                 </div>
               </form>
             </>
-          ) : (
+          );
+        })() : (
             /* EMPTY STATE */
             <div className="flex h-full flex-col items-center justify-center p-12 text-center">
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-secondary">
