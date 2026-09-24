@@ -3598,26 +3598,48 @@ const CAMPAIGNS_PER_PAGE = 6;
               </div>
             ) : activeTab === "tasks" ? (
               /* DEALS & TASKS TAB */
-              <div className="w-full max-w-5xl mx-auto space-y-8">
-                <div className="grid gap-6 md:grid-cols-2 items-start">
-                  {/* ASSIGNED TASKS */}
-                  <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                    <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary" /> Assigned Tasks
+              <div className="w-full space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border/50">
+                  <div>
+                    <h2 className="font-display text-xl font-bold flex items-center gap-2">
+                      <CheckCircle2 className="h-6 w-6 text-primary" /> Active Deals & Deliverables
                     </h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Manage your active campaign deliverables.
+                      Track your brand collaboration requests, milestones, deadlines, and submissions in real time.
                     </p>
-                    <div className="mt-5 space-y-4">
+                  </div>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
+                      {myTasks?.length || 0} Tasks Assigned
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 font-bold border border-emerald-500/20">
+                      {myRequests?.length || 0} Collaborations
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-12 items-start">
+                  {/* ASSIGNED TASKS (Left Column: 5 Cols) */}
+                  <div className="lg:col-span-5 rounded-3xl border border-border/70 bg-card/80 p-5 sm:p-6 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-display text-base font-bold flex items-center gap-2 text-foreground">
+                        <CheckCircle2 className="h-4 w-4 text-primary" /> Assigned Tasks
+                      </h3>
+                      <span className="text-xs text-muted-foreground">({myTasks?.length || 0})</span>
+                    </div>
+
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                       {!myTasks ? (
-                        <p className="text-xs text-muted-foreground">Loading tasks...</p>
+                        <p className="text-xs text-muted-foreground py-4 text-center">Loading tasks...</p>
                       ) : myTasks.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No tasks assigned yet.</p>
+                        <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
+                          No tasks assigned yet. Apply to campaigns or accept brand offers to get started.
+                        </div>
                       ) : (
                         myTasks.map((task) => (
                           <div
                             key={task._id}
-                            className="rounded-2xl border border-border p-4 space-y-3 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200"
+                            className="rounded-2xl border border-border/80 p-4 space-y-3 bg-secondary/15 hover:bg-secondary/25 hover:border-primary/40 transition-all duration-200"
                           >
                             <div className="flex justify-between items-start gap-2">
                               <div className="min-w-0">
@@ -3625,61 +3647,61 @@ const CAMPAIGNS_PER_PAGE = 6;
                                   {task.title}
                                 </h4>
                                 <p className="text-xs text-muted-foreground truncate">
-                                  Campaign: {task.campaignId?.title || "General"}
+                                  Campaign: {task.campaignId?.title || "Direct Collab"}
                                 </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  Brand: {task.brandId?.fullName || "Brand"}
+                                <p className="text-[11px] text-muted-foreground font-medium">
+                                  Brand: {task.brandId?.fullName || "Brand Partner"}
                                 </p>
                               </div>
                               <Badge
                                 variant="secondary"
                                 className={cn(
-                                  "rounded-full text-[10px] uppercase font-semibold",
-                                  task.status === "completed" && "bg-emerald-500/10 text-emerald-600",
-                                  task.status === "in_progress" && "bg-amber/10 text-amber",
-                                  task.status === "pending" && "bg-blue-500/10 text-blue-600",
-                                  task.status === "under_review" && "bg-purple-500/10 text-purple-600",
-                                  task.status === "overdue" && "bg-red-500/10 text-red-500"
+                                  "rounded-full text-[10px] uppercase font-semibold shrink-0",
+                                  task.status === "completed" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+                                  task.status === "in_progress" && "bg-amber-500/10 text-amber-600 border-amber-500/20",
+                                  task.status === "pending" && "bg-blue-500/10 text-blue-600 border-blue-500/20",
+                                  task.status === "under_review" && "bg-purple-500/10 text-purple-600 border-purple-500/20",
+                                  task.status === "overdue" && "bg-red-500/10 text-red-500 border-red-500/20"
                                 )}
                               >
-                                {task.status.replace("_", " ")}
+                                {task.status?.replace("_", " ") || "Active"}
                               </Badge>
                             </div>
 
-                            <div className="rounded-xl border border-border/50 bg-background/50 p-2.5 text-xs space-y-1">
-                              <p className="text-muted-foreground">
-                                <span className="font-semibold text-foreground">Deliverable:</span>{" "}
-                                {task.deliverableType}
+                            <div className="rounded-xl border border-border/50 bg-background/60 p-2.5 text-xs space-y-1">
+                              <p className="text-muted-foreground flex items-center justify-between">
+                                <span className="font-semibold text-foreground">Deliverable:</span>
+                                <span className="font-bold text-primary">{task.deliverableType || "Reel / Post"}</span>
                               </p>
                               {task.dueDate && (
-                                <p className="text-muted-foreground">
-                                  <span className="font-semibold text-foreground">Due:</span>{" "}
-                                  {new Date(task.dueDate).toLocaleDateString()}
+                                <p className="text-muted-foreground flex items-center justify-between">
+                                  <span className="font-semibold text-foreground">Due Date:</span>
+                                  <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                                 </p>
                               )}
-                              <p className="text-muted-foreground">
-                                <span className="font-semibold text-foreground">Priority:</span>{" "}
-                                <span className="capitalize">{task.priority}</span>
+                              <p className="text-muted-foreground flex items-center justify-between">
+                                <span className="font-semibold text-foreground">Priority:</span>
+                                <span className="capitalize font-medium">{task.priority || "Medium"}</span>
                               </p>
                             </div>
 
-                            <div className="flex items-center justify-between text-xs pt-1">
-                              <div className="flex items-center gap-1 text-muted-foreground">
-                                <Clock className="h-3.5 w-3.5" />
+                            <div className="flex items-center justify-between text-xs pt-0.5">
+                              <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
+                                <Clock className="h-3.5 w-3.5 text-amber-500" />
                                 <span>Time Left: {getTimeRemaining(task.dueDate)}</span>
                               </div>
                               {task.status === "overdue" && (
-                                <Badge variant="destructive" className="text-[10px]">
-                                  Task Overdue
+                                <Badge variant="destructive" className="text-[9px]">
+                                  Overdue
                                 </Badge>
                               )}
                             </div>
 
-                            <div className="pt-2 flex gap-2">
+                            <div className="pt-1 flex gap-2">
                               {task.status !== "completed" && (
                                 <Button
                                   size="sm"
-                                  className="flex-1 rounded-full gradient-sunset border-0 text-white text-xs font-semibold shadow-glow"
+                                  className="flex-1 rounded-full gradient-sunset border-0 text-white text-xs font-semibold shadow-glow cursor-pointer"
                                   onClick={() => {
                                     setSelectedTask(task);
                                     setTaskProofUrl(task.proofUrl || "");
@@ -3698,7 +3720,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="w-full rounded-full border-border hover:bg-secondary text-foreground text-xs"
+                                    className="w-full rounded-full border-border hover:bg-secondary text-foreground text-xs font-medium cursor-pointer"
                                   >
                                     Open Chat
                                   </Button>
@@ -3711,41 +3733,44 @@ const CAMPAIGNS_PER_PAGE = 6;
                     </div>
                   </div>
 
-                  {/* MY REQUESTS */}
-                  <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                    <h2 className="font-display text-lg font-semibold flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" /> My Requests
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Track your active collaboration requests.
-                    </p>
-                    <div className="mt-5 space-y-4">
+                  {/* MY REQUESTS & COLLABORATIONS (Right Column: 7 Cols) */}
+                  <div className="lg:col-span-7 rounded-3xl border border-border/70 bg-card/80 p-5 sm:p-6 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-display text-base font-bold flex items-center gap-2 text-foreground">
+                        <Clock className="h-4 w-4 text-indigo-500" /> Collaboration Requests & Contracts
+                      </h3>
+                      <span className="text-xs text-muted-foreground">({myRequests?.length || 0})</span>
+                    </div>
+
+                    <div className="space-y-3.5 max-h-[600px] overflow-y-auto pr-1">
                       {!myRequests ? (
-                        <p className="text-xs text-muted-foreground">Loading requests...</p>
+                        <p className="text-xs text-muted-foreground py-4 text-center">Loading requests...</p>
                       ) : myRequests.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No requests yet.</p>
+                        <div className="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
+                          No active collaboration requests yet.
+                        </div>
                       ) : (
                         myRequests.map((req) => (
                           <div
                             key={req._id}
-                            className="rounded-2xl border border-border p-3 space-y-2 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200"
+                            className="rounded-2xl border border-border/80 p-4 space-y-3 bg-secondary/15 hover:bg-secondary/25 hover:border-primary/40 transition-all duration-200"
                           >
                             <div className="flex justify-between items-start gap-2">
                               <div className="min-w-0">
-                                <h4 className="text-xs font-bold text-foreground truncate">
-                                  {req.campaign?.title || "General Connection"}
+                                <h4 className="text-sm font-bold text-foreground truncate">
+                                  {req.campaign?.title || "Direct Brand Collaboration"}
                                 </h4>
-                                <p className="text-[10px] text-muted-foreground truncate">
-                                  Brand: {req.brandProfile?.fullName || "Unknown"}
+                                <p className="text-xs text-muted-foreground truncate">
+                                  Brand Partner: <span className="font-semibold text-foreground">{req.brandProfile?.fullName || "Brand Partner"}</span>
                                 </p>
                               </div>
                               <Badge
                                 variant="secondary"
                                 className={cn(
-                                  "rounded-full text-[9px] uppercase px-1.5 py-0.5 font-semibold",
-                                  req.status === "accepted" && "bg-emerald-500/10 text-emerald-600",
-                                  req.status === "pending" && "bg-amber/10 text-amber",
-                                  req.status === "rejected" && "bg-red-500/10 text-red-500"
+                                  "rounded-full text-[10px] uppercase font-semibold shrink-0",
+                                  req.status === "accepted" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+                                  req.status === "pending" && "bg-amber-500/10 text-amber-600 border-amber-500/20",
+                                  req.status === "rejected" && "bg-red-500/10 text-red-500 border-red-500/20"
                                 )}
                               >
                                 {req.status}
