@@ -126,18 +126,26 @@ export function SubscriptionTab({ role, profile }) {
         throw new Error("Unable to create checkout order.");
       }
 
-      // 2. Open Razorpay Checkout Modal
-      if (typeof window.Razorpay === "undefined") {
-        // Fallback if Razorpay script is not loaded in window: direct activation
-        const directRes = await api.post(`/subscriptions`, {
-          profileId: profile._id,
-          packageId,
-          ...(offerId && { offerId }),
-        });
-        toast.success(directRes.data?.message || "Package activated successfully!");
-        await fetchSubscriptionData();
-        return;
-      }
+      // 2. Open Razorpay Checkout Modal (load script dynamically if not yet ready)
+      const openRazorpayCheckout = (optionsObj) => {
+        if (typeof window.Razorpay !== "undefined") {
+          const rzp = new window.Razorpay(optionsObj);
+          rzp.open();
+        } else {
+          const script = document.createElement("script");
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+          script.async = true;
+          script.onload = () => {
+            const rzp = new window.Razorpay(optionsObj);
+            rzp.open();
+          };
+          script.onerror = () => {
+            setUpgradingId(null);
+            toast.error("Failed to load Razorpay payment gateway. Please check your connection.");
+          };
+          document.body.appendChild(script);
+        }
+      };
 
       const options = {
         key: orderData.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder",
@@ -190,8 +198,7 @@ export function SubscriptionTab({ role, profile }) {
         },
       };
 
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      openRazorpayCheckout(options);
     } catch (error) {
       console.error("Subscription upgrade error:", error);
       toast.error(
