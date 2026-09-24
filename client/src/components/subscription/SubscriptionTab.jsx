@@ -34,13 +34,14 @@ export function SubscriptionTab({ role, profile }) {
     try {
       setLoading(true);
 
+      const userRole = role || profile?.role || (profile?.accountType === "brand" ? "brand" : "creator");
       const [
         subscriptionResponse,
         packagesResponse,
         offersResponse,
       ] = await Promise.all([
         api.get(`/subscriptions/user/${profile._id}`),
-        api.get(`/subscriptions/packages`),
+        api.get(`/subscriptions/packages?role=${userRole}`),
         api.get(`/subscriptions/offers`),
       ]);
 
@@ -279,14 +280,14 @@ export function SubscriptionTab({ role, profile }) {
 
             <Sparkles className="h-6 w-6 text-primary" />
 
-            {role === "brand" ? "Add-on Services & Creator Packages" : "Manage Add-on Services"}
+            {role === "brand" ? "Add-on Services & Creator Packages" : "Creator Packages & Subscription"}
 
           </h2>
 
           <p className="text-sm text-muted-foreground mt-1">
             {role === "brand"
               ? "End-to-end creator communication, shortlisting, video production guidelines & status analytics managed by Pravixo."
-              : "View details of your active plan, upgrade features, or browse special discount codes."}
+              : "Upgrade your creator plan to unlock verified badge, priority brand invites, unlimited campaign applications, and higher referral income."}
           </p>
 
         </div>

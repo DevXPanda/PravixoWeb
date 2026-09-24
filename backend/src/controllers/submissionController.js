@@ -270,14 +270,27 @@ export const getCollaborationSubmissions = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    const creatorProfile = await Profile.findById(connection.creatorId).select("fullName avatarUrl").lean();
-    const campaign = connection.campaignId ? await Campaign.findById(connection.campaignId).select("title deliverables").lean() : null;
+    const creatorProfile = await Profile.findById(connection.creatorId)
+      .select("fullName avatarUrl handle email")
+      .lean();
+    const campaign = connection.campaignId
+      ? await Campaign.findById(connection.campaignId)
+          .select("title description deliverables totalBudget category")
+          .lean()
+      : null;
 
     res.status(200).json({
       success: true,
       data: {
         connectionId: connection._id,
         paymentStatus: connection.paymentStatus,
+        collaboration: {
+          ...connection,
+          creatorProfile,
+          campaign,
+        },
+        deliverablesTracking: connection.deliverablesTracking || [],
+        campaignDeliverables: campaign?.deliverables || null,
         submissions: submissions.map((sub) => ({
           ...sub,
           creator: creatorProfile,

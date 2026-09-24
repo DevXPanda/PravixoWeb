@@ -4410,10 +4410,10 @@ const CAMPAIGNS_PER_PAGE = 6;
                   <div className="rounded-2xl border border-border bg-secondary/30 p-5 shadow-sm flex flex-col justify-between">
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="h-5 w-5 text-primary" />
-                      <span className="text-xs font-bold text-foreground">100% Payout Guaranteed</span>
+                      <span className="text-xs font-bold text-foreground">Escrow Payout Guaranteed</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">
-                      Zero fee deductions from creator earnings. The 20% platform fee is paid by brands and is never deducted from your agreed amount.
+                      All campaign deliverables are protected by Pravixo Escrow. Once brand approves your work, payouts are credited directly to your wallet.
                     </p>
                   </div>
                 </div>

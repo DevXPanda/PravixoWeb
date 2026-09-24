@@ -35,6 +35,7 @@ import DashboardCustomer from "./routes/DashboardCustomer";
 import DashboardInfluencer from "./routes/DashboardInfluencer";
 import CreatorMediaKit from "./routes/CreatorMediaKit";
 import Referrals from "./routes/Referrals";
+import Collaborations from "./routes/Collaborations";
 import Unsubscribe from "./routes/Unsubscribe";
 import PayoutProcessedModal from "./components/collaboration/PayoutProcessedModal";
 
@@ -135,13 +136,24 @@ function Layout() {
           <Route path="/admin/notifications" element={<Notifications />} />
 
           <Route
-            path="/dashboard/customer"
+            path="/dashboard/brand"
             element={<DashboardCustomer />}
           /> 
 
-           <Route
-            path="/dashboard/influencer"
+          <Route
+            path="/dashboard/creator"
             element={<DashboardInfluencer />}
+          /> 
+
+          {/* Backwards compatibility & alias redirects */}
+          <Route
+            path="/dashboard/customer"
+            element={<Navigate to="/dashboard/brand" replace />}
+          /> 
+
+          <Route
+            path="/dashboard/influencer"
+            element={<Navigate to="/dashboard/creator" replace />}
           /> 
 
           <Route
@@ -150,10 +162,15 @@ function Layout() {
           />
 
           <Route
+            path="/collaborations"
+            element={<Collaborations />}
+          />
+
+          <Route
             path="/dashboard"
             element={
               <Navigate
-                to="/dashboard/influencer"
+                to="/dashboard/creator"
                 replace
               />
             }

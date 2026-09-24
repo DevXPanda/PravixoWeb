@@ -122,16 +122,16 @@ export function SiteNavbar() {
 
   const dashboardBaseUrl =
     profile?.role === "creator"
-      ? "/dashboard/influencer"
-      : "/dashboard/customer";
+      ? "/dashboard/creator"
+      : "/dashboard/brand";
 
   const links = [
     ...baseLinks,
     ...(user && profile?.role === "creator"
-      ? [{ to: "/dashboard/influencer", label: "Creator" }]
+      ? [{ to: "/dashboard/creator", label: "Creator" }]
       : []),
     ...(user && profile?.role === "brand"
-      ? [{ to: "/dashboard/customer", label: "Brand" }]
+      ? [{ to: "/dashboard/brand", label: "Brand" }]
       : []),
   ];
 
@@ -329,6 +329,15 @@ export function SiteNavbar() {
                       >
                         <Gift className="h-4 w-4 text-emerald-500" />
                         <span>Refer & Earn (5% - 10%)</span>
+                      </Link>
+
+                      <Link
+                        to="/collaborations"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                      >
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        <span>Collaborations & Deliverables</span>
                       </Link>
 
                       {profile?.role === "creator" && (

@@ -41,6 +41,12 @@ const subscriptionPackageSchema = new mongoose.Schema(
       default: true,
     },
 
+    targetRole: {
+      type: String,
+      enum: ["both", "brand", "creator"],
+      default: "both",
+    },
+
     sortOrder: {
       type: Number,
       required: true,

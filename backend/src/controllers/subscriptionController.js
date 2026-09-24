@@ -13,26 +13,24 @@ import Notification from "../models/Notification.js";
 
 export const getPackages = async (req, res) => {
   try {
-    let packages = await SubscriptionPackage.find({
-      active: true,
-    })
-      .sort({ sortOrder: 1 })
-      .lean();
+    const roleQuery = (req.query.role || "").toLowerCase();
 
-    const defaultPackages = [
+    // Default Brand Add-on Services Packages (Basic, Pro, Elite)
+    const defaultBrandPackages = [
       {
         name: "Basic",
         price: 5000,
         originalPrice: 10000,
         billingPeriod: "month",
         badge: "50% OFF",
+        targetRole: "brand",
         features: [
           "5 Verified Creators Included",
           "Creator Communication & Shortlisting on Brand's behalf",
           "Creative Guidelines & Video Direction Strategy",
           "Milestone & Work Status Quality Checks",
           "Follow-up Analytics & Performance Tracking",
-          "Dedicated Campaign Assistance"
+          "Dedicated Campaign Assistance",
         ],
         sortOrder: 1,
         active: true,
@@ -43,6 +41,7 @@ export const getPackages = async (req, res) => {
         originalPrice: 20000,
         billingPeriod: "month",
         badge: "50% OFF POPULAR",
+        targetRole: "brand",
         features: [
           "15 Verified Creators Included",
           "End-to-End Creator Outreach & Contract Negotiations",
@@ -50,7 +49,7 @@ export const getPackages = async (req, res) => {
           "Real-time Work Status & Deliverable Review",
           "In-depth Follow-up Analytics & ROI Reporting",
           "Escrow Milestone Payment Security",
-          "Priority Brand Support"
+          "Priority Brand Support",
         ],
         sortOrder: 2,
         active: true,
@@ -61,6 +60,7 @@ export const getPackages = async (req, res) => {
         originalPrice: 50000,
         billingPeriod: "month",
         badge: "50% OFF ELITE",
+        targetRole: "brand",
         features: [
           "50 Verified Creators Included",
           "Full-Service Influencer Management & VIP Shortlisting",
@@ -68,40 +68,110 @@ export const getPackages = async (req, res) => {
           "Live Work Status Monitoring & Multi-tier Quality Audits",
           "Advanced Follow-up Analytics, Heatmaps & Full Report Export",
           "1-on-1 Dedicated Campaign Account Manager",
-          "24/7 VIP Priority Support & Legal Escrow Protection"
+          "24/7 VIP Priority Support & Legal Escrow Protection",
         ],
         sortOrder: 3,
         active: true,
       },
     ];
 
-    // If packages empty or different, seed/sync default Add-on Service packages
-    if (!packages || packages.length === 0) {
-      await SubscriptionPackage.create(defaultPackages);
-      packages = await SubscriptionPackage.find({ active: true }).sort({ sortOrder: 1 }).lean();
+    // Default Creator Packages (Basic, Pro, Elite)
+    const defaultCreatorPackages = [
+      {
+        name: "Basic",
+        price: 0,
+        originalPrice: 0,
+        billingPeriod: "free",
+        badge: "Free Starter",
+        targetRole: "creator",
+        features: [
+          "Creator Portfolio & Media Kit",
+          "Apply up to 5 Campaigns/month",
+          "Standard Discovery Listing",
+          "5% Tiered Referral Commission",
+          "Direct Brand Chat & Collaboration Invitations",
+        ],
+        sortOrder: 1,
+        active: true,
+      },
+      {
+        name: "Pro",
+        price: 999,
+        originalPrice: 1999,
+        billingPeriod: "month",
+        badge: "Popular (3 Months Free Trial)",
+        targetRole: "creator",
+        features: [
+          "Verified Blue Tick Badge on Profile & Media Kit",
+          "Unlimited Campaign Applications & Priority Bids",
+          "7.5% Tiered Referral Commission Income",
+          "Featured Top Search Ranking on Brand Explore",
+          "Advanced Performance & Analytics Insights",
+          "Direct Escrow Payout Protection",
+        ],
+        sortOrder: 2,
+        active: true,
+      },
+      {
+        name: "Elite",
+        price: 2499,
+        originalPrice: 4999,
+        billingPeriod: "month",
+        badge: "50% OFF ELITE",
+        targetRole: "creator",
+        features: [
+          "VIP Gold Creator Badge & Spotlight Top Placement",
+          "Dedicated Talent Manager & Pitch Assistance",
+          "10% Maximum Tiered Referral Commission",
+          "Exclusive Direct Brand Invitation Deal Flow",
+          "Instant Wallet Payouts & Zero Escrow Hold",
+          "24/7 Priority Support",
+        ],
+        sortOrder: 3,
+        active: true,
+      },
+    ];
+
+    // Wipe any messy duplicates or out-of-sync docs
+    const existing = await SubscriptionPackage.find().lean();
+    if (!existing || existing.length === 0 || existing.length > 6) {
+      await SubscriptionPackage.deleteMany({});
+      await SubscriptionPackage.create([...defaultBrandPackages, ...defaultCreatorPackages]);
     } else {
-      // Sync prices and features if they still hold legacy prices
-      for (const defPkg of defaultPackages) {
+      // Upsert each cleanly
+      for (const bPkg of defaultBrandPackages) {
         await SubscriptionPackage.updateOne(
-          { name: new RegExp(`^${defPkg.name}$`, "i") },
-          {
-            $set: {
-              price: defPkg.price,
-              originalPrice: defPkg.originalPrice,
-              billingPeriod: defPkg.billingPeriod,
-              badge: defPkg.badge,
-              features: defPkg.features,
-              sortOrder: defPkg.sortOrder,
-              active: true,
-            },
-          },
+          { name: bPkg.name, targetRole: "brand" },
+          { $set: bPkg },
           { upsert: true }
         );
       }
-      // Remove legacy Starter plan if exists and not among default packages
-      await SubscriptionPackage.deleteMany({ name: /^Starter$/i });
-      packages = await SubscriptionPackage.find({ active: true }).sort({ sortOrder: 1 }).lean();
+      for (const cPkg of defaultCreatorPackages) {
+        await SubscriptionPackage.updateOne(
+          { name: cPkg.name, targetRole: "creator" },
+          { $set: cPkg },
+          { upsert: true }
+        );
+      }
+      // Remove any unwanted remnants with price 5000 under creator or non-conforming
+      await SubscriptionPackage.deleteMany({
+        $and: [
+          { targetRole: { $nin: ["brand", "creator"] } },
+          { name: { $nin: ["Basic", "Pro", "Elite"] } },
+        ],
+      });
     }
+
+    const filter = { active: true };
+    if (roleQuery === "brand" || roleQuery === "customer") {
+      filter.targetRole = "brand";
+    } else if (roleQuery === "creator" || roleQuery === "influencer") {
+      filter.targetRole = "creator";
+    }
+
+    const packages = await SubscriptionPackage.find(filter)
+      .sort({ sortOrder: 1 })
+      .lean();
 
     return res.status(200).json({
       success: true,

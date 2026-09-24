@@ -1836,9 +1836,9 @@ const [submittingVerification, setSubmittingVerification] =
 
             <Button
               className="btn-bouncy rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-5 shadow-sm flex items-center gap-1.5 shrink-0"
-              onClick={() => setShowApprovedCollabsModal(true)}
+              onClick={() => navigate("/collaborations")}
             >
-              <Eye className="h-3.5 w-3.5" /> View Collaborations ({approvedCollabs.length})
+              <Eye className="h-3.5 w-3.5" /> View Collaborations & Deliverables ({approvedCollabs.length})
             </Button>
           </div>
         )}
@@ -3265,9 +3265,7 @@ const [submittingVerification, setSubmittingVerification] =
                         <th className="pb-3 pr-2">Invoice / Ref</th>
                         <th className="pb-3 px-2">Campaign</th>
                         <th className="pb-3 px-2">Creator</th>
-                        <th className="pb-3 px-2">Gross Amount</th>
-                        <th className="pb-3 px-2">Commission (20%)</th>
-                        <th className="pb-3 px-2">Creator Net (80%)</th>
+                        <th className="pb-3 px-2">Deal Amount (Escrow)</th>
                         <th className="pb-3 px-2">Status</th>
                         <th className="pb-3 px-2">Holding Ends</th>
                         <th className="pb-3 pl-2 text-right">Actions</th>
@@ -3288,12 +3286,6 @@ const [submittingVerification, setSubmittingVerification] =
                           </td>
                           <td className="py-3 px-2 font-bold text-foreground">
                             ₹{pay.grossAmount.toLocaleString()}
-                          </td>
-                          <td className="py-3 px-2 text-muted-foreground">
-                            ₹{pay.platformCommissionAmount.toLocaleString()}
-                          </td>
-                          <td className="py-3 px-2 text-muted-foreground">
-                            ₹{pay.creatorAmount.toLocaleString()}
                           </td>
                           <td className="py-3 px-2">
                             <Badge
