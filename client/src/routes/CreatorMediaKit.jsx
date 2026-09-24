@@ -71,6 +71,7 @@ export default function CreatorMediaKit() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState("all");
+  const [activeSocialFeedTab, setActiveSocialFeedTab] = useState("instagram");
   const [showBrandPromptModal, setShowBrandPromptModal] = useState(false);
 
   const mediaKitRef = useRef(null);
@@ -340,8 +341,6 @@ export default function CreatorMediaKit() {
       badge: "Highlights",
     },
   ];
-
-  const [activeSocialFeedTab, setActiveSocialFeedTab] = useState("instagram");
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-primary selection:text-white pb-24">
