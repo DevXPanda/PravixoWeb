@@ -5,7 +5,7 @@ import { useAuth } from "../components/auth/AuthProvider";
 import Button from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Badge } from "../components/ui/Badge";
-import { Textarea } from "../components/ui/Textarea";
+import { Textarea } from "../components/ui/TextArea";
 import {
   Dialog,
   DialogContent,
