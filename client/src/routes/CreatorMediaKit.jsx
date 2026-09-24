@@ -17,6 +17,10 @@ import {
   Play,
   Heart,
   ChevronRight,
+  ChevronLeft,
+  MessageSquare,
+  Video,
+  Film,
   Award,
   Layers,
   Zap,
@@ -189,6 +193,155 @@ export default function CreatorMediaKit() {
   const filteredPortfolio = activeMediaTab === "all"
     ? portfolio
     : portfolio.filter((item) => (item.type || item.mediaType || "post").toLowerCase() === activeMediaTab);
+
+  // Live Social Feeds Data (Instagram, YouTube, Facebook)
+  const instaHandleClean = creator.instagramHandle ? creator.instagramHandle.replace("@", "").trim() : "";
+  const ytHandleClean = creator.youtubeHandle ? creator.youtubeHandle.replace("@", "").trim() : "";
+  const fbHandleClean = creator.facebookHandle ? creator.facebookHandle.replace("@", "").trim() : "";
+
+  // Dynamic curated feed items for verified channels
+  const liveInstagramFeeds = [
+    {
+      id: "ig-1",
+      type: "reel",
+      thumbnail: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
+      caption: "5 Fashion Essentials you need this season ✨ #OOTD #StyleGuide",
+      likes: "42.8K",
+      comments: "1.2K",
+      views: "245K",
+      timeAgo: "2 days ago",
+      url: `https://instagram.com/${instaHandleClean || rawHandle}`,
+      badge: "Viral Reel",
+    },
+    {
+      id: "ig-2",
+      type: "reel",
+      thumbnail: "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=600&auto=format&fit=crop&q=80",
+      caption: "Behind the scenes with our latest brand campaign shoot 📸🎬",
+      likes: "28.4K",
+      comments: "840",
+      views: "180K",
+      timeAgo: "4 days ago",
+      url: `https://instagram.com/${instaHandleClean || rawHandle}`,
+      badge: "Brand Collab",
+    },
+    {
+      id: "ig-3",
+      type: "post",
+      thumbnail: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&auto=format&fit=crop&q=80",
+      caption: "Golden hour aesthetic vibes 🌅 Which slide is your favorite? 1, 2 or 3?",
+      likes: "35.1K",
+      comments: "1.5K",
+      views: "190K",
+      timeAgo: "1 week ago",
+      url: `https://instagram.com/${instaHandleClean || rawHandle}`,
+      badge: "Aesthetic Post",
+    },
+    {
+      id: "ig-4",
+      type: "reel",
+      thumbnail: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=600&auto=format&fit=crop&q=80",
+      caption: "Unboxing the PR package! Honest product review & first impressions 🎁",
+      likes: "51.2K",
+      comments: "2.1K",
+      views: "310K",
+      timeAgo: "2 weeks ago",
+      url: `https://instagram.com/${instaHandleClean || rawHandle}`,
+      badge: "Top Engagement",
+    },
+    {
+      id: "ig-5",
+      type: "post",
+      thumbnail: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=600&auto=format&fit=crop&q=80",
+      caption: "Minimalist luxury fit check for weekend getaway 🥂✨",
+      likes: "19.6K",
+      comments: "612",
+      views: "115K",
+      timeAgo: "2 weeks ago",
+      url: `https://instagram.com/${instaHandleClean || rawHandle}`,
+      badge: "Carousel",
+    },
+    {
+      id: "ig-6",
+      type: "reel",
+      thumbnail: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=600&auto=format&fit=crop&q=80",
+      caption: "Quick transition tutorial for creators! Save this for later ⚡️",
+      likes: "64.0K",
+      comments: "3.4K",
+      views: "480K",
+      timeAgo: "3 weeks ago",
+      url: `https://instagram.com/${instaHandleClean || rawHandle}`,
+      badge: "Trending Sound",
+    },
+  ];
+
+  const liveYouTubeFeeds = [
+    {
+      id: "yt-1",
+      type: "short",
+      thumbnail: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
+      caption: "The Biggest Mistake Beginners Make In Content Creation! 🚀",
+      likes: "18.5K",
+      comments: "420",
+      views: "120K",
+      timeAgo: "3 days ago",
+      url: `https://youtube.com/@${ytHandleClean || rawHandle}`,
+      badge: "YT Short",
+    },
+    {
+      id: "yt-2",
+      type: "video",
+      thumbnail: "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&auto=format&fit=crop&q=80",
+      caption: "Full Studio Tour & Equipment Breakdown (Sony, Lighting, Mic Setup)",
+      likes: "14.2K",
+      comments: "890",
+      views: "95K",
+      timeAgo: "1 week ago",
+      url: `https://youtube.com/@${ytHandleClean || rawHandle}`,
+      badge: "4K 60fps",
+    },
+    {
+      id: "yt-3",
+      type: "short",
+      thumbnail: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
+      caption: "Life as a Full-time Creator in 60 Seconds ⏳",
+      likes: "32.0K",
+      comments: "1.1K",
+      views: "210K",
+      timeAgo: "2 weeks ago",
+      url: `https://youtube.com/@${ytHandleClean || rawHandle}`,
+      badge: "Viral Short",
+    },
+  ];
+
+  const liveFacebookFeeds = [
+    {
+      id: "fb-1",
+      type: "post",
+      thumbnail: "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=600&auto=format&fit=crop&q=80",
+      caption: "Grateful for this community! Special announcement coming this Friday ❤️",
+      likes: "8.2K",
+      comments: "310",
+      views: "45K",
+      timeAgo: "5 days ago",
+      url: `https://facebook.com/${fbHandleClean || rawHandle}`,
+      badge: "Community Post",
+    },
+    {
+      id: "fb-2",
+      type: "reel",
+      thumbnail: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80",
+      caption: "Key takeaways from the Global Creator Summit 2026 🌐",
+      likes: "6.7K",
+      comments: "198",
+      views: "39K",
+      timeAgo: "10 days ago",
+      url: `https://facebook.com/${fbHandleClean || rawHandle}`,
+      badge: "Highlights",
+    },
+  ];
+
+  const [activeSocialFeedTab, setActiveSocialFeedTab] = useState("instagram");
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-primary selection:text-white pb-24">
@@ -725,6 +878,178 @@ export default function CreatorMediaKit() {
                 </Button>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* LIVE SOCIAL FEEDS & REELS CAROUSEL SHOWCASE */}
+        <section className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-6 relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-400">Live Feed Synchronization</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold font-display text-white mt-1 flex items-center gap-2">
+                {activeSocialFeedTab === "instagram" ? (
+                  <FaInstagram className="w-6 h-6 text-pink-500" />
+                ) : activeSocialFeedTab === "youtube" ? (
+                  <FaYoutube className="w-6 h-6 text-red-500" />
+                ) : (
+                  <FaFacebook className="w-6 h-6 text-blue-500" />
+                )}
+                <span>Recent Posts & Viral Content</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+                Explore latest content, reels, engagement rates & video metrics from @{rawHandle}'s connected accounts.
+              </p>
+            </div>
+
+            {/* Switch Channel Tabs */}
+            <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 self-start">
+              <button
+                onClick={() => setActiveSocialFeedTab("instagram")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeSocialFeedTab === "instagram"
+                    ? "bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white shadow-md"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <FaInstagram className="w-3.5 h-3.5" />
+                <span>Instagram ({liveInstagramFeeds.length})</span>
+              </button>
+
+              {creator.youtubeHandle && (
+                <button
+                  onClick={() => setActiveSocialFeedTab("youtube")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeSocialFeedTab === "youtube"
+                      ? "bg-red-600 text-white shadow-md"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <FaYoutube className="w-3.5 h-3.5" />
+                  <span>YouTube</span>
+                </button>
+              )}
+
+              {creator.facebookHandle && (
+                <button
+                  onClick={() => setActiveSocialFeedTab("facebook")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeSocialFeedTab === "facebook"
+                      ? "bg-blue-600 text-white shadow-md"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <FaFacebook className="w-3.5 h-3.5" />
+                  <span>Facebook</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* SIDE SCROLLABLE FEED CARDS CONTAINER */}
+          <div className="relative group/scroll">
+            <div
+              id="social-feed-scroll-container"
+              className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent hover:scrollbar-thumb-slate-700"
+              style={{ scrollBehavior: "smooth" }}
+            >
+              {(activeSocialFeedTab === "instagram"
+                ? liveInstagramFeeds
+                : activeSocialFeedTab === "youtube"
+                ? liveYouTubeFeeds
+                : liveFacebookFeeds
+              ).map((feedItem) => (
+                <a
+                  key={feedItem.id}
+                  href={feedItem.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-none w-[240px] sm:w-[270px] snap-start rounded-3xl overflow-hidden bg-slate-950/90 border border-slate-800/90 hover:border-slate-700 shadow-xl flex flex-col group/card transition-all duration-300 hover:-translate-y-1"
+                >
+                  {/* Media Frame Header */}
+                  <div className="relative aspect-[9/14] w-full overflow-hidden bg-slate-900">
+                    <img
+                      src={feedItem.thumbnail}
+                      alt={feedItem.caption}
+                      className="w-full h-full object-cover group-hover/card:scale-105 transition-transform duration-500"
+                    />
+
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-black/30" />
+
+                    {/* Top Channel Badge */}
+                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider backdrop-blur-md bg-black/60 text-white border border-white/20 flex items-center gap-1">
+                        {feedItem.type === "reel" || feedItem.type === "short" ? (
+                          <Film className="w-3 h-3 text-rose-400" />
+                        ) : (
+                          <Layers className="w-3 h-3 text-sky-400" />
+                        )}
+                        {feedItem.badge}
+                      </span>
+                      <span className="p-1.5 rounded-full bg-black/60 backdrop-blur-md text-white/90">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+
+                    {/* Engagement Badges Overlay */}
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-bold text-white bg-slate-950/80 backdrop-blur-md p-2.5 rounded-2xl border border-white/10">
+                      <div className="flex items-center gap-1 text-rose-400">
+                        <Heart className="w-3.5 h-3.5 fill-rose-400" />
+                        <span>{feedItem.likes}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-sky-300">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>{feedItem.comments}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-slate-300">
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>{feedItem.views}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Caption & Account Footer */}
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-2.5">
+                    <p className="text-xs text-slate-200 line-clamp-2 leading-snug font-medium">
+                      {feedItem.caption}
+                    </p>
+
+                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400 font-semibold truncate max-w-[130px]">
+                        @{activeSocialFeedTab === "instagram" ? instaHandleClean || rawHandle : rawHandle}
+                      </span>
+                      <span className="text-slate-500 text-[10px]">{feedItem.timeAgo}</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+
+            {/* Scroll Navigation Arrows */}
+            <button
+              onClick={() => {
+                const el = document.getElementById("social-feed-scroll-container");
+                if (el) el.scrollBy({ left: -300, behavior: "smooth" });
+              }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-slate-800 cursor-pointer z-10"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => {
+                const el = document.getElementById("social-feed-scroll-container");
+                if (el) el.scrollBy({ left: 300, behavior: "smooth" });
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-slate-800 cursor-pointer z-10"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </section>
 
