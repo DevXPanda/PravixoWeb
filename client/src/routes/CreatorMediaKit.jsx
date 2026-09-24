@@ -496,14 +496,24 @@ export default function CreatorMediaKit() {
 
               <div className="space-y-3">
                 {creator.instagramHandle && (
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <a
+                    href={
+                      creator.instagramHandle.startsWith("http")
+                        ? creator.instagramHandle
+                        : `https://instagram.com/${creator.instagramHandle.replace("@", "").trim()}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-pink-500/50 hover:bg-slate-950/90 transition-all group"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-pink-500/10 text-pink-500">
+                      <div className="p-2 rounded-xl bg-pink-500/10 text-pink-500 group-hover:scale-110 transition-transform">
                         <FaInstagram className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-pink-400 transition-colors">
                           @{creator.instagramHandle.replace("@", "")}
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-xs text-slate-400">Instagram Creator</div>
                       </div>
@@ -514,18 +524,30 @@ export default function CreatorMediaKit() {
                       </div>
                       <div className="text-[10px] text-slate-400">Followers</div>
                     </div>
-                  </div>
+                  </a>
                 )}
 
                 {creator.youtubeHandle && (
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <a
+                    href={
+                      creator.youtubeHandle.startsWith("http")
+                        ? creator.youtubeHandle
+                        : creator.youtubeHandle.startsWith("@")
+                        ? `https://youtube.com/${creator.youtubeHandle.trim()}`
+                        : `https://youtube.com/@${creator.youtubeHandle.trim()}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-red-500/50 hover:bg-slate-950/90 transition-all group"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-red-500/10 text-red-500">
+                      <div className="p-2 rounded-xl bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform">
                         <FaYoutube className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-1.5">
+                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-red-400 transition-colors">
                           {creator.youtubeHandle}
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-xs text-slate-400">YouTube Channel</div>
                       </div>
@@ -536,18 +558,28 @@ export default function CreatorMediaKit() {
                       </div>
                       <div className="text-[10px] text-slate-400">Subscribers</div>
                     </div>
-                  </div>
+                  </a>
                 )}
 
                 {creator.facebookHandle && (
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <a
+                    href={
+                      creator.facebookHandle.startsWith("http")
+                        ? creator.facebookHandle
+                        : `https://facebook.com/${creator.facebookHandle.replace("@", "").trim()}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-950/90 transition-all group"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500">
+                      <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform">
                         <FaFacebook className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white">
+                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-blue-400 transition-colors">
                           {creator.facebookHandle}
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-xs text-slate-400">Facebook Page</div>
                       </div>
@@ -558,18 +590,28 @@ export default function CreatorMediaKit() {
                       </div>
                       <div className="text-[10px] text-slate-400">Followers</div>
                     </div>
-                  </div>
+                  </a>
                 )}
 
                 {creator.twitterHandle && (
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <a
+                    href={
+                      creator.twitterHandle.startsWith("http")
+                        ? creator.twitterHandle
+                        : `https://x.com/${creator.twitterHandle.replace("@", "").trim()}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-sky-500/50 hover:bg-slate-950/90 transition-all group"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400">
+                      <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 group-hover:scale-110 transition-transform">
                         <FaTwitter className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white">
+                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-sky-400 transition-colors">
                           @{creator.twitterHandle.replace("@", "")}
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-xs text-slate-400">X (Twitter)</div>
                       </div>
@@ -580,18 +622,28 @@ export default function CreatorMediaKit() {
                       </div>
                       <div className="text-[10px] text-slate-400">Followers</div>
                     </div>
-                  </div>
+                  </a>
                 )}
 
                 {creator.linkedinHandle && (
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800">
+                  <a
+                    href={
+                      creator.linkedinHandle.startsWith("http")
+                        ? creator.linkedinHandle
+                        : `https://linkedin.com/in/${creator.linkedinHandle.trim()}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-blue-600/50 hover:bg-slate-950/90 transition-all group"
+                  >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-blue-600/10 text-blue-400">
+                      <div className="p-2 rounded-xl bg-blue-600/10 text-blue-400 group-hover:scale-110 transition-transform">
                         <FaLinkedin className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white">
+                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-blue-400 transition-colors">
                           {creator.linkedinHandle}
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="text-xs text-slate-400">LinkedIn Profile</div>
                       </div>
@@ -602,7 +654,7 @@ export default function CreatorMediaKit() {
                       </div>
                       <div className="text-[10px] text-slate-400">Connections</div>
                     </div>
-                  </div>
+                  </a>
                 )}
               </div>
             </div>
