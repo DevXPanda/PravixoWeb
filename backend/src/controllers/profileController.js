@@ -583,6 +583,12 @@ export const updateProfile = async (req, res) => {
       "prefReach",
       "prefRegions",
 
+      "mediaKitBio",
+      "mediaKitTagline",
+      "audienceHighlights",
+      "pastBrandsWorkedWith",
+      "customSocialFeeds",
+
       "website",
       "companySize",
       "isBarterAllowed",

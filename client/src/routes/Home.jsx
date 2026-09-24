@@ -569,81 +569,36 @@ export default function Home() {
           />
         </div>
 
-        <div className="mx-auto max-w-7xl px-6 pt-16 pb-8 sm:px-8 sm:pt-20 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 pt-14 pb-12 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-5xl text-center relative">
 
-            {/* 3D Floating Badges around Hero (GPU-accelerated) */}
-            <div className="hidden lg:block">
-              <div className="absolute -left-12 top-6 animate-float z-20">
-                <div className="flex items-center gap-2 rounded-2xl border border-primary/20 bg-card/85 px-3.5 py-2 shadow-xl backdrop-blur-md transition-transform hover:scale-105 select-none">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-xs">
-                    <Zap className="h-4 w-4" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[11px] font-bold text-foreground">AI Matching</p>
-                    <p className="text-[9px] text-muted-foreground">Vetted in seconds</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute -right-8 top-12 animate-float z-20" style={{ animationDelay: "2.5s" }}>
-                <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-card/85 px-3.5 py-2 shadow-xl backdrop-blur-md transition-transform hover:scale-105 select-none">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-xs">
-                    <span className="text-xs">🤝</span>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[11px] font-bold text-foreground">Barter & Paid Deals</p>
-                    <p className="text-[9px] text-emerald-500 font-semibold">100% Verified</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute -left-6 bottom-4 animate-float z-20" style={{ animationDelay: "4s" }}>
-                <div className="flex items-center gap-2 rounded-2xl border border-border/80 bg-card/85 px-3.5 py-2 shadow-xl backdrop-blur-md transition-transform hover:scale-105 select-none">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-xs">
-                    <CheckCircle2 className="h-4 w-4" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[11px] font-bold text-foreground">Escrow Protection</p>
-                    <p className="text-[9px] text-muted-foreground">Safe collaboration</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Top Pill */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-semibold text-primary backdrop-blur-sm shadow-xs mb-4">
-              <span className="flex h-2 w-2 rounded-full bg-primary animate-ping" />
-              <span>India's Leading Creator & Brand Marketplace</span>
-            </div>
-
             {/* Heading */}
-            <h1 className="mt-2 text-center font-display font-black leading-[1.05] tracking-tight">
-              <span className="block text-[clamp(2.5rem,5.5vw,5.2rem)] text-foreground">
+            <h1 className="text-center font-display font-black leading-[1.08] tracking-tight">
+              <span className="block text-[clamp(2.4rem,5.5vw,4.8rem)] text-foreground">
                 Find the right influencers
               </span>
-              <span className="block text-[clamp(2.5rem,5.5vw,5.2rem)] text-gradient-sunset drop-shadow-sm">
+              <span className="block text-[clamp(2.4rem,5.5vw,4.8rem)] text-gradient-sunset drop-shadow-sm">
                 for your Brand in Minutes.
               </span>
             </h1>
 
             {/* Description */}
-            <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground sm:text-lg leading-relaxed">
-              Discover verified influencers and top brands across every category. Support for cash budgets and barter collaborations with end-to-end safe escrow protection.
+            <p className="mx-auto mt-4 max-w-3xl text-base text-muted-foreground sm:text-lg leading-relaxed">
+              Connect directly with verified creators and top brands across every niche for barter collaborations and paid campaigns.
             </p>
 
             {/* Search Input with 3D Glow Container */}
             <form
               onSubmit={handleSearch}
-              className="mx-auto mt-8 flex max-w-2xl items-center gap-2 rounded-full border border-border/80 bg-card/95 p-2 shadow-xl backdrop-blur-md focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15 transition-all duration-300"
+              className="mx-auto mt-8 flex max-w-3xl items-center gap-2 rounded-full border border-border/80 bg-card/95 p-2 shadow-2xl backdrop-blur-md focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15 transition-all duration-300"
             >
-              <Search className="ml-3.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              <Search className="ml-4 h-5 w-5 shrink-0 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search creators by niche, location, handle, or 'barter'..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground font-medium"
+                className="flex-1 bg-transparent px-2 text-sm sm:text-base outline-none placeholder:text-muted-foreground font-medium"
               />
               <Button
                 type="submit"
@@ -655,29 +610,50 @@ export default function Home() {
             </form>
 
             {/* Interactive Quick Search Pills */}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <span className="text-[11px] font-bold text-muted-foreground mr-1 uppercase tracking-wider">Quick:</span>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2 max-w-3xl mx-auto">
+              <span className="text-[11px] font-bold text-muted-foreground mr-1 uppercase tracking-wider">Popular:</span>
               {[
                 { label: "🤝 Barter Deals", query: "barter" },
-                { label: "👗 Fashion", query: "fashion" },
-                { label: "💻 Tech", query: "tech" },
-                { label: "🍕 Food", query: "food" },
-                { label: "💪 Fitness", query: "fitness" },
-                { label: "✈️ Travel", query: "travel" },
+                { label: "👗 Fashion & Style", query: "fashion" },
+                { label: "💻 Tech & Gadgets", query: "tech" },
+                { label: "🍕 Food & Beverage", query: "food" },
+                { label: "💪 Health & Fitness", query: "fitness" },
+                { label: "✈️ Travel & Living", query: "travel" },
+                { label: "✨ Beauty & Makeup", query: "beauty" },
               ].map((pill) => (
                 <button
                   key={pill.label}
                   type="button"
                   onClick={() => navigate(`/browse?q=${encodeURIComponent(pill.query)}`)}
-                  className="rounded-full border border-border/80 bg-card/70 px-3 py-1 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-all duration-200 shadow-xs cursor-pointer hover:scale-105 active:scale-95"
+                  className="rounded-full border border-border/80 bg-card/80 px-3.5 py-1.5 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary transition-all duration-200 shadow-xs cursor-pointer hover:scale-105 active:scale-95"
                 >
                   {pill.label}
                 </button>
               ))}
             </div>
 
+            {/* Live Trust Metrics Strip */}
+            <div className="mt-8 pt-6 border-t border-border/40 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto text-center">
+              <div className="space-y-0.5">
+                <div className="text-xl sm:text-2xl font-black font-outfit text-foreground">10,000+</div>
+                <div className="text-xs text-muted-foreground font-medium">Verified Creators</div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-xl sm:text-2xl font-black font-outfit text-primary">₹0 Fee</div>
+                <div className="text-xs text-muted-foreground font-medium">Barter Collabs</div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-xl sm:text-2xl font-black font-outfit text-emerald-400">100% Secure</div>
+                <div className="text-xs text-muted-foreground font-medium">Direct Deals</div>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-xl sm:text-2xl font-black font-outfit text-purple-400">&lt; 24 Hours</div>
+                <div className="text-xs text-muted-foreground font-medium">Average Response</div>
+              </div>
+            </div>
+
             {/* Payment info buttons */}
-            <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Button
                 variant="outline"
                 size="sm"

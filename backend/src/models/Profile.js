@@ -207,6 +207,57 @@ const profileSchema = new mongoose.Schema(
       default: [],
     },
 
+    customSocialFeeds: [
+      {
+        platform: {
+          type: String,
+          enum: ["instagram", "youtube", "facebook", "tiktok", "other"],
+          default: "instagram",
+        },
+        type: {
+          type: String,
+          enum: ["reel", "post", "short", "video"],
+          default: "reel",
+        },
+        postUrl: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        thumbnail: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        caption: {
+          type: String,
+          trim: true,
+          default: "",
+        },
+        badge: {
+          type: String,
+          trim: true,
+          default: "Viral Reel",
+        },
+        likes: {
+          type: String,
+          default: "10K",
+        },
+        comments: {
+          type: String,
+          default: "250",
+        },
+        views: {
+          type: String,
+          default: "50K",
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+
     companySize: {
       type: String,
       default: "",

@@ -11,6 +11,7 @@ import {
   exchangeOAuthCode,
   verifyAndConnectPlatform,
   syncLivePlatformStats,
+  extractSocialMetadata,
 } from "../controllers/socialController.js";
 
 const router = express.Router();
@@ -78,6 +79,12 @@ router.patch(
 router.delete(
   "/:connectionId",
   disconnectPlatform
+);
+
+// Extract metadata & stats from live Reel / Post URL
+router.post(
+  "/extract-metadata",
+  extractSocialMetadata
 );
 
 export default router;

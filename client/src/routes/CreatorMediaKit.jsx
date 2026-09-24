@@ -200,8 +200,8 @@ export default function CreatorMediaKit() {
   const ytHandleClean = creator.youtubeHandle ? creator.youtubeHandle.replace("@", "").trim() : "";
   const fbHandleClean = creator.facebookHandle ? creator.facebookHandle.replace("@", "").trim() : "";
 
-  // Dynamic curated feed items for verified channels
-  const liveInstagramFeeds = [
+  // Default verified feeds fallback
+  const defaultInstagramFeeds = [
     {
       id: "ig-1",
       type: "reel",
@@ -276,7 +276,7 @@ export default function CreatorMediaKit() {
     },
   ];
 
-  const liveYouTubeFeeds = [
+  const defaultYouTubeFeeds = [
     {
       id: "yt-1",
       type: "short",
@@ -301,21 +301,9 @@ export default function CreatorMediaKit() {
       url: `https://youtube.com/@${ytHandleClean || rawHandle}`,
       badge: "4K 60fps",
     },
-    {
-      id: "yt-3",
-      type: "short",
-      thumbnail: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80",
-      caption: "Life as a Full-time Creator in 60 Seconds ⏳",
-      likes: "32.0K",
-      comments: "1.1K",
-      views: "210K",
-      timeAgo: "2 weeks ago",
-      url: `https://youtube.com/@${ytHandleClean || rawHandle}`,
-      badge: "Viral Short",
-    },
   ];
 
-  const liveFacebookFeeds = [
+  const defaultFacebookFeeds = [
     {
       id: "fb-1",
       type: "post",
@@ -328,30 +316,71 @@ export default function CreatorMediaKit() {
       url: `https://facebook.com/${fbHandleClean || rawHandle}`,
       badge: "Community Post",
     },
-    {
-      id: "fb-2",
-      type: "reel",
-      thumbnail: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=600&auto=format&fit=crop&q=80",
-      caption: "Key takeaways from the Global Creator Summit 2026 🌐",
-      likes: "6.7K",
-      comments: "198",
-      views: "39K",
-      timeAgo: "10 days ago",
-      url: `https://facebook.com/${fbHandleClean || rawHandle}`,
-      badge: "Highlights",
-    },
   ];
+
+  // Filter custom uploaded/pasted social feeds from profile
+  const userCustomFeeds = Array.isArray(creator.customSocialFeeds) ? creator.customSocialFeeds : [];
+
+  const customInstagram = userCustomFeeds
+    .filter((f) => !f.platform || f.platform === "instagram")
+    .map((f, i) => ({
+      id: f._id || `cust-ig-${i}`,
+      type: f.type || "reel",
+      thumbnail: f.thumbnail || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&auto=format&fit=crop&q=80",
+      caption: f.caption || "Featured Creator Content ✨",
+      likes: f.likes || "15.4K",
+      comments: f.comments || "420",
+      views: f.views || "68K",
+      timeAgo: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "Recent",
+      url: f.postUrl || `https://instagram.com/${instaHandleClean || rawHandle}`,
+      badge: f.badge || (f.type === "reel" ? "Viral Reel" : "Instagram Post"),
+    }));
+
+  const customYouTube = userCustomFeeds
+    .filter((f) => f.platform === "youtube")
+    .map((f, i) => ({
+      id: f._id || `cust-yt-${i}`,
+      type: f.type || "short",
+      thumbnail: f.thumbnail || "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop&q=80",
+      caption: f.caption || "YouTube Feature Video 🎬",
+      likes: f.likes || "12.2K",
+      comments: f.comments || "310",
+      views: f.views || "95K",
+      timeAgo: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "Recent",
+      url: f.postUrl || `https://youtube.com/@${ytHandleClean || rawHandle}`,
+      badge: f.badge || (f.type === "short" ? "YT Short" : "YouTube Video"),
+    }));
+
+  const customFacebook = userCustomFeeds
+    .filter((f) => f.platform === "facebook")
+    .map((f, i) => ({
+      id: f._id || `cust-fb-${i}`,
+      type: f.type || "post",
+      thumbnail: f.thumbnail || "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?w=600&auto=format&fit=crop&q=80",
+      caption: f.caption || "Facebook Community Story 🌟",
+      likes: f.likes || "8.5K",
+      comments: f.comments || "190",
+      views: f.views || "42K",
+      timeAgo: f.createdAt ? new Date(f.createdAt).toLocaleDateString() : "Recent",
+      url: f.postUrl || `https://facebook.com/${fbHandleClean || rawHandle}`,
+      badge: f.badge || "Facebook Post",
+    }));
+
+  // Combine custom user-added posts with default verified feeds
+  const liveInstagramFeeds = customInstagram.length > 0 ? customInstagram : defaultInstagramFeeds;
+  const liveYouTubeFeeds = customYouTube.length > 0 ? customYouTube : defaultYouTubeFeeds;
+  const liveFacebookFeeds = customFacebook.length > 0 ? customFacebook : defaultFacebookFeeds;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-primary selection:text-white pb-24">
       {/* Top Media Kit Bar (Screen Only) */}
-      <header className="print:hidden sticky top-16 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-4 py-3">
-        <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="bg-gradient-to-r from-amber-500 to-rose-500 text-white font-black text-xs px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5" /> Media Kit
+      <header className="print:hidden sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-6 py-2.5 shadow-md">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="bg-gradient-to-r from-amber-500 to-rose-500 text-white font-black text-[11px] px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+              <Sparkles className="w-3 h-3" /> Media Kit
             </span>
-            <span className="text-sm font-semibold text-slate-300 hidden sm:inline">
+            <span className="text-xs font-semibold text-slate-400 hidden sm:inline">
               pravixo.com/c/{rawHandle}
             </span>
           </div>
