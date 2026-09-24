@@ -14,6 +14,7 @@ import {
   Wallet,
   Megaphone,
   LayoutDashboard,
+  CheckCircle2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../theme/ThemeProvider";
