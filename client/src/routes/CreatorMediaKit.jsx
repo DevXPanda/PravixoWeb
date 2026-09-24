@@ -146,10 +146,6 @@ export default function CreatorMediaKit() {
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const handleHireAction = (targetUrl) => {
     if (!user) {
       setShowBrandPromptModal(true);
@@ -394,14 +390,6 @@ export default function CreatorMediaKit() {
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
               {copied ? "Link Copied!" : "Share Link"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handlePrint}
-              className="rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 text-xs font-semibold gap-1.5 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-blue-400" /> Download PDF
             </Button>
             {isOwnProfile ? (
               <Link to="/dashboard/influencer">

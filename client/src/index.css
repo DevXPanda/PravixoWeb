@@ -463,3 +463,55 @@
   border-color: rgba(59, 130, 246, 0.35) !important;
   color: #f1f5f9 !important;
 }
+
+/* =====================================================
+   PRINT & PDF EXPORT STYLES (Clean High-Resolution Export)
+   ===================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 8mm;
+  }
+
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html, body {
+    background: #020617 !important;
+    color: #f8fafc !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide navigation, fixed bars, and modals */
+  nav, header.print\:hidden, .print\:hidden, [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  /* Ensure media kit main container occupies full width smoothly */
+  main {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  /* Prevent awkward page break cutting across cards */
+  section, .rounded-3xl, .stat-card-3d {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Fix background contrast for cards */
+  .bg-slate-950, .bg-slate-900, .bg-card {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+  }
+}
