@@ -277,19 +277,16 @@ export const getUserSubscription = async (req, res) => {
       activeSubscription = null; // Reverts back to Starter plan automatically
     }
 
-    const pendingSubscription = await UserSubscription.findOne({
-      profileId,
-      status: "pending",
-    })
-      .populate("packageId")
-      .populate("offerId")
-      .sort({ createdAt: -1 })
-      .lean();
+    // Clear any legacy pending subscription requests so users can directly upgrade via payment gateway
+    await UserSubscription.updateMany(
+      { profileId, status: "pending" },
+      { $set: { status: "cancelled" } }
+    );
 
     return res.status(200).json({
       success: true,
       data: activeSubscription ? (activeSubscription.toObject ? activeSubscription.toObject() : activeSubscription) : null,
-      pending: pendingSubscription || null,
+      pending: null,
     });
   } catch (error) {
     console.error("Get user subscription error:", error);

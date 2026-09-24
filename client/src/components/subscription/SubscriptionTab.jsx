@@ -329,45 +329,6 @@ export function SubscriptionTab({ role, profile }) {
       </div>
 
       {/* =================================================
-          PENDING UPGRADE REQUEST ALERT BANNER
-      ================================================= */}
-
-      {pendingSub && (
-        <div className="rounded-3xl border border-amber-500/30 bg-amber-500/10 p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-              <Clock className="h-5 w-5 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-sm text-foreground">
-                  Upgrade Request Under Review
-                </h3>
-                <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Pending Admin Approval
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                You requested to upgrade to the{" "}
-                <strong className="text-foreground">
-                  {pendingSub.packageId?.name || "selected"}
-                </strong>{" "}
-                plan. The admin has been notified and your plan will be activated once approved.
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchSubscriptionData}
-            className="rounded-full text-xs shrink-0 border-amber-500/40 text-amber-600 hover:bg-amber-500/15"
-          >
-            Check Status
-          </Button>
-        </div>
-      )}
-
-      {/* =================================================
           SPECIAL OFFER
       ================================================= */}
 
@@ -642,24 +603,15 @@ export function SubscriptionTab({ role, profile }) {
                       >
                         Active Plan
                       </Button>
-                    ) : isPending ? (
-                      <Button
-                        className="w-full rounded-full cursor-default border-amber-500/30 text-amber-500 bg-amber-500/10 hover:bg-amber-500/10 font-semibold"
-                        variant="outline"
-                        disabled
-                      >
-                        <Clock className="h-4 w-4 mr-1.5" />
-                        Approval Pending
-                      </Button>
                     ) : (
                       <Button
                         className={`w-full rounded-full font-semibold ${
-                          pkg.name === "Pro"
+                          pkg.name === "Pro" || pkg.name === "Elite"
                             ? "gradient-sunset border-0 text-white shadow-glow"
                             : ""
                         }`}
                         variant={
-                          pkg.name === "Pro"
+                          pkg.name === "Pro" || pkg.name === "Elite"
                             ? "default"
                             : "outline"
                         }
@@ -672,13 +624,11 @@ export function SubscriptionTab({ role, profile }) {
                           )
                         }
                         disabled={
-                          upgradingId !== null || pendingSub !== null
+                          upgradingId !== null
                         }
                       >
                         {upgradingId === pkg._id
-                          ? "Requesting..."
-                          : pendingSub !== null
-                          ? "Request In Review"
+                          ? "Opening Gateway..."
                           : `Upgrade to ${pkg.name}`}
                       </Button>
                     )}
