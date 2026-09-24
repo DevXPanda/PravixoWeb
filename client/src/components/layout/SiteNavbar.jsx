@@ -7,6 +7,13 @@ import {
   LogOut,
   MessageSquare,
   UserPlus,
+  ChevronDown,
+  Star,
+  Sparkles,
+  Gift,
+  Wallet,
+  Megaphone,
+  LayoutDashboard,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "../theme/ThemeProvider";
@@ -41,7 +48,20 @@ export function SiteNavbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [connectionCount, setConnectionCount] = useState(0);
   const [isNavVisible, setIsNavVisible] = useState(true);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const userDropdownRef = useRef(null);
   const lastScrollY = useRef(0);
+
+  // Click outside to close user dropdown
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target)) {
+        setIsUserDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -99,6 +119,11 @@ export function SiteNavbar() {
     const interval = setInterval(fetchCounts, 6000);
     return () => clearInterval(interval);
   }, [profile]);
+
+  const dashboardBaseUrl =
+    profile?.role === "creator"
+      ? "/dashboard/influencer"
+      : "/dashboard/customer";
 
   const links = [
     ...baseLinks,
@@ -216,18 +241,16 @@ export function SiteNavbar() {
               </>
             )}
 
-            {/* Auth Buttons / Profile Pill */}
+            {/* Auth Buttons / Profile Pill & Dropdown */}
             {loading ? (
               <div className="h-9 w-24 rounded-full bg-secondary animate-pulse" />
             ) : user ? (
-              <div className="hidden items-center gap-2 sm:flex">
-                <Link
-                  to={
-                    profile?.role === "creator"
-                      ? "/dashboard/influencer"
-                      : "/dashboard/customer"
-                  }
-                  className="flex h-9 items-center gap-2 rounded-full border border-border bg-card pl-1 pr-3 transition-colors hover:bg-secondary"
+              <div className="hidden items-center gap-2 sm:flex relative" ref={userDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsUserDropdownOpen((prev) => !prev)}
+                  className="flex h-9 items-center gap-2 rounded-full border border-border bg-card pl-1 pr-3 transition-all hover:bg-secondary hover:border-border/80 cursor-pointer shadow-xs focus:outline-none"
+                  aria-expanded={isUserDropdownOpen}
                 >
                   <div className="flex items-center gap-2">
                     <img
@@ -243,10 +266,131 @@ export function SiteNavbar() {
                       }}
                     />
                   </div>
-                  <span className="max-w-[120px] truncate text-sm font-medium">
+                  <span className="max-w-[110px] truncate text-sm font-medium text-foreground">
                     {profile?.fullName || profile?.name || user.email}
                   </span>
-                </Link>
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${isUserDropdownOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* DROPDOWN MENU */}
+                {isUserDropdownOpen && (
+                  <div className="absolute right-0 top-12 z-50 w-64 rounded-3xl border border-border/80 bg-popover/95 backdrop-blur-xl p-2.5 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-2 border-b border-border/50 mb-1.5 flex items-center gap-2.5">
+                      <img
+                        src={
+                          resolveImageUrl(profile?.avatarUrl) ||
+                          getGenderAvatar(profile?.fullName || profile?.name || user?.email, profile?.gender, profile?.role)
+                        }
+                        alt=""
+                        className="h-9 w-9 rounded-full object-cover border border-border/60"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-foreground truncate">
+                          {profile?.fullName || profile?.name || "User"}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                          <span className="capitalize font-semibold text-primary">{profile?.role || "Brand"}</span> • @{profile?.handle?.replace("@", "") || "user"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-0.5 text-xs font-medium">
+                      <Link
+                        to={dashboardBaseUrl}
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                      >
+                        <LayoutDashboard className="h-4 w-4 text-primary" />
+                        <span>Overview Dashboard</span>
+                      </Link>
+
+                      <Link
+                        to={`${dashboardBaseUrl}?tab=subscription`}
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                      >
+                        <Star className="h-4 w-4 text-amber-500" />
+                        <span>{profile?.role === "brand" ? "Add-on Services & Packages" : "Packages & Plan"}</span>
+                      </Link>
+
+                      <Link
+                        to={`${dashboardBaseUrl}?tab=offers`}
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                      >
+                        <Sparkles className="h-4 w-4 text-pink-500" />
+                        <span>Special Offers & Deals</span>
+                      </Link>
+
+                      <Link
+                        to="/referrals"
+                        onClick={() => setIsUserDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                      >
+                        <Gift className="h-4 w-4 text-emerald-500" />
+                        <span>Refer & Earn (5% - 10%)</span>
+                      </Link>
+
+                      {profile?.role === "creator" && (
+                        <Link
+                          to={`${dashboardBaseUrl}?tab=wallet`}
+                          onClick={() => setIsUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                        >
+                          <Wallet className="h-4 w-4 text-indigo-500" />
+                          <span>Wallet & Payouts</span>
+                        </Link>
+                      )}
+
+                      {profile?.role === "creator" ? (
+                        <Link
+                          to={`${dashboardBaseUrl}?tab=campaigns`}
+                          onClick={() => setIsUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                        >
+                          <Megaphone className="h-4 w-4 text-blue-500" />
+                          <span>Find Campaigns</span>
+                        </Link>
+                      ) : (
+                        <Link
+                          to={`${dashboardBaseUrl}?section=campaigns`}
+                          onClick={() => setIsUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                        >
+                          <Megaphone className="h-4 w-4 text-blue-500" />
+                          <span>Campaigns & Escrow</span>
+                        </Link>
+                      )}
+
+                      {profile?.handle && (
+                        <Link
+                          to={`/c/${profile.handle.replace("@", "")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setIsUserDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
+                        >
+                          <Sparkles className="h-4 w-4 text-purple-500" />
+                          <span>Public Media Kit</span>
+                        </Link>
+                      )}
+
+                      <div className="my-1 border-t border-border/50" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserDropdownOpen(false);
+                          handleSignOut();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-destructive hover:bg-destructive/10 transition-colors text-left"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <Button
                   variant="ghost"

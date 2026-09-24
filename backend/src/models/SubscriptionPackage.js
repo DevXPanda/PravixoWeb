@@ -13,6 +13,11 @@ const subscriptionPackageSchema = new mongoose.Schema(
       required: true,
     },
 
+    originalPrice: {
+      type: Number,
+      default: 0,
+    },
+
     billingPeriod: {
       type: String,
       required: true,

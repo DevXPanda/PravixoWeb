@@ -98,7 +98,7 @@ export function SubscriptionTab({ role, profile }) {
   });
 
   // =====================================================
-  // HANDLE SUBSCRIPTION
+  // HANDLE SUBSCRIPTION (DIRECT PAYMENT GATEWAY)
   // =====================================================
 
   const handleUpgrade = async (
@@ -113,33 +113,91 @@ export function SubscriptionTab({ role, profile }) {
     try {
       setUpgradingId(packageId);
 
-      const response = await api.post(
-        `/subscriptions`,
-        {
+      // 1. Create Razorpay Order
+      const orderRes = await api.post(`/subscriptions/order`, {
+        profileId: profile._id,
+        packageId,
+        ...(offerId && { offerId }),
+      });
+
+      const orderData = orderRes.data?.data;
+      if (!orderData || !orderData.orderId) {
+        throw new Error("Unable to create checkout order.");
+      }
+
+      // 2. Open Razorpay Checkout Modal
+      if (typeof window.Razorpay === "undefined") {
+        // Fallback if Razorpay script is not loaded in window: direct activation
+        const directRes = await api.post(`/subscriptions`, {
           profileId: profile._id,
           packageId,
           ...(offerId && { offerId }),
-        }
-      );
+        });
+        toast.success(directRes.data?.message || "Package activated successfully!");
+        await fetchSubscriptionData();
+        return;
+      }
 
-      toast.success(
-        response.data?.message ||
-          "Upgrade request submitted! An admin will review and approve your request shortly."
-      );
+      const options = {
+        key: orderData.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_placeholder",
+        amount: orderData.amount,
+        currency: orderData.currency || "INR",
+        name: "Pravixo Platform",
+        description: `Activation of ${orderData.package?.name || "Add-on"} Plan (₹${orderData.package?.price || 0})`,
+        order_id: orderData.orderId,
+        handler: async (response) => {
+          try {
+            setUpgradingId(packageId);
+            const verifyRes = await api.post(`/subscriptions/verify`, {
+              profileId: profile._id,
+              packageId,
+              offerId,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
 
-      // Refresh subscription data
-      await fetchSubscriptionData();
+            toast.success(
+              verifyRes.data?.message ||
+                "Payment successful! Your package is now instantly active."
+            );
+
+            // Refresh subscription data
+            await fetchSubscriptionData();
+          } catch (verifyErr) {
+            console.error("Subscription verify error:", verifyErr);
+            toast.error(
+              verifyErr.response?.data?.message ||
+                "Payment verification failed. Please contact support."
+            );
+          } finally {
+            setUpgradingId(null);
+          }
+        },
+        prefill: {
+          name: profile.fullName || "",
+          email: profile.email || user?.email || "",
+        },
+        theme: {
+          color: "#EC4899",
+        },
+        modal: {
+          ondismiss: () => {
+            setUpgradingId(null);
+            toast.info("Payment cancelled");
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (error) {
-      console.error(
-        "Subscription upgrade error:",
-        error
-      );
-
+      console.error("Subscription upgrade error:", error);
       toast.error(
         error.response?.data?.message ||
-          "Failed to request subscription upgrade."
+          error.message ||
+          "Failed to initiate payment gateway."
       );
-    } finally {
       setUpgradingId(null);
     }
   };
@@ -221,13 +279,14 @@ export function SubscriptionTab({ role, profile }) {
 
             <Sparkles className="h-6 w-6 text-primary" />
 
-            Manage Packages
+            {role === "brand" ? "Add-on Services & Creator Packages" : "Manage Add-on Services"}
 
           </h2>
 
           <p className="text-sm text-muted-foreground mt-1">
-            View details of your active plan, upgrade
-            features, or browse special discount codes.
+            {role === "brand"
+              ? "End-to-end creator communication, shortlisting, video production guidelines & status analytics managed by Pravixo."
+              : "View details of your active plan, upgrade features, or browse special discount codes."}
           </p>
 
         </div>
@@ -237,7 +296,7 @@ export function SubscriptionTab({ role, profile }) {
         <div className="rounded-2xl border border-primary/20 bg-primary/5 px-6 py-4 flex flex-col items-center md:items-start min-w-[200px]">
 
           <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
-            Current Package
+            Current Plan
           </span>
 
           <span className="text-xl font-bold text-foreground mt-1 flex items-center gap-1.5">
@@ -490,19 +549,33 @@ export function SubscriptionTab({ role, profile }) {
                         {pkg.name}
                       </h4>
 
-                      <div className="mt-2 flex items-baseline gap-1">
+                      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
 
                         {hasPromo ? (
                           <>
-                            <span className="text-2xl font-bold text-foreground">
+                            <span className="text-2xl font-black text-foreground font-display">
                               ₹
                               {Math.round(
                                 finalPrice
-                              )}
+                              ).toLocaleString("en-IN")}
                             </span>
 
-                            <span className="text-xs text-muted-foreground line-through">
-                              ₹{pkg.price}
+                            <span className="text-sm font-semibold text-muted-foreground line-through opacity-70">
+                              ₹{(pkg.originalPrice || pkg.price * 2).toLocaleString("en-IN")}
+                            </span>
+
+                            <span className="text-xs text-muted-foreground">
+                              /{pkg.billingPeriod}
+                            </span>
+                          </>
+                        ) : pkg.originalPrice && pkg.originalPrice > pkg.price ? (
+                          <>
+                            <span className="text-2xl font-black text-foreground font-display">
+                              ₹{pkg.price.toLocaleString("en-IN")}
+                            </span>
+
+                            <span className="text-sm font-semibold text-muted-foreground line-through opacity-70">
+                              ₹{pkg.originalPrice.toLocaleString("en-IN")}
                             </span>
 
                             <span className="text-xs text-muted-foreground">
@@ -511,9 +584,15 @@ export function SubscriptionTab({ role, profile }) {
                           </>
                         ) : (
                           <>
-                            <span className="text-2xl font-bold text-foreground">
-                              ₹{pkg.price}
+                            <span className="text-2xl font-black text-foreground font-display">
+                              ₹{pkg.price.toLocaleString("en-IN")}
                             </span>
+
+                            {pkg.price > 0 && (
+                              <span className="text-sm font-semibold text-muted-foreground line-through opacity-70">
+                                ₹{(pkg.price * 2).toLocaleString("en-IN")}
+                              </span>
+                            )}
 
                             <span className="text-xs text-muted-foreground">
                               /{pkg.billingPeriod}

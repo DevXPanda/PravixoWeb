@@ -1005,6 +1005,47 @@ export default function InfluencerDetails() {
     setLoadingReviews,
   ] = useState(false);
 
+  const [reviewEligibility, setReviewEligibility] = useState({
+    canReview: false,
+    campaigns: [],
+    loading: false,
+    reason: "",
+    conversationId: null,
+  });
+
+  const checkReviewEligibility = useCallback(async () => {
+    const targetId = inf?.id || profileId;
+    const reviewerId = myProfile?._id || myProfile?.id;
+    if (!targetId || !reviewerId || isOwnProfile) {
+      setReviewEligibility({ canReview: false, campaigns: [], loading: false, reason: "", conversationId: null });
+      return;
+    }
+
+    setReviewEligibility((prev) => ({ ...prev, loading: true }));
+    try {
+      const res = await api.get(`/api/reviews/can-review/${targetId}?reviewerId=${reviewerId}`);
+      if (res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        setReviewEligibility({
+          canReview: Boolean(d.canReview),
+          campaigns: Array.isArray(d.campaigns) ? d.campaigns : [],
+          loading: false,
+          reason: d.reason || "",
+          conversationId: d.conversationId || null,
+        });
+        if (Array.isArray(d.campaigns) && d.campaigns.length > 0 && !campaignRef) {
+          setCampaignRef(d.campaigns[0].title);
+        }
+      }
+    } catch {
+      setReviewEligibility({ canReview: false, campaigns: [], loading: false, reason: "Unable to verify collaboration status", conversationId: null });
+    }
+  }, [inf?.id, profileId, myProfile?._id, myProfile?.id, isOwnProfile, campaignRef]);
+
+  useEffect(() => {
+    checkReviewEligibility();
+  }, [checkReviewEligibility]);
+
   // ===================================================
   // PUBLIC PROFILE VIEW (Login is NOT required to view profiles)
   // ===================================================
@@ -2509,11 +2550,23 @@ export default function InfluencerDetails() {
                   {!isOwnProfile && (
                     <Button
                       size="sm"
-                      className="rounded-full gradient-sunset text-white text-xs font-semibold h-8 px-4"
+                      className={cn(
+                        "rounded-full text-xs font-semibold h-8 px-4 shadow-sm",
+                        reviewEligibility.canReview
+                          ? "gradient-sunset text-white"
+                          : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+                      )}
                       onClick={() => {
                         if (!user) {
                           toast.error("Please login to write a review");
                           navigate("/login");
+                          return;
+                        }
+                        if (!reviewEligibility.canReview) {
+                          toast.error(
+                            reviewEligibility.reason ||
+                            "You can only review brands or creators with whom you have completed a collaboration."
+                          );
                           return;
                         }
                         setIsReviewModalOpen(true);
@@ -2954,17 +3007,34 @@ export default function InfluencerDetails() {
                 Campaign Reference
               </Label>
 
-              <Input
-                id="campaign-ref"
-                value={campaignRef}
-                onChange={(event) =>
-                  setCampaignRef(
-                    event.target.value
-                  )
-                }
-                placeholder="Summer Launch 2026"
-                className="rounded-xl"
-              />
+              {reviewEligibility.campaigns && reviewEligibility.campaigns.length > 0 ? (
+                <select
+                  id="campaign-ref"
+                  value={campaignRef}
+                  onChange={(event) => setCampaignRef(event.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-primary"
+                  required
+                >
+                  <option value="" disabled>Select collaborated campaign...</option>
+                  {reviewEligibility.campaigns.map((camp) => (
+                    <option key={camp.id || camp.title} value={camp.title}>
+                      {camp.title}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="campaign-ref"
+                  value={campaignRef}
+                  onChange={(event) =>
+                    setCampaignRef(
+                      event.target.value
+                    )
+                  }
+                  placeholder="e.g. Summer Launch Campaign"
+                  className="rounded-xl"
+                />
+              )}
 
             </div>
 

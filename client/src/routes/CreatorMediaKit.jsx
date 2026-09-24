@@ -40,6 +40,15 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import api from "@/lib/api";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/Dialog";
+
 const QuoraIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M16.592 16.483c.783-.984 1.258-2.228 1.258-3.585 0-3.155-2.558-5.713-5.713S6.423 9.743 6.423 12.898s2.558 5.713 5.713 5.713c1.088 0 2.106-.305 2.975-.833l3.208 3.208c.28.28.73.28 1.01 0a.715.715 0 000-1.01l-2.737-2.493zm-4.455.518c-2.099 0-3.8-1.701-3.8-3.8 0-2.099 1.701-3.8 3.8-3.8s3.8 1.701 3.8 3.8c0 2.099-1.701 3.8-3.8 3.8z" />
@@ -58,6 +67,7 @@ export default function CreatorMediaKit() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeMediaTab, setActiveMediaTab] = useState("all");
+  const [showBrandPromptModal, setShowBrandPromptModal] = useState(false);
 
   const mediaKitRef = useRef(null);
 
@@ -135,6 +145,14 @@ export default function CreatorMediaKit() {
     window.print();
   };
 
+  const handleHireAction = (targetUrl) => {
+    if (!user) {
+      setShowBrandPromptModal(true);
+    } else {
+      navigate(targetUrl);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
@@ -205,17 +223,19 @@ export default function CreatorMediaKit() {
               <Download className="w-3.5 h-3.5 text-blue-400" /> Download PDF
             </Button>
             {isOwnProfile ? (
-              <Link to="/dashboard/creator">
+              <Link to="/dashboard/influencer">
                 <Button size="sm" className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer">
                   <Sparkles className="w-3.5 h-3.5" /> Edit My Profile
                 </Button>
               </Link>
             ) : (
-              <Link to={`/influencer/${creator._id}`}>
-                <Button size="sm" className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer">
-                  <MessageCircle className="w-3.5 h-3.5" /> Hire @{rawHandle}
-                </Button>
-              </Link>
+              <Button
+                size="sm"
+                onClick={() => handleHireAction(`/influencer/${creator._id}`)}
+                className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer"
+              >
+                <MessageCircle className="w-3.5 h-3.5" /> Hire @{rawHandle}
+              </Button>
             )}
           </div>
         </div>
@@ -286,17 +306,18 @@ export default function CreatorMediaKit() {
             {/* Quick Action in Header */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 print:hidden">
               {isOwnProfile ? (
-                <Link to="/dashboard/creator" className="w-full sm:w-auto">
+                <Link to="/dashboard/influencer" className="w-full sm:w-auto">
                   <Button className="w-full rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 shadow-lg cursor-pointer">
                     <Sparkles className="w-4 h-4 mr-1.5 text-primary" /> Edit My Media Kit
                   </Button>
                 </Link>
               ) : (
-                <Link to={`/messages?recipientId=${creator._id}`} className="w-full sm:w-auto">
-                  <Button className="w-full rounded-full bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold px-6 shadow-lg shadow-orange-500/20 cursor-pointer">
-                    <Zap className="w-4 h-4 mr-1.5" /> Book Collaboration
-                  </Button>
-                </Link>
+                <Button
+                  onClick={() => handleHireAction(`/messages?recipientId=${creator._id}`)}
+                  className="w-full sm:w-auto rounded-full bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold px-6 shadow-lg shadow-orange-500/20 cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 mr-1.5" /> Book Collaboration
+                </Button>
               )}
             </div>
           </div>
@@ -643,11 +664,14 @@ export default function CreatorMediaKit() {
                 </div>
               )}
 
-              <Link to={`/messages?with=${creator._id}`} className="block pt-2">
-                <Button className="w-full rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-sm h-11 cursor-pointer">
+              <div className="pt-2">
+                <Button
+                  onClick={() => handleHireAction(`/messages?with=${creator._id}`)}
+                  className="w-full rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-sm h-11 cursor-pointer"
+                >
                   Request Custom Scope of Work (SOW)
                 </Button>
-              </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -724,11 +748,12 @@ export default function CreatorMediaKit() {
               Create agreements with legally verified e-signatures, track shipments, and review deliverables inside Pravixo.
             </p>
             <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-              <Link to={`/influencer/${creator._id}`}>
-                <Button className="rounded-full bg-white hover:bg-slate-100 text-slate-950 font-extrabold px-8 shadow-xl cursor-pointer">
-                  Start Brand Campaign
-                </Button>
-              </Link>
+              <Button
+                onClick={() => handleHireAction(`/influencer/${creator._id}`)}
+                className="rounded-full bg-white hover:bg-slate-100 text-slate-950 font-extrabold px-8 shadow-xl cursor-pointer"
+              >
+                Start Brand Campaign
+              </Button>
               <Button
                 variant="outline"
                 onClick={handleCopyLink}
@@ -741,6 +766,60 @@ export default function CreatorMediaKit() {
         </section>
 
       </main>
+
+      {/* Sweet Brand Account Registration/Login Dialog for Unauthenticated Visitors */}
+      <Dialog open={showBrandPromptModal} onOpenChange={setShowBrandPromptModal}>
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-slate-900 border-slate-800 text-slate-100 shadow-2xl">
+          <DialogHeader className="text-center sm:text-center space-y-2">
+            <div className="mx-auto w-14 h-14 rounded-3xl bg-gradient-to-tr from-amber-500 via-rose-500 to-primary flex items-center justify-center text-white shadow-glow mb-1">
+              <Sparkles className="w-7 h-7" />
+            </div>
+            <DialogTitle className="font-display text-2xl font-bold text-white">
+              Want to hire this creator as a Brand?
+            </DialogTitle>
+            <DialogDescription className="text-slate-300 text-sm leading-relaxed">
+              Please create an account as a <strong>Brand</strong> on <strong>Pravixo</strong> to collaborate, send offers, and book verified campaigns with @{rawHandle}!
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 my-2 space-y-2 text-xs text-slate-300">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Direct escrow payment protection & verified milestones</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Real-time deliverable submission review & approval</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Audited audience insights & legally binding agreements</span>
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-col gap-2 pt-2">
+            <Button
+              className="w-full rounded-full gradient-sunset text-white font-bold h-11 text-sm shadow-glow cursor-pointer"
+              onClick={() => {
+                setShowBrandPromptModal(false);
+                navigate("/register?role=brand");
+              }}
+            >
+              Create Free Brand Account
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 font-semibold h-10 text-xs cursor-pointer"
+              onClick={() => {
+                setShowBrandPromptModal(false);
+                navigate("/login");
+              }}
+            >
+              Already have an account? Sign In
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Footer Branding */}
       <footer className="max-w-6xl mx-auto px-4 text-center mt-12 text-xs text-slate-500">

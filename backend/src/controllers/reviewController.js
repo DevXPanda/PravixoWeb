@@ -7,6 +7,7 @@ import Profile from "../models/Profile.js";
 import Conversation from "../models/Conversation.js";
 
 // Check karta hai ki user (brand ya creator) kisi doosre party ko review kar sakta hai ya nahi.
+// Sirf vhi review kar sakta hai jiske sath collaboration hui hai (accepted/amount_agreed/paid connection).
 export const canReview = async (req, res) => {
   try {
     const { targetId } = req.params;
@@ -15,7 +16,7 @@ export const canReview = async (req, res) => {
     if (!reviewerId || !targetId) {
       return res.status(200).json({
         success: true,
-        data: { canReview: false },
+        data: { canReview: false, campaigns: [], reason: "Missing reviewer or target profile" },
       });
     }
 
@@ -35,52 +36,91 @@ export const canReview = async (req, res) => {
     if (!reviewer || !target) {
       return res.status(200).json({
         success: true,
-        data: { canReview: false },
+        data: { canReview: false, campaigns: [], reason: "Profile not found" },
       });
     }
 
-    // Find conversations where either one is creator/brand
-    const conversations = await Conversation.find({
+    if (reviewer._id.toString() === target._id.toString()) {
+      return res.status(200).json({
+        success: true,
+        data: { canReview: false, campaigns: [], reason: "Cannot review own profile" },
+      });
+    }
+
+    // Find accepted/active collaborations between reviewer and target
+    const connections = await Connection.find({
+      $or: [
+        { brandId: reviewer._id, creatorId: target._id },
+        { brandId: target._id, creatorId: reviewer._id },
+      ],
+      $or: [
+        { status: "accepted" },
+        { collaborationStatus: "AMOUNT_AGREED" },
+        { paymentStatus: { $in: ["PAID", "PAYMENT_INITIATED"] } },
+      ],
+    }).populate("campaignId", "title").lean();
+
+    if (connections.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          canReview: false,
+          campaigns: [],
+          reason: "You can only review brands or creators you have collaborated with.",
+        },
+      });
+    }
+
+    // Collect verified campaigns from collaborations
+    const campaignsMap = new Map();
+    for (const conn of connections) {
+      if (conn.campaignId && conn.campaignId.title) {
+        campaignsMap.set(conn.campaignId._id.toString(), {
+          id: conn.campaignId._id,
+          title: conn.campaignId.title,
+        });
+      }
+    }
+
+    // If no specific campaign linked, allow generic collaboration reference
+    const campaigns = Array.from(campaignsMap.values());
+    if (campaigns.length === 0) {
+      campaigns.push({ id: "collab_direct", title: "Direct Collaboration" });
+    }
+
+    // Check if reviewer has already reviewed this target
+    const existingReview = await Review.findOne({
+      reviewerId: reviewer._id,
+      targetId: target._id,
+    });
+
+    if (existingReview) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          canReview: false,
+          alreadyReviewed: true,
+          campaigns,
+          reason: "You have already reviewed this profile.",
+        },
+      });
+    }
+
+    // Find conversation ID if available
+    const conversation = await Conversation.findOne({
       $or: [
         { brandId: reviewer._id, creatorId: target._id },
         { brandId: target._id, creatorId: reviewer._id },
       ],
     }).lean();
 
-    if (conversations.length === 0) {
-      return res.status(200).json({
-        success: true,
-        data: { canReview: false },
-      });
-    }
-
-    // Check if reviewer has already reviewed for this conversation
-    for (const conversation of conversations) {
-      const existingReview = await Review.findOne({
-        conversationId: conversation._id,
-        $or: [
-          { reviewerId: reviewer._id },
-          // Backward compatibility check
-          reviewer.role === "brand"
-            ? { brandId: reviewer._id, creatorId: target._id }
-            : { creatorId: reviewer._id, brandId: target._id },
-        ],
-      });
-
-      if (!existingReview) {
-        return res.status(200).json({
-          success: true,
-          data: {
-            canReview: true,
-            conversationId: conversation._id,
-          },
-        });
-      }
-    }
-
     return res.status(200).json({
       success: true,
-      data: { canReview: false },
+      data: {
+        canReview: true,
+        campaigns,
+        conversationId: conversation?._id || undefined,
+      },
     });
   } catch (error) {
     console.error("Can review error:", error);
@@ -143,6 +183,26 @@ export const submitReview = async (req, res) => {
       });
     }
 
+    // Verify collaboration exists between the two parties
+    const hasCollab = await Connection.findOne({
+      $or: [
+        { brandId: reviewer._id, creatorId: target._id },
+        { brandId: target._id, creatorId: reviewer._id },
+      ],
+      $or: [
+        { status: "accepted" },
+        { collaborationStatus: "AMOUNT_AGREED" },
+        { paymentStatus: { $in: ["PAID", "PAYMENT_INITIATED"] } },
+      ],
+    });
+
+    if (!hasCollab) {
+      return res.status(403).json({
+        success: false,
+        message: "Only brands and creators who have collaborated can submit a review.",
+      });
+    }
+
     // Check optional conversation
     let validConversationId = undefined;
     if (conversationId && mongoose.Types.ObjectId.isValid(conversationId)) {
@@ -192,7 +252,7 @@ export const submitReview = async (req, res) => {
       rating: Number(rating),
       title: title.trim(),
       text: text.trim(),
-      campaignRef: campaignRef || undefined,
+      campaignRef: campaignRef ? campaignRef.trim() : undefined,
       status: "approved",
       visible: true,
       createdAt: Date.now(),

@@ -732,6 +732,239 @@ export const getReferralEarnings = async (req, res) => {
 };
 
 /**
+ * GET /api/referrals/analytics?timeframe=6m
+ * Returns detailed analytics: total commission, active referrals, breakdown by role,
+ * timeframe filtered chart data points (1m, 3m, 6m, 1y, all), and top performing referrals.
+ */
+export const getReferralAnalytics = async (req, res) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized." });
+    }
+
+    const timeframe = req.query.timeframe || "6m"; // '1m' | '3m' | '6m' | '1y' | 'all'
+
+    const targetObjectId = mongoose.Types.ObjectId.isValid(userId)
+      ? new mongoose.Types.ObjectId(userId)
+      : null;
+
+    const userProfile = (targetObjectId ? await Profile.findById(targetObjectId).lean() : null) ||
+      (await Profile.findOne({ $or: [{ _id: userId }, { userId: userId }] }).lean());
+
+    const userCodes = [];
+    if (userProfile?.referral_code) userCodes.push(userProfile.referral_code);
+    if (userProfile?.referralCode && !userCodes.includes(userProfile.referralCode)) {
+      userCodes.push(userProfile.referralCode);
+    }
+
+    const validObjectIds = [];
+    if (targetObjectId) validObjectIds.push(targetObjectId);
+    if (userProfile?._id) {
+      const pId = mongoose.Types.ObjectId.isValid(userProfile._id) ? new mongoose.Types.ObjectId(userProfile._id) : null;
+      if (pId && !validObjectIds.some((id) => id.equals(pId))) validObjectIds.push(pId);
+    }
+
+    // Determine timeframe start date
+    const now = new Date();
+    let startDate = new Date(0); // all
+    if (timeframe === "1m") {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    } else if (timeframe === "3m") {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    } else if (timeframe === "6m") {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+    } else if (timeframe === "1y") {
+      startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    }
+
+    // 1. Fetch all referrals by user
+    const [rels, profiles] = await Promise.all([
+      ReferralRelationship.find({
+        $or: [
+          ...(validObjectIds.length > 0 ? [{ referrer_id: { $in: validObjectIds } }] : []),
+          ...(userCodes.length > 0 ? [{ referral_code_used: { $in: userCodes } }] : []),
+        ],
+      })
+        .populate("referred_id", "fullName email handle avatarUrl role createdAt")
+        .lean(),
+      validObjectIds.length > 0
+        ? Profile.find({
+            $or: [
+              { referred_by_user_id: { $in: validObjectIds } },
+              { referredBy: { $in: validObjectIds } },
+            ],
+          })
+            .select("fullName email handle avatarUrl role createdAt")
+            .lean()
+        : [],
+    ]);
+
+    const referredMap = new Map();
+    rels.forEach((rel) => {
+      const u = rel.referred_id;
+      if (u && u._id) {
+        referredMap.set(u._id.toString(), {
+          _id: u._id,
+          fullName: u.fullName || "User",
+          handle: u.handle || "",
+          email: u.email || "",
+          avatarUrl: u.avatarUrl || "",
+          role: u.role || rel.referred_type || "creator",
+          createdAt: rel.created_at || rel.createdAt || u.createdAt,
+          relationshipId: rel._id,
+          status: rel.status || "active",
+        });
+      }
+    });
+
+    profiles.forEach((p) => {
+      const uid = p._id.toString();
+      if (!referredMap.has(uid)) {
+        referredMap.set(uid, {
+          _id: p._id,
+          fullName: p.fullName || "User",
+          handle: p.handle || "",
+          email: p.email || "",
+          avatarUrl: p.avatarUrl || "",
+          role: p.role || "creator",
+          createdAt: p.createdAt,
+          relationshipId: null,
+          status: "active",
+        });
+      }
+    });
+
+    const allReferred = Array.from(referredMap.values());
+    const referredIds = allReferred.map((r) => r._id);
+
+    // 2. Fetch completed payouts & commission transactions
+    const [commTxs, referredPayouts] = await Promise.all([
+      WalletTransaction.find({
+        creatorId: { $in: validObjectIds },
+        transaction_type: "referral_commission",
+        status: "COMPLETED",
+      }).sort({ createdAt: 1 }).lean(),
+      WalletTransaction.find({
+        creatorId: { $in: referredIds },
+        transaction_type: "project_payout",
+        status: "COMPLETED",
+      }).lean(),
+    ]);
+
+    // Calculate total earned
+    const total_earned = commTxs.reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+    // Map commissions and payouts to individual referred users
+    const userCommissionMap = new Map();
+    const userVolumeMap = new Map();
+
+    referredPayouts.forEach((p) => {
+      const uid = p.creatorId.toString();
+      const curr = userVolumeMap.get(uid) || 0;
+      userVolumeMap.set(uid, curr + p.amount);
+    });
+
+    commTxs.forEach((tx) => {
+      let matchedUserId = null;
+      if (tx.related_referral_id) {
+        const found = allReferred.find(
+          (r) => r.relationshipId && r.relationshipId.toString() === tx.related_referral_id.toString()
+        );
+        if (found) matchedUserId = found._id.toString();
+      }
+
+      if (!matchedUserId && tx.description) {
+        for (const ref of allReferred) {
+          if (tx.description.toLowerCase().includes(ref.fullName.toLowerCase())) {
+            matchedUserId = ref._id.toString();
+            break;
+          }
+        }
+      }
+
+      if (matchedUserId) {
+        const curr = userCommissionMap.get(matchedUserId) || 0;
+        userCommissionMap.set(matchedUserId, curr + tx.amount);
+      }
+    });
+
+    // Top performing referrals
+    const performers = allReferred.map((r) => {
+      const uid = r._id.toString();
+      const commEarned = Number((userCommissionMap.get(uid) || 0).toFixed(2));
+      const totalVolume = Number((userVolumeMap.get(uid) || 0).toFixed(2));
+      return {
+        ...r,
+        commissionEarned: commEarned,
+        totalVolume,
+      };
+    });
+
+    performers.sort((a, b) => b.commissionEarned - a.commissionEarned || b.totalVolume - a.totalVolume);
+
+    // 3. Generate Chart Data Points according to timeframe
+    const filteredTxs = commTxs.filter((tx) => {
+      const txDate = new Date(tx.createdAt || Date.now());
+      return txDate >= startDate;
+    });
+
+    // Group filtered transactions by time buckets (Months or Weeks)
+    const chartMap = new Map();
+    const isShortTimeframe = timeframe === "1m";
+
+    if (isShortTimeframe) {
+      // Group by days
+      for (let d = new Date(startDate); d <= now; d.setDate(d.getDate() + 2)) {
+        const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        chartMap.set(label, { label, amount: 0, count: 0 });
+      }
+    } else {
+      // Group by month
+      for (let m = new Date(startDate); m <= now; m.setMonth(m.getMonth() + 1)) {
+        const label = m.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+        chartMap.set(label, { label, amount: 0, count: 0 });
+      }
+    }
+
+    filteredTxs.forEach((tx) => {
+      const d = new Date(tx.createdAt || Date.now());
+      const label = isShortTimeframe
+        ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+        : d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+
+      const existing = chartMap.get(label) || { label, amount: 0, count: 0 };
+      existing.amount = Number((existing.amount + (tx.amount || 0)).toFixed(2));
+      existing.count += 1;
+      chartMap.set(label, existing);
+    });
+
+    const chartData = Array.from(chartMap.values());
+
+    // Role breakdown
+    const creatorsCount = allReferred.filter((r) => r.role === "creator").length;
+    const brandsCount = allReferred.filter((r) => r.role === "brand").length;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        total_earned: Number(total_earned.toFixed(2)),
+        timeframe_earned: Number(filteredTxs.reduce((s, t) => s + (t.amount || 0), 0).toFixed(2)),
+        active_referrals_count: allReferred.length,
+        creators_count: creatorsCount,
+        brands_count: brandsCount,
+        chartData,
+        topPerformers: performers.slice(0, 10),
+        allReferrals: performers,
+      },
+    });
+  } catch (error) {
+    console.error("getReferralAnalytics error:", error);
+    return res.status(500).json({ success: false, message: "Failed to load referral analytics." });
+  }
+};
+
+/**
  * POST /api/v1/admin/referrals/:id/revoke (admin auth only)
  * Body: { "reason": "fraud_suspected" }
  * Sets the referral_relationships.status to "revoked".

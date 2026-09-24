@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { subscribeToPush } from "../utils/pushNotification";
 import { getGenderAvatar, DEFAULT_BANNER_IMAGES } from "../utils/avatar";
@@ -634,10 +634,22 @@ export function DashboardInfluencer() {
   const [reworkCaption, setReworkCaption] = useState("");
   const [submittingRework, setSubmittingRework] = useState(false);
 
+  const [searchParams] = useSearchParams();
   // Tab State
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "dashboard");
   // Sub-section quick selector to eliminate excessive scrolling
-  const [creatorSubSection, setCreatorSubSection] = useState("all");
+  const [creatorSubSection, setCreatorSubSection] = useState(() => searchParams.get("section") || "all");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+    const sectionParam = searchParams.get("section");
+    if (sectionParam) {
+      setCreatorSubSection(sectionParam);
+    }
+  }, [searchParams]);
 
   // Instagram-style Portfolio States
   const [portfolioTab, setPortfolioTab] = useState("all"); // "all" | "post" | "reel" | "story"
@@ -4622,7 +4634,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                     Invite creators & brands. <span className="text-gradient-sunset">Earn up to 10% on every deal.</span>
                   </h2>
                   <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                    Share your unique referral code or link. Whenever a creator you refer completes a brand collaboration, Pravixo pays you recurring referral income directly from our platform commission with zero deductions from the creator.
+                    Share your unique referral code or link. Whenever a creator you refer completes a brand collaboration, Pravixo pays you recurring referral income directly from our platform commission with zero deductions from the creator earnings.
                   </p>
 
                   {/* TIERED COMMISSION BADGES */}
@@ -4749,7 +4761,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                 </div>
 
                 <div
-                  onClick={() => setShowReferredModal(true)}
+                  onClick={() => navigate("/referrals")}
                   className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group relative overflow-hidden"
                 >
                   <div className="flex items-center justify-between">
@@ -4763,10 +4775,10 @@ const CAMPAIGNS_PER_PAGE = 6;
                       {referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)}
                     </div>
                     <span className="text-[11px] font-bold text-primary flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
-                      View list <ChevronRight className="h-3.5 w-3.5" />
+                      View list & analytics <ChevronRight className="h-3.5 w-3.5" />
                     </span>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Click to view all creators referred by your code</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">Open dedicated referral analytics & partners page</p>
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -4777,9 +4789,9 @@ const CAMPAIGNS_PER_PAGE = 6;
                     </div>
                   </div>
                   <div className="mt-3 text-3xl font-extrabold text-amber-600 font-display">
-                    5%
+                    5% - 10%
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">Per completed creator project payout</p>
+                  <p className="text-[11px] text-muted-foreground mt-1">Tiered based on active subscription plan</p>
                 </div>
               </div>
 
@@ -4788,16 +4800,16 @@ const CAMPAIGNS_PER_PAGE = 6;
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <div>
                     <h3 className="font-display text-base font-bold text-foreground">Referral Commission History</h3>
-                    <p className="text-xs text-muted-foreground">Earnings credited from referred creators' completed project payouts</p>
+                    <p className="text-xs text-muted-foreground">Earnings credited from referred creators & brands' completed project payouts</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
                       className="rounded-full text-xs flex items-center gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() => setShowReferredModal(true)}
+                      onClick={() => navigate("/referrals")}
                     >
-                      <Users className="h-3.5 w-3.5" /> Referred Creators ({referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)})
+                      <Users className="h-3.5 w-3.5" /> View All Referrals & Graphs ({referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)})
                     </Button>
                     <Button
                       size="sm"

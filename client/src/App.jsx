@@ -34,6 +34,7 @@ import OAuthCallback from "./routes/OAuthCallback";
 import DashboardCustomer from "./routes/DashboardCustomer";
 import DashboardInfluencer from "./routes/DashboardInfluencer";
 import CreatorMediaKit from "./routes/CreatorMediaKit";
+import Referrals from "./routes/Referrals";
 import Unsubscribe from "./routes/Unsubscribe";
 import PayoutProcessedModal from "./components/collaboration/PayoutProcessedModal";
 
@@ -142,6 +143,11 @@ function Layout() {
             path="/dashboard/influencer"
             element={<DashboardInfluencer />}
           /> 
+
+          <Route
+            path="/referrals"
+            element={<Referrals />}
+          />
 
           <Route
             path="/dashboard"

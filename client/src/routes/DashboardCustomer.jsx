@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState, useMemo, useRef } from "react";
 import {
   Bookmark,
@@ -374,10 +374,22 @@ export function DashboardCustomer() {
     }
   }, [profile?._id]);
 
+  const [searchParams] = useSearchParams();
   // Tab State
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => searchParams.get("tab") || "dashboard");
   // Sub-section quick selector to eliminate excessive scrolling
-  const [brandSubSection, setBrandSubSection] = useState("all");
+  const [brandSubSection, setBrandSubSection] = useState(() => searchParams.get("section") || "all");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+    const sectionParam = searchParams.get("section");
+    if (sectionParam) {
+      setBrandSubSection(sectionParam);
+    }
+  }, [searchParams]);
 
 
   // Popup & Banner State
@@ -1616,6 +1628,16 @@ const [submittingVerification, setSubmittingVerification] =
             </div>
           </div>
   <div className="flex flex-wrap items-center gap-2">
+    {profile?.handle && (
+      <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
+        <Button
+          variant="default"
+          className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-md hover:opacity-90 cursor-pointer"
+        >
+          <Sparkles className="h-3.5 w-3.5" /> Media Kit
+        </Button>
+      </Link>
+    )}
     <Link to={`/influencer/${profile?._id}`}>
       <Button
         variant="outline"
@@ -1844,7 +1866,7 @@ const [submittingVerification, setSubmittingVerification] =
               }`}
             >
               <Star className="h-4 w-4" />
-              ⭐ Packages
+              ⭐ Add-on Services
             </button>
             <button
               onClick={() => setActiveTab("offers")}
@@ -3915,7 +3937,7 @@ const [submittingVerification, setSubmittingVerification] =
               </div>
 
               <div
-                onClick={() => setShowReferredModal(true)}
+                onClick={() => navigate("/referrals")}
                 className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-primary/50 hover:bg-secondary/30 transition-all cursor-pointer group relative overflow-hidden"
               >
                 <div className="flex items-center justify-between">
@@ -3929,10 +3951,10 @@ const [submittingVerification, setSubmittingVerification] =
                     {referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)}
                   </div>
                   <span className="text-[11px] font-bold text-primary flex items-center gap-0.5 group-hover:translate-x-1 transition-transform">
-                    View list <ChevronRight className="h-3.5 w-3.5" />
+                    View list & analytics <ChevronRight className="h-3.5 w-3.5" />
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Click to view all users referred by your code</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Open dedicated referral analytics & partners page</p>
               </div>
 
               <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -3961,9 +3983,9 @@ const [submittingVerification, setSubmittingVerification] =
                     size="sm"
                     variant="outline"
                     className="rounded-full text-xs flex items-center gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                    onClick={() => setShowReferredModal(true)}
+                    onClick={() => navigate("/referrals")}
                   >
-                    <Users className="h-3.5 w-3.5" /> Referred Users ({referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)})
+                    <Users className="h-3.5 w-3.5" /> View All Referrals & Graphs ({referralEarnings?.active_referrals_count ?? (referredListQuery?.total || 0)})
                   </Button>
                   <Button
                     size="sm"
@@ -5876,7 +5898,45 @@ const [submittingVerification, setSubmittingVerification] =
                           </div>
                         )}
 
-                        {task && (
+                        {collab.campaign?.deliverables && (
+                          <div className="rounded-xl bg-primary/5 border border-primary/10 p-2.5 text-xs space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-primary">Campaign Deliverables</span>
+                              <Badge variant="outline" className="text-[9px] uppercase px-1.5 py-0 border-primary/30 text-primary">
+                                {collab.allDeliverablesCompleted ? "All Completed" : "In Progress"}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 pt-0.5">
+                              {Number(collab.campaign.deliverables.reels || 0) > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-600 text-[10px] font-bold">
+                                  🎬 {collab.campaign.deliverables.reels} Reel{collab.campaign.deliverables.reels > 1 ? "s" : ""}
+                                </span>
+                              )}
+                              {Number(collab.campaign.deliverables.posts || 0) > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 text-[10px] font-bold">
+                                  📸 {collab.campaign.deliverables.posts} Post{collab.campaign.deliverables.posts > 1 ? "s" : ""}
+                                </span>
+                              )}
+                              {Number(collab.campaign.deliverables.stories || 0) > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-pink-500/10 text-pink-600 text-[10px] font-bold">
+                                  📱 {collab.campaign.deliverables.stories} Stor{collab.campaign.deliverables.stories > 1 ? "ies" : "y"}
+                                </span>
+                              )}
+                              {Number(collab.campaign.deliverables.videos || 0) > 0 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 text-[10px] font-bold">
+                                  📹 {collab.campaign.deliverables.videos} Video{collab.campaign.deliverables.videos > 1 ? "s" : ""}
+                                </span>
+                              )}
+                            </div>
+                            {collab.campaign.deliverables.notes && (
+                              <p className="text-[10px] text-muted-foreground line-clamp-1 italic">
+                                Note: {collab.campaign.deliverables.notes}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {task && !collab.campaign?.deliverables && (
                           <div className="rounded-xl bg-primary/5 border border-primary/10 p-2.5 text-xs">
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-primary">Task: {task.title}</span>
@@ -5926,27 +5986,14 @@ const [submittingVerification, setSubmittingVerification] =
                         <div className="flex items-center gap-1.5">
                           <Button
                             size="sm"
-                            variant="secondary"
-                            className="h-7 rounded-full text-xs px-2.5 font-semibold"
+                            className="h-7 rounded-full gradient-sunset text-white text-xs font-bold px-3 shadow-xs"
                             onClick={() => {
                               setSelectedCollabForSubmissions(collab);
                               setShowApprovedCollabsModal(false);
                             }}
                           >
-                            <Eye className="h-3 w-3 mr-1" /> Deliverables
+                            <Eye className="h-3 w-3 mr-1" /> View Deliverables
                           </Button>
-                          {!task && (
-                            <Button
-                              size="sm"
-                              className="h-7 rounded-full gradient-sunset text-white text-xs font-bold px-3 shadow-xs"
-                              onClick={() => {
-                                setSelectedCollabForTask(collab);
-                                setShowApprovedCollabsModal(false);
-                              }}
-                            >
-                              Assign Task
-                            </Button>
-                          )}
                         </div>
                       </div>
                     </div>

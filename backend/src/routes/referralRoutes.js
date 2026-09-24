@@ -8,6 +8,7 @@ import {
   getMyReferralCode,
   redeemReferralCode,
   getReferralEarnings,
+  getReferralAnalytics,
 } from "../controllers/referralController.js";
 
 const router = express.Router();
@@ -16,6 +17,7 @@ const router = express.Router();
 router.get("/my-code", protect, getMyReferralCode);
 router.post("/redeem", protect, redeemReferralCode);
 router.get("/earnings", protect, getReferralEarnings);
+router.get("/analytics", protect, getReferralAnalytics);
 
 // Public validation
 router.post("/validate", optionalAuth, validateReferralCode);
