@@ -114,8 +114,8 @@ export const getPackages = async (req, res) => {
       },
       {
         name: "Elite",
-        price: 2499,
-        originalPrice: 4999,
+        price: 1999,
+        originalPrice: 3999,
         billingPeriod: "month",
         badge: "50% OFF ELITE",
         targetRole: "creator",

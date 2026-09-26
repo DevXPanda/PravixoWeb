@@ -102,12 +102,33 @@ export function SubscriptionTab({ role, profile }) {
   // HANDLE SUBSCRIPTION (DIRECT PAYMENT GATEWAY)
   // =====================================================
 
+  const getEffectiveProfileId = () => {
+    return profile?._id || profile?.id || profile?.profileId || (typeof profile === "string" ? profile : null);
+  };
+
   const handleUpgrade = async (
-    packageId,
-    offerId = undefined
+    rawPackageId,
+    rawOfferId = undefined
   ) => {
-    if (!profile?._id) {
-      toast.error("Profile not found.");
+    const profileId = getEffectiveProfileId();
+    if (!profileId) {
+      toast.error("Profile not found. Please log in again.");
+      return;
+    }
+
+    // Resolve packageId if it was passed as an object (e.g. from populated activeOffer.packageId)
+    const packageId =
+      typeof rawPackageId === "object" && rawPackageId !== null
+        ? rawPackageId._id || rawPackageId.id
+        : rawPackageId;
+
+    const offerId =
+      typeof rawOfferId === "object" && rawOfferId !== null
+        ? rawOfferId._id || rawOfferId.id
+        : rawOfferId;
+
+    if (!packageId) {
+      toast.error("Invalid package selected.");
       return;
     }
 
@@ -116,7 +137,7 @@ export function SubscriptionTab({ role, profile }) {
 
       // 1. Create Razorpay Order
       const orderRes = await api.post(`/subscriptions/order`, {
-        profileId: profile._id,
+        profileId,
         packageId,
         ...(offerId && { offerId }),
       });
@@ -158,7 +179,7 @@ export function SubscriptionTab({ role, profile }) {
           try {
             setUpgradingId(packageId);
             const verifyRes = await api.post(`/subscriptions/verify`, {
-              profileId: profile._id,
+              profileId,
               packageId,
               offerId,
               razorpayOrderId: response.razorpay_order_id,
@@ -185,7 +206,7 @@ export function SubscriptionTab({ role, profile }) {
         },
         prefill: {
           name: profile.fullName || "",
-          email: profile.email || user?.email || "",
+          email: profile.email || "",
         },
         theme: {
           color: "#EC4899",
@@ -250,23 +271,44 @@ export function SubscriptionTab({ role, profile }) {
   }
 
   // =====================================================
-  // CURRENT PACKAGE
+  // CURRENT PACKAGE (Default to Pro with 3-Month Free Trial for Creators)
   // =====================================================
 
-  const currentPackage =
-    currentSub?.packageId || null;
+  const isCreatorRole = role === "creator" || profile?.role === "creator" || profile?.accountType === "creator";
+
+  // Find Pro and Elite packages from fetched packages list
+  const proPkg = packages?.find((p) => p.name?.toLowerCase() === "pro");
+  const elitePkg = packages?.find((p) => p.name?.toLowerCase() === "elite");
+
+  // Determine active plan:
+  // For creators: Pro is active by default (3-Month Free Trial). Only show Elite if they explicitly completed a paid upgrade (amountPaid > 0 and package name is Elite)
+  const isPaidEliteSub =
+    currentSub &&
+    currentSub.status === "active" &&
+    Number(currentSub.amountPaid) > 0 &&
+    (currentSub.packageId?.name?.toLowerCase() === "elite" || currentSub.packageId === elitePkg?._id);
+
+  const currentPackage = isPaidEliteSub
+    ? (typeof currentSub.packageId === "object" ? currentSub.packageId : elitePkg)
+    : isCreatorRole
+    ? (proPkg || { name: "Pro", price: 999, badge: "3 MONTHS FREE TRIAL" })
+    : (currentSub?.packageId || null);
 
   const currentPackageId =
-    currentPackage?._id || null;
+    isPaidEliteSub
+      ? (elitePkg?._id || currentSub?.packageId?._id || currentSub?.packageId)
+      : isCreatorRole
+      ? (proPkg?._id || "pro-default")
+      : (currentPackage?._id || null);
 
   const currentPlanName =
-    currentPackage?.name || "Starter";
+    isPaidEliteSub ? "Elite" : isCreatorRole ? "Pro" : (currentPackage?.name || "Starter");
 
   const currentPrice =
-    currentPackage?.price ?? 0;
+    isPaidEliteSub ? (currentPackage?.price || 1999) : isCreatorRole ? 999 : (currentPackage?.price ?? 0);
 
   const currentBadge =
-    currentPackage?.badge || null;
+    isPaidEliteSub ? (currentPackage?.badge || "ACTIVE") : isCreatorRole ? "3 MONTHS FREE TRIAL" : (currentPackage?.badge || null);
 
   // =====================================================
   // UI
@@ -320,16 +362,16 @@ export function SubscriptionTab({ role, profile }) {
           </span>
 
           <span className="text-xs text-muted-foreground mt-1.5">
-
-            {currentPrice === 0
-              ? "Free Lifetime Access"
-              : currentSub?.expiryDate
+            {currentSub?.expiryDate
               ? `Renews on ${format(
                   new Date(currentSub.expiryDate),
                   "MMM d, yyyy"
                 )}`
+              : isCreatorRole && currentPlanName === "Pro"
+              ? "3 Months Free Trial Active"
+              : currentPrice === 0
+              ? "Free Lifetime Access"
               : "Active"}
-
           </span>
 
         </div>
@@ -441,7 +483,8 @@ export function SubscriptionTab({ role, profile }) {
             {packages.map((pkg) => {
 
               const isActive =
-                currentPackageId === pkg._id;
+                currentPackageId === pkg._id ||
+                currentPlanName?.toLowerCase() === pkg.name?.toLowerCase();
 
               const offerPackageId =
                 activeOffer?.packageId?._id ||

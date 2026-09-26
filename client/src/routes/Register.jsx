@@ -767,9 +767,9 @@ export default function Register() {
               <Label>Gender</Label>
               <div className="grid grid-cols-3 gap-2 mt-1.5">
                 {[
-                  { value: "male", label: "👨 Male" },
-                  { value: "female", label: "👩 Female" },
-                  { value: "other", label: "✨ Other" },
+                  { value: "male", label: "Male" },
+                  { value: "female", label: "Female" },
+                  { value: "other", label: "Other" },
                 ].map((item) => (
                   <button
                     key={item.value}

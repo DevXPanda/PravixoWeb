@@ -1,14 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   ArrowLeft,
   Search,
   Star,
-  TrendingUp,
-  Users,
-  Zap,
-  CheckCircle2,
   MapPin,
   AlertTriangle,
 } from "lucide-react";
@@ -188,131 +184,6 @@ function FeaturedProfileCard({ inf, user, handleCardClick }) {
         </div>
       </div>
     </Link>
-  );
-}
-
-// ─────────────────────────────────────────────────────────
-// Animated counter hook – counts from 0 to `end` when visible
-// ─────────────────────────────────────────────────────────
-function useAnimatedCounter(end, duration = 1800, decimals = 0) {
-  const [count, setCount] = useState(0);
-  const [started, setStarted] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStarted(true); },
-      { threshold: 0.4 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!started) return;
-    let startTime = null;
-    const startVal = 0;
-    const step = (timestamp) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(parseFloat((startVal + eased * end).toFixed(decimals)));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [started, end, duration, decimals]);
-
-  return { count, ref };
-}
-
-const STATS = [
-  {
-    icon: Users,
-    label: "Active creators",
-    end: 52,
-    suffix: "K+",
-    decimals: 0,
-    gradient: "from-violet-500 to-purple-600",
-    glow: "shadow-[0_0_30px_rgba(139,92,246,0.3)]",
-  },
-  {
-    icon: TrendingUp,
-    label: "Campaigns run",
-    end: 184,
-    suffix: "K",
-    decimals: 0,
-    gradient: "from-rose-500 to-pink-600",
-    glow: "shadow-[0_0_30px_rgba(244,63,94,0.3)]",
-  },
-  {
-    icon: Zap,
-    label: "Avg. launch time",
-    end: 3.2,
-    suffix: " days",
-    decimals: 1,
-    gradient: "from-amber-500 to-orange-500",
-    glow: "shadow-[0_0_30px_rgba(245,158,11,0.3)]",
-  },
-  {
-    icon: CheckCircle2,
-    label: "Success rate",
-    end: 96,
-    suffix: "%",
-    decimals: 0,
-    gradient: "from-emerald-500 to-teal-500",
-    glow: "shadow-[0_0_30px_rgba(16,185,129,0.3)]",
-  },
-];
-
-function StatCard({ stat }) {
-  const { count, ref } = useAnimatedCounter(stat.end, 1800, stat.decimals);
-  const Icon = stat.icon;
-
-  return (
-    <div
-      ref={ref}
-      className={`group relative overflow-hidden rounded-3xl border border-border/60 bg-card p-6 text-center transition-all duration-300 hover:-translate-y-2 ${stat.glow} hover:border-transparent`}
-    >
-      {/* Gradient background on hover */}
-      <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-3xl`} />
-      {/* Icon */}
-      <div className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${stat.gradient} text-white shadow-lg`}>
-        <Icon className="h-6 w-6" />
-      </div>
-      {/* Animated number */}
-      <div className={`font-display text-4xl font-extrabold tracking-tight bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent`}>
-        {count}{stat.suffix}
-      </div>
-      <div className="mt-1.5 text-sm font-medium text-muted-foreground">{stat.label}</div>
-    </div>
-  );
-}
-
-function StatsSection() {
-  return (
-    <section className="relative overflow-hidden border-y border-border">
-      {/* Subtle animated background */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-b from-muted/20 via-background to-muted/20" />
-      <div className="absolute inset-0 -z-10 opacity-30"
-        style={{ backgroundImage: "radial-gradient(circle at 20% 50%, rgba(139,92,246,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(244,63,94,0.08) 0%, transparent 50%)" }}
-      />
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Trusted by thousands
-          </p>
-          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl">
-            Growing every day
-          </h2>
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-4">
-          {STATS.map((stat) => (
-            <StatCard key={stat.label} stat={stat} />
-          ))}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -573,17 +444,20 @@ export default function Home() {
           <div className="mx-auto max-w-5xl text-center relative">
 
             {/* Heading */}
-            <h1 className="text-center font-display font-black leading-[1.08] tracking-tight">
-              <span className="block text-[clamp(2.4rem,5.5vw,4.8rem)] text-foreground">
+            <h1 className="text-center font-display font-extrabold tracking-tight select-none">
+              <span className="block text-[clamp(2.4rem,5.2vw,4.6rem)] leading-[1.08] text-foreground font-black">
                 Find the right influencers
               </span>
-              <span className="block text-[clamp(2.4rem,5.5vw,4.8rem)] text-gradient-sunset drop-shadow-sm">
-                for your Brand in Minutes.
+              <span className="block text-[clamp(2.4rem,5.2vw,4.6rem)] leading-[1.08] mt-1 text-gradient-sunset font-black">
+                for your Brand
+              </span>
+              <span className="inline-block text-[clamp(2.1rem,4.6vw,4.2rem)] leading-[1.08] mt-1.5 text-gradient-sunset font-black">
+                in Minutes.
               </span>
             </h1>
 
             {/* Description */}
-            <p className="mx-auto mt-4 max-w-3xl text-base text-muted-foreground sm:text-lg leading-relaxed">
+            <p className="mx-auto mt-5 max-w-2xl text-sm sm:text-base md:text-lg text-muted-foreground font-normal leading-relaxed">
               Connect directly with verified creators and top brands across every niche for barter collaborations and paid campaigns.
             </p>
 
@@ -961,7 +835,7 @@ export default function Home() {
       {/* =========================
           CTA
       ========================= */}
-      <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-[2rem] gradient-sunset p-10 text-center text-white shadow-glow sm:p-16">
           <div
             className="absolute inset-0 opacity-30 mix-blend-overlay"
@@ -1021,15 +895,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* =========================
-          STATS - Animated Counters
-      ========================= */}
-      <StatsSection />
-
-      {/* =========================
-          AUTH REQUIRED MODAL
-      ========================= */}
       {showAuthModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div

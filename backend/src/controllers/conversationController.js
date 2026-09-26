@@ -188,7 +188,7 @@ export const getConversations = async (req, res) => {
           otherProfile: otherProfile || {
             fullName: "Pravixo Admin",
             role: "admin",
-            avatarUrl: "",
+            avatarUrl: "/log.png",
           },
           lastMessage,
           unreadCount,
@@ -296,7 +296,7 @@ export const getConversationDetails = async (req, res) => {
         otherProfile: otherProfile || {
           fullName: "Pravixo Admin",
           role: "admin",
-          avatarUrl: "",
+          avatarUrl: "/log.png",
         },
         campaign,
         connection,

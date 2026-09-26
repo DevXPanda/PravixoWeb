@@ -164,7 +164,7 @@ export function SiteNavbar() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 shrink-0 mr-2 lg:mr-4">
             <img
               src={logoImg}
               alt="Pravixo"
@@ -176,16 +176,16 @@ export function SiteNavbar() {
           </Link>
 
           {/* Desktop Links */}
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-0.5 lg:gap-1 md:flex overflow-x-auto no-scrollbar">
             {links.map((l) => {
               const active = pathname === l.to;
               return (
                 <Link
                   key={l.to}
                   to={l.to}
-                  className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-full px-2.5 lg:px-3.5 py-1.5 text-xs lg:text-sm font-medium transition-colors shrink-0 whitespace-nowrap ${
                     active
-                      ? "bg-secondary text-foreground"
+                      ? "bg-secondary text-foreground font-semibold"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -196,12 +196,12 @@ export function SiteNavbar() {
           </nav>
 
           {/* Right Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 lg:gap-2 shrink-0">
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               aria-label="Toggle theme"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-secondary"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-secondary cursor-pointer shrink-0"
             >
               {theme === "dark" ? (
                 <Sun className="h-4 w-4" />
@@ -216,7 +216,7 @@ export function SiteNavbar() {
                 <NotificationBell profileId={profile?._id} />
                 <Link
                   to="/connections"
-                  className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-secondary"
+                  className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-secondary shrink-0"
                   aria-label="Connections"
                 >
                   <UserPlus className="h-4 w-4" />
@@ -229,7 +229,7 @@ export function SiteNavbar() {
 
                 <Link
                   to="/messages"
-                  className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-secondary"
+                  className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-secondary shrink-0"
                   aria-label="Messages"
                 >
                   <MessageSquare className="h-4 w-4" />
@@ -244,9 +244,9 @@ export function SiteNavbar() {
 
             {/* Auth Buttons / Profile Pill & Dropdown */}
             {loading ? (
-              <div className="h-9 w-24 rounded-full bg-secondary animate-pulse" />
+              <div className="h-9 w-24 rounded-full bg-secondary animate-pulse shrink-0" />
             ) : user ? (
-              <div className="hidden items-center gap-2 sm:flex relative" ref={userDropdownRef}>
+              <div className="hidden items-center gap-2 sm:flex relative shrink-0" ref={userDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setIsUserDropdownOpen((prev) => !prev)}
@@ -363,7 +363,7 @@ export function SiteNavbar() {
                         </Link>
                       ) : (
                         <Link
-                          to={`${dashboardBaseUrl}?section=campaigns`}
+                          to={`${dashboardBaseUrl}?tab=campaigns`}
                           onClick={() => setIsUserDropdownOpen(false)}
                           className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-foreground hover:bg-secondary/80 transition-colors"
                         >

@@ -51,6 +51,7 @@ import {
   CheckCircle2,
   Users,
   ChevronRight,
+  ChevronLeft,
   Search,
   MessageCircle,
   UserMinus,
@@ -844,7 +845,7 @@ export function DashboardInfluencer() {
 
   // Live Social Feeds Manual/Auto Input state
   const [customSocialFeeds, setCustomSocialFeeds] = useState([]);
-  const [openLiveFeedSection, setOpenLiveFeedSection] = useState(true);
+  const [openLiveFeedSection, setOpenLiveFeedSection] = useState(false);
   const [showAddSocialFeedModal, setShowAddSocialFeedModal] = useState(false);
   const [isFetchingPostMetadata, setIsFetchingPostMetadata] = useState(false);
   const [newSocialFeedForm, setNewSocialFeedForm] = useState({
@@ -1900,45 +1901,47 @@ const CAMPAIGNS_PER_PAGE = 6;
         </div>
       )}
 
-      {/* COVER BANNER PREVIEW WITH HOVER/CLICK ACTIONS */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <section className="relative group aspect-[1361/450] overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
+      {/* COVER BANNER PREVIEW & PROFILE HEADER (Visible ONLY on Overview Dashboard) */}
+      {activeTab === "dashboard" ? (
+        <>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <section className="relative group h-44 sm:h-56 md:h-64 overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
           <img
             src={bannerUrl}
             alt="Creator profile banner"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
           />
 
-          {/* Banner Action Hover Overlay */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-end p-4 gap-2 backdrop-blur-[2px]">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => setMediaPreviewModal({ type: "cover", url: bannerUrl, title: "Profile Banner" })}
-              className="rounded-full bg-white/90 hover:bg-white text-black font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
-            >
-              <Eye className="h-3.5 w-3.5" /> View Banner
-            </Button>
+          {/* Sleek Minimalist Banner Action Button (Bottom Right) */}
+          <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 flex items-center gap-2">
             <Button
               type="button"
               size="sm"
               onClick={() => coverFileRef.current?.click()}
-              className="rounded-full bg-black/75 hover:bg-black text-white font-semibold text-xs h-8 px-3 border border-white/20 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
+              className="rounded-full bg-black/60 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 text-xs font-semibold h-8 px-3.5 shadow-lg flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
             >
-              <Camera className="h-3.5 w-3.5" /> Change Banner
+              <Camera className="h-3.5 w-3.5" />
+              <span>Edit Cover</span>
             </Button>
             {profile?.coverUrl && (
-              <Button
+              <button
                 type="button"
-                size="sm"
-                variant="destructive"
-                onClick={handleDeleteCover}
-                className="rounded-full font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer"
-                title="Reset banner to default"
+                onClick={() => setMediaPreviewModal({ type: "cover", url: bannerUrl, title: "Profile Banner" })}
+                className="h-8 w-8 rounded-full bg-black/60 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-lg"
+                title="View Full Banner"
               >
-                <Trash2 className="h-3.5 w-3.5" /> Reset
-              </Button>
+                <Eye className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {profile?.coverUrl && (
+              <button
+                type="button"
+                onClick={handleDeleteCover}
+                className="h-8 w-8 rounded-full bg-red-600/70 hover:bg-red-600 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-lg"
+                title="Reset Banner to Default"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             )}
           </div>
         </section>
@@ -2005,99 +2008,101 @@ const CAMPAIGNS_PER_PAGE = 6;
                 Creator dashboard
               </p>
               <h1 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl flex items-center gap-2">
-                Hello, {displayName} 
+                {displayName}
                 {status === "verified" && (
-                  <ShieldCheck className="h-7 w-7 text-blue-500 inline-block" fill="currentColor" stroke="white" title="Verified Creator" />
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 shadow-xs" title="Verified Creator">
+                    <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                  </span>
                 )}
-                👋
               </h1>
             </div>
           </div>
 
-  <div className="flex flex-wrap items-center gap-2">
-    {profile?.handle && (
-      <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
-        <Button
-          variant="default"
-          className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-md hover:opacity-90 cursor-pointer"
-        >
-          <Sparkles className="h-3.5 w-3.5" /> Media Kit
-        </Button>
-      </Link>
-    )}
-    <Link to={`/influencer/${profile?._id}`}>
-      <Button
-        variant="outline"
-        className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
-      >
-        <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
-      </Button>
-    </Link>
-    <Button
-      variant="outline"
-      onClick={() => openFollowModal("followers")}
-      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
-    >
-      <Users className="h-3.5 w-3.5 text-primary" />
-      <span>{followCounts.followers}</span> Followers
-    </Button>
-    <Button
-      variant="outline"
-      onClick={() => openFollowModal("following")}
-      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
-    >
-      <Users className="h-3.5 w-3.5 text-indigo-500" />
-      <span>{followCounts.following}</span> Following
-    </Button>
-    <Button
-      variant="outline"
-      onClick={() => {
-        const handleClean = profile?.handle?.replace("@", "") || profile?._id;
-        const url = `${window.location.origin}/c/${handleClean}`;
-        navigator.clipboard.writeText(url);
-        toast.success("Media Kit shareable link copied to clipboard!");
-      }}
-      className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
-    >
-      <Share2 className="h-3.5 w-3.5 text-primary" /> Share Media Kit
-    </Button>
+          {/* Action Buttons Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {profile?.handle && (
+              <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
+                <Button
+                  variant="default"
+                  className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 gradient-sunset text-white shadow-glow hover:opacity-90 cursor-pointer border-0"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Media Kit
+                </Button>
+              </Link>
+            )}
+            <Link to={`/influencer/${profile?._id}`}>
+              <Button
+                variant="outline"
+                className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
+              </Button>
+            </Link>
+            {/* COMBINED FOLLOWERS & FOLLOWING IN ONE UNIFIED PILL */}
+            <div className="inline-flex items-center rounded-full border border-border/80 bg-card text-xs font-semibold overflow-hidden shadow-xs">
+              <button
+                type="button"
+                onClick={() => openFollowModal("followers")}
+                className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+              >
+                <Users className="h-3.5 w-3.5 text-primary" />
+                <span className="font-bold text-foreground">{followCounts.followers}</span>
+                <span className="text-muted-foreground">Followers</span>
+              </button>
+              <span className="h-3.5 w-[1px] bg-border/80"></span>
+              <button
+                type="button"
+                onClick={() => openFollowModal("following")}
+                className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+              >
+                <span className="font-bold text-foreground">{followCounts.following}</span>
+                <span className="text-muted-foreground">Following</span>
+              </button>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const handleClean = profile?.handle?.replace("@", "") || profile?._id;
+                const url = `${window.location.origin}/c/${handleClean}`;
+                navigator.clipboard.writeText(url);
+                toast.success("Media Kit shareable link copied to clipboard!");
+              }}
+              className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
+            >
+              <Share2 className="h-3.5 w-3.5 text-primary" /> Share Media Kit
+            </Button>
 
-    {(() => {
-      if (status === "verified") {
-        return (
-          <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 font-semibold text-sm cursor-default">
-            <ShieldCheck className="h-4 w-4" /> Verified Creator
+            {(() => {
+              if (status === "pending") {
+                return (
+                  <Button disabled className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 px-6 font-semibold opacity-70 cursor-not-allowed">
+                    Verification Pending
+                  </Button>
+                );
+              }
+              if (status === "rejected") {
+                return (
+                  <Button
+                    onClick={submitVerificationRequest}
+                    className="rounded-full bg-red-600 hover:bg-red-700 text-white px-6 font-semibold shadow-sm"
+                  >
+                    Verification Failed (Try Again)
+                  </Button>
+                );
+              }
+              if (status !== "verified") {
+                return (
+                  <Button
+                    onClick={submitVerificationRequest}
+                    className="rounded-full gradient-sunset text-white px-6 font-semibold shadow-glow border-0"
+                  >
+                    Get Verified
+                  </Button>
+                );
+              }
+              return null;
+            })()}
           </div>
-        );
-      }
-      if (status === "pending") {
-        return (
-          <Button disabled className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 px-6 font-semibold opacity-70 cursor-not-allowed">
-            Verification Pending
-          </Button>
-        );
-      }
-      if (status === "rejected") {
-        return (
-          <Button
-            onClick={submitVerificationRequest}
-            className="rounded-full bg-red-600 hover:bg-red-700 text-white px-6 font-semibold shadow-sm"
-          >
-            Verification Failed (Try Again)
-          </Button>
-        );
-      }
-      // Default: unverified
-      return (
-        <Button
-          onClick={submitVerificationRequest}
-          className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-6 font-semibold shadow-sm"
-        >
-          Get Verified
-        </Button>
-      );
-    })()}
-  </div>
 
   <Dialog open={showPostSaveDialog} onOpenChange={setShowPostSaveDialog}>
     <DialogContent className="sm:max-w-md rounded-3xl">
@@ -2208,109 +2213,25 @@ const CAMPAIGNS_PER_PAGE = 6;
 
           </div>
         </div>
-
-        {/* TAB NAVIGATION PILLS */}
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "dashboard"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Building2 className="h-4 w-4" />
-              Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab("tasks")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "tasks"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              Deals & Tasks
-            </button>
-            <button
-              onClick={() => setActiveTab("campaigns")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "campaigns"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Megaphone className="h-4 w-4" />
-              Find Campaigns
-            </button>
-            <button
-              onClick={() => setActiveTab("payments")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "payments"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <CreditCard className="h-4 w-4" />
-              Payments & Bank
-            </button>
-            <button
-              onClick={() => setActiveTab("wallet")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "wallet"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Wallet className="h-4 w-4" />
-              Wallet & Earnings
-            </button>
-            <button
-              onClick={() => setActiveTab("subscription")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "subscription"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Star className="h-4 w-4" />
-              ⭐ Packages
-            </button>
-            <button
-              onClick={() => setActiveTab("offers")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "offers"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              Offers
-            </button>
-            <button
-              onClick={() => setActiveTab("referrals")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "referrals"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Gift className="h-4 w-4 text-emerald-400" />
-              Refer & Earn
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 text-[10px] font-extrabold border border-emerald-500/30">
-                5% - 10% Tiered
-              </span>
-            </button>
-          </div>
+      </div>
+      </>
+    ) : (
+        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-2 cursor-pointer group"
+          >
+            <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /> Back to Dashboard
+          </button>
         </div>
+      )}
 
-        <div className="mt-6 font-jakarta">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-12">
+        <div className="mt-4 font-jakarta">
           <div className="w-full">
             {activeTab === "dashboard" ? (
-              <div className="w-full max-w-5xl mx-auto space-y-8">
-                <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
+              <div className="w-full space-y-8">
+                <div className="rounded-3xl border border-border/60 bg-card p-6 sm:p-8 shadow-sm">
                   <h2 className="font-outfit text-xl font-bold">Edit Profile</h2>
                   <div className="mt-5">
                     <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -2323,8 +2244,8 @@ const CAMPAIGNS_PER_PAGE = 6;
                         className="h-20 w-20 rounded-full border border-border object-cover bg-muted"
                        onError={(e) => { e.target.onerror = null; e.target.src = getGenderAvatar(profile?.fullName || displayName, creatorGender, "creator"); }} />
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
-                          <Camera className="h-4 w-4" />
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors">
+                          <Camera className="h-4 w-4 text-muted-foreground" />
                           {uploadingAvatar ? "Uploading..." : "Upload profile photo"}
                           <input
                             ref={avatarFileRef}
@@ -2338,13 +2259,13 @@ const CAMPAIGNS_PER_PAGE = 6;
                         <button
                           type="button"
                           onClick={() => setIsAvatarPickerOpen(true)}
-                          className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary/40 bg-primary/10 text-primary px-4 py-2 text-sm font-medium hover:bg-primary/20"
+                          className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors"
                         >
-                          <Sparkles className="h-4 w-4" />
+                          <Sparkles className="h-4 w-4 text-primary" />
                           Choose Avatar Persona
                         </button>
-                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
-                          <ImageIcon className="h-4 w-4" />
+                        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors">
+                          <ImageIcon className="h-4 w-4 text-muted-foreground" />
                           {uploadingCover ? "Uploading..." : "Upload banner"}
                           <input
                             ref={coverFileRef}
@@ -2380,18 +2301,18 @@ const CAMPAIGNS_PER_PAGE = 6;
                       <Label>Gender</Label>
                       <div className="grid grid-cols-3 gap-2 mt-1.5">
                         {[
-                          { value: "male", label: "👨 Male" },
-                          { value: "female", label: "👩 Female" },
-                          { value: "other", label: "✨ Other" },
+                          { value: "male", label: "Male" },
+                          { value: "female", label: "Female" },
+                          { value: "other", label: "Other" },
                         ].map((item) => (
                           <button
                             key={item.value}
                             type="button"
                             onClick={() => setGender(item.value)}
-                            className={`py-2 px-2 text-xs font-semibold rounded-lg border transition-all ${
+                            className={`py-2 px-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
                               gender === item.value
                                 ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
-                                : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                                : "border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
                             }`}
                           >
                             {item.label}
@@ -2403,8 +2324,9 @@ const CAMPAIGNS_PER_PAGE = 6;
                       <Label>Category</Label>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <button
-                            type="button"
+                          <div
+                            role="button"
+                            tabIndex={0}
                             className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
                           >
                             <div className="flex flex-wrap gap-1">
@@ -2442,7 +2364,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                               )}
                             </div>
                             <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
-                          </button>
+                          </div>
                         </PopoverTrigger>
                         <PopoverContent
                           className="w-[var(--radix-popover-trigger-width)] p-0"
@@ -2490,8 +2412,9 @@ const CAMPAIGNS_PER_PAGE = 6;
                       <Label>Location</Label>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <button
-                            type="button"
+                          <div
+                            role="button"
+                            tabIndex={0}
                             className="flex min-h-[2.5rem] w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-left mt-1.5 cursor-pointer"
                           >
                             <div className="flex flex-wrap gap-1">
@@ -2529,7 +2452,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                               )}
                             </div>
                             <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
-                          </button>
+                          </div>
                         </PopoverTrigger>
                         <PopoverContent
                           className="w-[var(--radix-popover-trigger-width)] p-0"
@@ -2593,7 +2516,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                             onChange={(e) => setIsBarterAllowed(e.target.checked)}
                             className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
                           />
-                          <span>🤝 Barter Allowed</span>
+                          <span>Barter Allowed</span>
                         </label>
                       </div>
                       <Input

@@ -56,7 +56,7 @@ import { Button } from "@/components/ui/Button";
 import { CreatorOffersSidebarWidget } from "@/components/offers/CreatorOffersSidebarWidget";
 import { MultiRoleOfferForm } from "@/components/offers/CreatorOfferForm";
 import { AvatarPickerModal } from "@/components/avatar/AvatarPickerModal";
-import { getGenderAvatar } from "@/utils/avatar";
+import { getGenderAvatar, DEFAULT_BANNER_IMAGES, DEFAULT_BANNERS as DEFAULT_BANNER_FALLBACKS } from "@/utils/avatar";
 
 const QuoraIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
@@ -1441,7 +1441,17 @@ const [submittingVerification, setSubmittingVerification] =
     "food bloggers Delhi",
   ];
 
-  const displayName = profile?.fullName || user?.email?.split("@")[0] || "";
+  const displayName =
+    fullName?.split(" ")[0] ||
+    profile?.fullName?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
+    "there";
+  const bannerList = DEFAULT_BANNER_IMAGES || DEFAULT_BANNER_FALLBACKS;
+  const defaultBannerIndex = [...(profile?._id || profile?.userId || "brand")]
+    .reduce((total, character) => total + character.charCodeAt(0), 0) % bannerList.length;
+  const bannerUrl = resolveImageUrl(profile?.coverUrl) || bannerList[defaultBannerIndex];
+  const brandAvatarUrl = resolveImageUrl(profile?.avatarUrl) || profile?.avatar || getGenderAvatar(profile?.fullName || fullName || displayName, "male", "brand");
+  const status = profile?.verificationStatus || user?.verificationStatus || "unverified";
 
   if (loading) {
     return (
@@ -1485,233 +1495,232 @@ const [submittingVerification, setSubmittingVerification] =
         </div>
       )}
 
-      {/* COVER BANNER PREVIEW WITH HOVER/CLICK ACTIONS */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <section className="relative group aspect-[1361/450] overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
-          {resolveImageUrl(profile?.coverUrl) ? (
-            <img
-              src={resolveImageUrl(profile.coverUrl)}
-              alt=""
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-              Banner Preview
-            </div>
-          )}
+      {/* COVER BANNER PREVIEW & BRAND PROFILE HEADER (Visible ONLY on Overview Dashboard) */}
+      {activeTab === "dashboard" ? (
+        <>
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <section className="relative group h-44 sm:h-56 md:h-64 overflow-hidden bg-muted w-full rounded-b-2xl sm:rounded-b-3xl rounded-t-none shadow-sm border border-border/50">
+              <img
+                src={bannerUrl}
+                alt="Brand profile banner"
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+              />
 
-          {/* Banner Action Hover Overlay */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-end p-4 gap-2 backdrop-blur-[2px]">
-            {resolveImageUrl(profile?.coverUrl) && (
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => setMediaPreviewModal({ type: "cover", url: resolveImageUrl(profile.coverUrl), title: "Brand Banner" })}
-                className="rounded-full bg-white/90 hover:bg-white text-black font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
-              >
-                <Eye className="h-3.5 w-3.5" /> View Banner
-              </Button>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => coverFileRef.current?.click()}
-              className="rounded-full bg-black/75 hover:bg-black text-white font-semibold text-xs h-8 px-3 border border-white/20 shadow-md gap-1.5 cursor-pointer backdrop-blur-md"
-            >
-              <Camera className="h-3.5 w-3.5" /> Change Banner
-            </Button>
-            {profile?.coverUrl && (
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                onClick={handleDeleteCover}
-                className="rounded-full font-semibold text-xs h-8 px-3 shadow-md gap-1.5 cursor-pointer"
-                title="Reset banner to default"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Reset
-              </Button>
-            )}
-          </div>
-        </section>
-      </div>
-
-      <div className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8 relative z-30">
-        {/* LOGO & BRAND DETAILS HEADER */}
-        <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left justify-between">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5">
-            <div className="-mt-14 sm:-mt-20 relative group z-40 flex-shrink-0">
-              <img src={
-                  resolveImageUrl(profile?.avatarUrl) ||
-                  `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile?.fullName || "brand"}`
-                }
-                alt=""
-                className="h-28 w-28 sm:h-36 sm:w-36 rounded-full border-4 border-background object-cover bg-background shadow-elevated"
-               onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-
-              {/* Logo Quick Hover Menu Trigger Overlay */}
-              <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-[2px] p-1 gap-1">
-                <button
+              {/* Sleek Minimalist Banner Action Button (Bottom Right) */}
+              <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-20 flex items-center gap-2">
+                <Button
                   type="button"
-                  onClick={() => setMediaPreviewModal({ type: "avatar", url: resolveImageUrl(profile?.avatarUrl) || `https://api.dicebear.com/9.x/avataaars/svg?seed=${profile?.fullName || "brand"}`, title: `${fullName || "Brand"} Logo` })}
-                  className="hover:scale-110 transition-transform p-1 text-white hover:text-amber-300"
-                  title="View full logo"
+                  size="sm"
+                  onClick={() => coverFileRef.current?.click()}
+                  className="rounded-full bg-black/60 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 text-xs font-semibold h-8 px-3.5 shadow-lg flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
                 >
-                  <Eye className="h-4 w-4" />
-                </button>
-                <div className="flex items-center gap-1.5">
+                  <Camera className="h-3.5 w-3.5" />
+                  <span>Edit Cover</span>
+                </Button>
+                {profile?.coverUrl && (
                   <button
                     type="button"
-                    onClick={() => avatarFileRef.current?.click()}
-                    className="hover:scale-110 transition-transform p-1 text-white hover:text-blue-300"
-                    title="Upload brand logo"
+                    onClick={() => setMediaPreviewModal({ type: "cover", url: bannerUrl, title: "Brand Banner" })}
+                    className="h-8 w-8 rounded-full bg-black/60 hover:bg-black/85 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-lg"
+                    title="View Full Banner"
                   >
-                    <Camera className="h-4 w-4" />
+                    <Eye className="h-3.5 w-3.5" />
                   </button>
+                )}
+                {profile?.coverUrl && (
                   <button
                     type="button"
-                    onClick={() => setIsAvatarPickerOpen(true)}
-                    className="hover:scale-110 transition-transform p-1 text-white hover:text-pink-300"
-                    title="Choose brand avatar preset"
+                    onClick={handleDeleteCover}
+                    className="h-8 w-8 rounded-full bg-red-600/70 hover:bg-red-600 text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all hover:scale-105 cursor-pointer shadow-lg"
+                    title="Reset Banner to Default"
                   >
-                    <Sparkles className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                  {profile?.avatarUrl && (
-                    <button
-                      type="button"
-                      onClick={handleDeleteAvatar}
-                      className="hover:scale-110 transition-transform p-1 text-white hover:text-rose-400"
-                      title="Reset brand logo to default"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="pb-2">
-              <div className="flex items-center justify-center sm:justify-start gap-2">
-                <h1 className="font-display text-2xl font-bold sm:text-3xl text-foreground">
-                  {fullName || "Company Name"}
-                </h1>
-                {profile?.verificationStatus === "verified" && (
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500 shadow-sm">
-                    <Check className="h-3 w-3 text-white" />
-                  </span>
                 )}
               </div>
-              <p className="text-lg font-medium text-muted-foreground/90">
-                {handle ? `@${handle.replace("@", "")}` : "@handle"}
-              </p>
-              {profile && (
-                <div className="mt-2 flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs">
-                  <Badge variant="secondary" className="rounded-full">
-                    {category || "N/A"}
-                  </Badge>
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <Building2 className="h-3.5 w-3.5" /> {companySize || "N/A"}
-                  </span>
-                  {website && (
-                    <a
-                      href={website}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-primary hover:underline"
+            </section>
+          </div>
+
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4 sm:gap-5 -mt-16 sm:-mt-20 z-10">
+                {/* AVATAR WITH INSTA-STYLE HOVER/CLICK ACTIONS */}
+                <div className="relative group shrink-0">
+                  <img
+                    src={brandAvatarUrl}
+                    alt={displayName}
+                    className="h-20 w-20 sm:h-28 sm:w-28 rounded-full border-4 border-card bg-muted object-cover shadow-elevated"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = getGenderAvatar(profile?.fullName || fullName || displayName, "male", "brand");
+                    }}
+                  />
+
+                  {/* Logo Quick Hover Menu Trigger Overlay */}
+                  <div className="absolute inset-0 rounded-full bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white backdrop-blur-[2px] p-1 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setMediaPreviewModal({ type: "avatar", url: brandAvatarUrl, title: `${fullName || displayName}'s Logo` })}
+                      className="hover:scale-110 transition-transform p-1 text-white hover:text-amber-300"
+                      title="View full logo"
                     >
-                      <Globe className="h-3.5 w-3.5" />{" "}
-                      {website.replace(/https?:\/\/(www\.)?/, "")}
-                    </a>
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => avatarFileRef.current?.click()}
+                        className="hover:scale-110 transition-transform p-1 text-white hover:text-blue-300"
+                        title="Upload custom logo"
+                      >
+                        <Camera className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsAvatarPickerOpen(true)}
+                        className="hover:scale-110 transition-transform p-1 text-white hover:text-pink-300"
+                        title="Choose Avatar Preset"
+                      >
+                        <Sparkles className="h-4 w-4" />
+                      </button>
+                      {profile?.avatarUrl && (
+                        <button
+                          type="button"
+                          onClick={handleDeleteAvatar}
+                          className="hover:scale-110 transition-transform p-1 text-white hover:text-rose-400"
+                          title="Reset logo to default"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1 pt-12 sm:pt-14">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                    Brand dashboard
+                  </p>
+                  <h1 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl flex items-center gap-2">
+                    {fullName || profile?.fullName || displayName}
+                    {status === "verified" && (
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 shadow-xs" title="Verified Brand">
+                        <Check className="h-3 w-3 text-white" strokeWidth={3} />
+                      </span>
+                    )}
+                  </h1>
+                  {profile && (
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {category && (
+                        <Badge variant="secondary" className="rounded-full text-[11px] font-medium">
+                          {category}
+                        </Badge>
+                      )}
+                      {companySize && (
+                        <span className="flex items-center gap-1">
+                          <Building2 className="h-3.5 w-3.5" /> {companySize}
+                        </span>
+                      )}
+                      {website && (
+                        <a
+                          href={website}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <Globe className="h-3.5 w-3.5" /> {website.replace(/https?:\/\/(www\.)?/, "")}
+                        </a>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          </div>
-  <div className="flex flex-wrap items-center gap-2">
-    {profile?.handle && (
-      <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
-        <Button
-          variant="default"
-          className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 bg-gradient-to-r from-amber-500 via-rose-500 to-purple-600 text-white shadow-md hover:opacity-90 cursor-pointer"
-        >
-          <Sparkles className="h-3.5 w-3.5" /> Media Kit
-        </Button>
-      </Link>
-    )}
-    <Link to={`/influencer/${profile?._id}`}>
-      <Button
-        variant="outline"
-        className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
-      >
-        <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
-      </Button>
-    </Link>
-    <Button
-      variant="outline"
-      onClick={() => openFollowModal("followers")}
-      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
-    >
-      <Users className="h-3.5 w-3.5 text-primary" />
-      <span>{followCounts.followers}</span> Followers
-    </Button>
-    <Button
-      variant="outline"
-      onClick={() => openFollowModal("following")}
-      className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
-    >
-      <Users className="h-3.5 w-3.5 text-indigo-500" />
-      <span>{followCounts.following}</span> Following
-    </Button>
-    <Button
-      variant="outline"
-      onClick={() => {
-        const url = `${window.location.origin}/influencer/${profile?._id}`;
-        navigator.clipboard.writeText(url);
-        toast.success("Brand profile link copied to clipboard!");
-      }}
-      className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
-    >
-      <Share2 className="h-3.5 w-3.5 text-primary" /> Share Link
-    </Button>
+              </div>
 
-  {(() => {
-    const status = profile?.verificationStatus;
-    if (status === "verified") {
-      return (
-        <Button className="rounded-full bg-emerald-600 hover:bg-emerald-600 text-white px-6 cursor-default flex items-center gap-1.5 font-semibold">
-          <Check className="h-4 w-4" /> Verified
-        </Button>
-      );
-    }
-    if (status === "pending") {
-      return (
-        <Button disabled className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 px-6 font-semibold opacity-70">
-          Verification Pending
-        </Button>
-      );
-    }
-    if (status === "rejected") {
-      return (
-        <Button
-          onClick={() => setShowVerificationDialog(true)}
-          className="rounded-full bg-red-600 hover:bg-red-700 text-white px-6 font-semibold shadow-sm"
-        >
-          Verification Failed (Try Again)
-        </Button>
-      );
-    }
-    // Default: unverified
-    return (
-      <Button
-        onClick={() => setShowVerificationDialog(true)}
-        className="rounded-full bg-blue-600 hover:bg-blue-700 text-white px-6 font-semibold"
-      >
-        Get Verified
-      </Button>
-    );
-  })()}
-</div>
-        </div>
+              {/* Action Buttons Row */}
+              <div className="flex flex-wrap items-center gap-2">
+                {profile?.handle && (
+                  <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
+                    <Button
+                      variant="default"
+                      className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 gradient-sunset text-white shadow-glow hover:opacity-90 cursor-pointer border-0"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" /> Media Kit
+                    </Button>
+                  </Link>
+                )}
+                <Link to={`/influencer/${profile?._id}`}>
+                  <Button
+                    variant="outline"
+                    className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
+                  </Button>
+                </Link>
+                {/* COMBINED FOLLOWERS & FOLLOWING IN ONE UNIFIED PILL */}
+                <div className="inline-flex items-center rounded-full border border-border/80 bg-card text-xs font-semibold overflow-hidden shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => openFollowModal("followers")}
+                    className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+                  >
+                    <Users className="h-3.5 w-3.5 text-primary" />
+                    <span className="font-bold text-foreground">{followCounts.followers}</span>
+                    <span className="text-muted-foreground">Followers</span>
+                  </button>
+                  <span className="h-3.5 w-[1px] bg-border/80"></span>
+                  <button
+                    type="button"
+                    onClick={() => openFollowModal("following")}
+                    className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+                  >
+                    <span className="font-bold text-foreground">{followCounts.following}</span>
+                    <span className="text-muted-foreground">Following</span>
+                  </button>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const url = `${window.location.origin}/influencer/${profile?._id}`;
+                    navigator.clipboard.writeText(url);
+                    toast.success("Brand profile link copied to clipboard!");
+                  }}
+                  className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-primary" /> Share Link
+                </Button>
+
+                {(() => {
+                  if (status === "pending") {
+                    return (
+                      <Button disabled className="rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 px-6 font-semibold opacity-70 cursor-not-allowed">
+                        Verification Pending
+                      </Button>
+                    );
+                  }
+                  if (status === "rejected") {
+                    return (
+                      <Button
+                        onClick={() => setShowVerificationDialog(true)}
+                        className="rounded-full bg-red-600 hover:bg-red-700 text-white px-6 font-semibold shadow-sm"
+                      >
+                        Verification Failed (Try Again)
+                      </Button>
+                    );
+                  }
+                  if (status !== "verified") {
+                    return (
+                      <Button
+                        onClick={() => setShowVerificationDialog(true)}
+                        className="rounded-full gradient-sunset text-white px-6 font-semibold shadow-glow border-0"
+                      >
+                        Get Verified
+                      </Button>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
 
         {/* CONNECTION REQUESTS AT TOP */}
         {pendingRequests && pendingRequests.length > 0 && (
@@ -1842,123 +1851,45 @@ const [submittingVerification, setSubmittingVerification] =
             </Button>
           </div>
         )}
+      </div>
+      </>
+    ) : (
+      <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+        <button
+          onClick={() => setActiveTab("dashboard")}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-2 cursor-pointer group"
+        >
+          <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" /> Back to Dashboard
+        </button>
+      </div>
+    )}
 
-        {/* TAB NAVIGATION PILLS */}
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "dashboard"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Building2 className="h-4 w-4" />
-              Dashboard
-            </button>
-            <button
-              onClick={() => setActiveTab("subscription")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "subscription"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Star className="h-4 w-4" />
-              ⭐ Add-on Services
-            </button>
-            <button
-              onClick={() => setActiveTab("offers")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "offers"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Sparkles className="h-4 w-4 text-amber-400" />
-              Offers
-            </button>
-            <button
-              onClick={() => setActiveTab("referrals")}
-              className={`btn-bouncy flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold transition-all duration-200 ${
-                activeTab === "referrals"
-                  ? "gradient-sunset text-white shadow-glow"
-                  : "bg-secondary/40 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border/40"
-              }`}
-            >
-              <Gift className="h-4 w-4 text-emerald-400" />
-              Refer & Earn
-              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-500 text-[10px] font-extrabold border border-emerald-500/30">
-                5% - 10% Tiered
-              </span>
-            </button>
-          </div>
-
-          {/* Quick Sub-Section Navigator to eliminate scrolling */}
-          {activeTab === "dashboard" && (
-            <div className="flex items-center gap-1.5 overflow-x-auto py-1 px-1 rounded-2xl bg-secondary/30 border border-border/40 no-scrollbar">
-              <span className="text-[10px] font-bold text-muted-foreground/80 px-2.5 uppercase tracking-wider hidden sm:inline">
-                Jump to:
-              </span>
-              {[
-                { id: "all", label: "✨ All" },
-                { id: "profile", label: "🏢 Profile" },
-                { id: "campaigns", label: "📢 Campaigns" },
-                { id: "escrow", label: "💳 Escrow & Pay" },
-                { id: "preferences", label: "🎯 Preferences" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setBrandSubSection(tab.id)}
-                  className={cn(
-                    "pill-cute px-3 py-1.5 text-xs font-semibold whitespace-nowrap",
-                    brandSubSection === tab.id
-                      ? "bg-primary text-primary-foreground shadow-sm ring-2 ring-primary/30"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/70"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* MAIN TAB CONTENT */}
-        <div className="mt-6 w-full min-w-0">
-          {activeTab === "dashboard" ? (
-            <div className="w-full max-w-5xl mx-auto space-y-8 font-jakarta">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-12">
+      {/* MAIN TAB CONTENT */}
+      <div className="mt-4 w-full min-w-0">
+        {activeTab === "dashboard" ? (
+            <div className="w-full space-y-8 font-jakarta">
               {/* EDIT SECTIONS */}
               <div className="space-y-6 w-full min-w-0">
             {/* STATS PREVIEW CARDS */}
-            {(brandSubSection === "all" || brandSubSection === "profile") && (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                {stats.map((s) => {
-                  const isClickable =
-                    s.label === "Creators Hired" ||
-                    s.label === "Campaigns Posted" ||
-                    s.label === "Active Campaigns";
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {stats.map((s) => {
+                const isClickable =
+                  s.label === "Creators Hired" ||
+                  s.label === "Campaigns Posted" ||
+                  s.label === "Active Campaigns";
 
-                  const handleClick = () => {
-                    if (s.label === "Creators Hired") {
-                      setHiredCreatorsModalOpen(true);
-                    } else if (s.label === "Campaigns Posted") {
-                      setCampaignFilterStatus("ALL");
-                      setBrandSubSection("campaigns");
-                      setTimeout(() => {
-                        const el = document.getElementById("brand-campaigns-section");
-                        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }, 100);
-                    } else if (s.label === "Active Campaigns") {
-                      setCampaignFilterStatus("ACTIVE");
-                      setBrandSubSection("campaigns");
-                      setTimeout(() => {
-                        const el = document.getElementById("brand-campaigns-section");
-                        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }, 100);
-                    }
-                  };
+                const handleClick = () => {
+                  if (s.label === "Creators Hired") {
+                    setHiredCreatorsModalOpen(true);
+                  } else if (s.label === "Campaigns Posted") {
+                    setCampaignFilterStatus("ALL");
+                    setActiveTab("campaigns");
+                  } else if (s.label === "Active Campaigns") {
+                    setCampaignFilterStatus("ACTIVE");
+                    setActiveTab("campaigns");
+                  }
+                };
 
                   return (
                     <div
@@ -1990,11 +1921,8 @@ const [submittingVerification, setSubmittingVerification] =
                   );
                 })}
               </div>
-            )}
 
             {/* BRAND PROFILE FORM & ACCORDIONS */}
-            {(brandSubSection === "all" || brandSubSection === "profile") && (
-            <>
             <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
               <h2 className="font-outfit text-xl font-bold mb-5 flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" /> Edit Brand Details
@@ -2010,8 +1938,8 @@ const [submittingVerification, setSubmittingVerification] =
                     className="h-20 w-20 rounded-full border border-border object-cover bg-muted"
                    onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
-                      <Camera className="h-4 w-4" />
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors">
+                      <Camera className="h-4 w-4 text-muted-foreground" />
                       {uploadingAvatar ? "Uploading..." : "Upload logo"}
                       <input
                         ref={avatarFileRef}
@@ -2025,13 +1953,13 @@ const [submittingVerification, setSubmittingVerification] =
                     <button
                       type="button"
                       onClick={() => setIsAvatarPickerOpen(true)}
-                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary/40 bg-primary/10 text-primary px-4 py-2 text-sm font-medium hover:bg-primary/20"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors"
                     >
-                      <Sparkles className="h-4 w-4" />
-                      Choose Brand Icon / Avatar
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      Choose Brand Avatar
                     </button>
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary">
-                      <ImageIcon className="h-4 w-4" />
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary transition-colors">
+                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
                       {uploadingCover ? "Uploading..." : "Upload banner"}
                       <input
                         ref={coverFileRef}
@@ -2291,7 +2219,7 @@ const [submittingVerification, setSubmittingVerification] =
                                 onChange={(e) => setIsBarterAllowed(e.target.checked)}
                                 className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5"
                               />
-                              <span>🤝 Barter Allowed</span>
+                              <span>Barter Allowed</span>
                             </label>
                           </div>
                           <Input
@@ -2890,11 +2818,351 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
               )}
             </div>
-          </>
-        )}
+            {/* REVIEWS VISIBILITY SETTINGS */}
+            <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+              <h2 className="font-outfit text-xl font-bold mb-2">
+                Reviews from Creators
+              </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Toggle display visibility of feedback and ratings left by creators.
+              </p>
 
-            {/* OPEN CAMPAIGNS */}
-            {(brandSubSection === "all" || brandSubSection === "campaigns") && (
+              {!reviews ? (
+                <div className="py-8 text-center text-sm text-muted-foreground">
+                  Loading reviews...
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="py-8 text-center border border-dashed border-border rounded-xl">
+                  <Star className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
+                  <p className="font-semibold text-sm text-muted-foreground">
+                    No creator reviews received yet
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Reviews from completed creator collaborations will appear
+                    here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.map((review) => (
+                    <div
+                      key={review._id}
+                      className="flex flex-col md:flex-row md:items-center justify-between gap-4 border border-border rounded-2xl p-4 hover:bg-accent/5 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <img src={
+                              review.brandAvatar ||
+                              `https://api.dicebear.com/9.x/avataaars/svg?seed=${review.brandName}`
+                            }
+                            alt=""
+                            className="h-8 w-8 rounded-full object-cover border border-border shadow-sm aspect-square"
+                           onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-semibold text-foreground">
+                                {review.brandName}
+                              </h4>
+                              {review.campaignRef && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[9px] rounded-full"
+                                >
+                                  {review.campaignRef}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <div className="flex items-center">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <Star
+                                    key={star}
+                                    className={`h-2.5 w-2.5 ${
+                                      star <= review.rating
+                                        ? "fill-amber text-amber"
+                                        : "text-muted-foreground/30"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-[9px] text-muted-foreground">
+                                {new Date(
+                                  review.createdAt,
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs">
+                          <p className="font-semibold text-foreground">
+                            {review.title}
+                          </p>
+                          <p className="text-muted-foreground mt-0.5">
+                            {review.text}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-start md:self-center pt-2 md:pt-0 w-full md:w-auto justify-between border-t md:border-t-0 border-border/40">
+                        <div className="text-left md:text-right">
+                          <span className="block text-xs font-semibold text-foreground">
+                            Public Display
+                          </span>
+                          <span className="block text-[10px] text-muted-foreground">
+                            {review.visible
+                              ? "Shown on profile"
+                              : "Hidden from profile"}
+                          </span>
+                        </div>
+                        <Switch
+                          checked={review.visible}
+                          onCheckedChange={() =>
+                            handleToggleVisibility(review._id)
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* HIRING & SAVED PREFERENCES */}
+          <div className="grid gap-6 md:grid-cols-2 w-full min-w-0">
+            {/* HIRING PREFERENCES PANEL */}
+            <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
+              <h2 className="font-outfit text-xl font-bold mb-4 flex items-center gap-2">
+                <Filter className="h-5 w-5 text-primary" /> Hiring Preferences
+              </h2>
+              <form
+                onSubmit={handleSavePreferences}
+                className="space-y-4 text-sm"
+              >
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="prefNiches"
+                    className="text-xs font-semibold text-muted-foreground"
+                  >
+                    Target Niches
+                  </Label>
+                  <Input
+                    id="prefNiches"
+                    value={niches}
+                    onChange={(e) => setNiches(e.target.value)}
+                    placeholder="e.g. Sports, Fitness, Running"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="prefBudget"
+                    className="text-xs font-semibold text-muted-foreground"
+                  >
+                    Campaign Budget Range
+                  </Label>
+                  <Input
+                    id="prefBudget"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    placeholder="e.g. ₹20K - ₹100K per post"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="prefReach"
+                    className="text-xs font-semibold text-muted-foreground"
+                  >
+                    Target Creator Reach
+                  </Label>
+                  <Input
+                    id="prefReach"
+                    value={reach}
+                    onChange={(e) => setReach(e.target.value)}
+                    placeholder="e.g. 50K+ followers"
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="prefRegions"
+                    className="text-xs font-semibold text-muted-foreground"
+                  >
+                    Preferred Regions
+                  </Label>
+                  <Input
+                    id="prefRegions"
+                    value={regions}
+                    onChange={(e) => setRegions(e.target.value)}
+                    placeholder="e.g. India (Metros)"
+                    className="rounded-xl"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  disabled={savingPrefs}
+                  className="w-full rounded-full gradient-sunset border-0 text-white shadow-glow mt-4"
+                >
+                  <Save className="mr-1.5 h-4 w-4" />{" "}
+                  {savingPrefs
+                    ? "Updating Preferences..."
+                    : "Update Preferences"}
+                </Button>
+              </form>
+            </div>
+
+            {/* SAVED CREATORS (KEPT FROM ORIGINAL) */}
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bookmark className="h-5 w-5 text-primary" />
+                  <h2 className="font-display text-base font-semibold">
+                    Saved Creators
+                  </h2>
+                </div>
+                <Link
+                  to="/browse"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Browse
+                </Link>
+              </div>
+
+              {saved.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-8 text-center">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    No saved creators yet
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {saved.map((inf) => {
+                    const fallbackSrc = getGenderAvatar(inf.name || "User", inf.gender, inf.role || "creator");
+                    const avatarSrc = resolveImageUrl(inf.avatar) || fallbackSrc;
+                    return (
+                      <div
+                        key={inf.id}
+                        className="flex items-center gap-3 rounded-2xl border border-border p-3"
+                      >
+                        <img
+                          src={avatarSrc}
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover aspect-square flex-shrink-0 border border-border"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = fallbackSrc;
+                          }}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            to={`/influencer/${inf.id}`}
+                            className="block truncate font-display text-xs font-semibold hover:text-primary"
+                          >
+                            {inf.name}
+                          </Link>
+                          <p className="text-[10px] text-muted-foreground">
+                            {inf.category} · {formatFollowers(inf.followers || 0)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFavorite(inf.id)}
+                          className="text-muted-foreground hover:text-destructive p-1 cursor-pointer"
+                          aria-label="Remove"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* HIRING HISTORY (KEPT FROM ORIGINAL) */}
+            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <History className="h-5 w-5 text-primary" />
+                <h2 className="font-display text-base font-semibold">
+                  Collaboration History
+                </h2>
+              </div>
+
+              {!conversations || conversations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-8 text-center">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    No collaborations initiated
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {conversations.map((c) => {
+                    const creator = c.otherProfile;
+                    if (!creator) return null;
+                    return (
+                      <div
+                        key={c._id}
+                        className="flex items-center gap-3 rounded-2xl border border-border p-3"
+                      >
+                        <img src={
+                            creator.avatarUrl ||
+                            `https://api.dicebear.com/9.x/avataaars/svg?seed=${creator.fullName}`
+                          }
+                          alt=""
+                          className="h-10 w-10 rounded-full object-cover aspect-square flex-shrink-0 border border-border"
+                         onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            to={`/influencer/${creator._id}`}
+                            className="block truncate font-display text-xs font-semibold hover:text-primary"
+                          >
+                            {creator.fullName}
+                          </Link>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {creator.category || "General"} ·{" "}
+                            {creator.location || "India"}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="text-[9px] capitalize rounded-full px-2"
+                        >
+                          {c.status}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+              {/* RECENT SEARCHES */}
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+                <div className="mb-4 flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  <h2 className="font-display text-base font-semibold">
+                    Recent searches
+                  </h2>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {recent.map((q) => (
+                    <Link key={q} to="/browse">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full px-2.5 py-1 text-[10px] hover:bg-accent flex items-center gap-1"
+                      >
+                        <Search className="h-2.5 w-2.5" /> {q}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "campaigns" ? (
+          <div className="space-y-6">
+{/* OPEN CAMPAIGNS */}
             <div id="brand-campaigns-section" className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
                 <div>
@@ -3224,15 +3492,11 @@ const [submittingVerification, setSubmittingVerification] =
                 );
               })()}
             </div>
-            )}
 
             {/* BRAND OFFERS & INCENTIVES LAUNCH */}
-            {(brandSubSection === "all" || brandSubSection === "campaigns") && (
-              <MultiRoleOfferForm profileId={profile?._id} role="brand" />
-            )}
+            <MultiRoleOfferForm profileId={profile?._id} role="brand" />
 
             {/* ESCROW PAYMENTS */}
-            {(brandSubSection === "all" || brandSubSection === "escrow") && (
             <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
               <div>
                 <h2 className="font-outfit text-xl font-bold">
@@ -3425,353 +3689,6 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
               )}
             </div>
-            )}
-
-            {/* REVIEWS VISIBILITY SETTINGS */}
-            {(brandSubSection === "all" || brandSubSection === "preferences") && (
-            <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-              <h2 className="font-outfit text-xl font-bold mb-2">
-                Reviews from Creators
-              </h2>
-              <p className="text-xs text-muted-foreground mb-4">
-                Toggle display visibility of feedback and ratings left by creators.
-              </p>
-
-              {!reviews ? (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  Loading reviews...
-                </div>
-              ) : reviews.length === 0 ? (
-                <div className="py-8 text-center border border-dashed border-border rounded-xl">
-                  <Star className="mx-auto h-8 w-8 text-muted-foreground/30 mb-2" />
-                  <p className="font-semibold text-sm text-muted-foreground">
-                    No creator reviews received yet
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Reviews from completed creator collaborations will appear
-                    here.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <div
-                      key={review._id}
-                      className="flex flex-col md:flex-row md:items-center justify-between gap-4 border border-border rounded-2xl p-4 hover:bg-accent/5 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <img src={
-                              review.brandAvatar ||
-                              `https://api.dicebear.com/9.x/avataaars/svg?seed=${review.brandName}`
-                            }
-                            alt=""
-                            className="h-8 w-8 rounded-full object-cover border border-border shadow-sm aspect-square"
-                           onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-semibold text-foreground">
-                                {review.brandName}
-                              </h4>
-                              {review.campaignRef && (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[9px] rounded-full"
-                                >
-                                  {review.campaignRef}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <div className="flex items-center">
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <Star
-                                    key={star}
-                                    className={`h-2.5 w-2.5 ${
-                                      star <= review.rating
-                                        ? "fill-amber text-amber"
-                                        : "text-muted-foreground/30"
-                                    }`}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-[9px] text-muted-foreground">
-                                {new Date(
-                                  review.createdAt,
-                                ).toLocaleDateString()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-2 text-xs">
-                          <p className="font-semibold text-foreground">
-                            {review.title}
-                          </p>
-                          <p className="text-muted-foreground mt-0.5">
-                            {review.text}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 self-start md:self-center pt-2 md:pt-0 w-full md:w-auto justify-between border-t md:border-t-0 border-border/40">
-                        <div className="text-left md:text-right">
-                          <span className="block text-xs font-semibold text-foreground">
-                            Public Display
-                          </span>
-                          <span className="block text-[10px] text-muted-foreground">
-                            {review.visible
-                              ? "Shown on profile"
-                              : "Hidden from profile"}
-                          </span>
-                        </div>
-                        <Switch
-                          checked={review.visible}
-                          onCheckedChange={() =>
-                            handleToggleVisibility(review._id)
-                          }
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            )}
-          </div>
-
-          {/* HIRING & SAVED PREFERENCES */}
-          {(brandSubSection === "all" || brandSubSection === "preferences") && (
-          <div className="grid gap-6 md:grid-cols-2 w-full min-w-0">
-            {/* HIRING PREFERENCES PANEL */}
-            <div className="card-3d rounded-3xl border border-border/60 bg-card p-6 shadow-sm">
-              <h2 className="font-outfit text-xl font-bold mb-4 flex items-center gap-2">
-                <Filter className="h-5 w-5 text-primary" /> Hiring Preferences
-              </h2>
-              <form
-                onSubmit={handleSavePreferences}
-                className="space-y-4 text-sm"
-              >
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="prefNiches"
-                    className="text-xs font-semibold text-muted-foreground"
-                  >
-                    Target Niches
-                  </Label>
-                  <Input
-                    id="prefNiches"
-                    value={niches}
-                    onChange={(e) => setNiches(e.target.value)}
-                    placeholder="e.g. Sports, Fitness, Running"
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="prefBudget"
-                    className="text-xs font-semibold text-muted-foreground"
-                  >
-                    Campaign Budget Range
-                  </Label>
-                  <Input
-                    id="prefBudget"
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    placeholder="e.g. ₹20K - ₹100K per post"
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="prefReach"
-                    className="text-xs font-semibold text-muted-foreground"
-                  >
-                    Target Creator Reach
-                  </Label>
-                  <Input
-                    id="prefReach"
-                    value={reach}
-                    onChange={(e) => setReach(e.target.value)}
-                    placeholder="e.g. 50K+ followers"
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="prefRegions"
-                    className="text-xs font-semibold text-muted-foreground"
-                  >
-                    Preferred Regions
-                  </Label>
-                  <Input
-                    id="prefRegions"
-                    value={regions}
-                    onChange={(e) => setRegions(e.target.value)}
-                    placeholder="e.g. India (Metros)"
-                    className="rounded-xl"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  disabled={savingPrefs}
-                  className="w-full rounded-full gradient-sunset border-0 text-white shadow-glow mt-4"
-                >
-                  <Save className="mr-1.5 h-4 w-4" />{" "}
-                  {savingPrefs
-                    ? "Updating Preferences..."
-                    : "Update Preferences"}
-                </Button>
-              </form>
-            </div>
-
-            {/* SAVED CREATORS (KEPT FROM ORIGINAL) */}
-            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bookmark className="h-5 w-5 text-primary" />
-                  <h2 className="font-display text-base font-semibold">
-                    Saved Creators
-                  </h2>
-                </div>
-                <Link
-                  to="/browse"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Browse
-                </Link>
-              </div>
-
-              {saved.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-8 text-center">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    No saved creators yet
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {saved.map((inf) => {
-                    const fallbackSrc = getGenderAvatar(inf.name || "User", inf.gender, inf.role || "creator");
-                    const avatarSrc = resolveImageUrl(inf.avatar) || fallbackSrc;
-                    return (
-                      <div
-                        key={inf.id}
-                        className="flex items-center gap-3 rounded-2xl border border-border p-3"
-                      >
-                        <img
-                          src={avatarSrc}
-                          alt=""
-                          className="h-10 w-10 rounded-full object-cover aspect-square flex-shrink-0 border border-border"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = fallbackSrc;
-                          }}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <Link
-                            to={`/influencer/${inf.id}`}
-                            className="block truncate font-display text-xs font-semibold hover:text-primary"
-                          >
-                            {inf.name}
-                          </Link>
-                          <p className="text-[10px] text-muted-foreground">
-                            {inf.category} · {formatFollowers(inf.followers || 0)}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFavorite(inf.id)}
-                          className="text-muted-foreground hover:text-destructive p-1 cursor-pointer"
-                          aria-label="Remove"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* HIRING HISTORY (KEPT FROM ORIGINAL) */}
-            <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-              <div className="mb-4 flex items-center gap-2">
-                <History className="h-5 w-5 text-primary" />
-                <h2 className="font-display text-base font-semibold">
-                  Collaboration History
-                </h2>
-              </div>
-
-              {!conversations || conversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-8 text-center">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    No collaborations initiated
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {conversations.map((c) => {
-                    const creator = c.otherProfile;
-                    if (!creator) return null;
-                    return (
-                      <div
-                        key={c._id}
-                        className="flex items-center gap-3 rounded-2xl border border-border p-3"
-                      >
-                        <img src={
-                            creator.avatarUrl ||
-                            `https://api.dicebear.com/9.x/avataaars/svg?seed=${creator.fullName}`
-                          }
-                          alt=""
-                          className="h-10 w-10 rounded-full object-cover aspect-square flex-shrink-0 border border-border"
-                         onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
-                        <div className="min-w-0 flex-1">
-                          <Link
-                            to={`/influencer/${creator._id}`}
-                            className="block truncate font-display text-xs font-semibold hover:text-primary"
-                          >
-                            {creator.fullName}
-                          </Link>
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            {creator.category || "General"} ·{" "}
-                            {creator.location || "India"}
-                          </p>
-                        </div>
-                        <Badge
-                          variant="secondary"
-                          className="text-[9px] capitalize rounded-full px-2"
-                        >
-                          {c.status}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-              {/* RECENT SEARCHES */}
-              <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-                <div className="mb-4 flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <h2 className="font-display text-base font-semibold">
-                    Recent searches
-                  </h2>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {recent.map((q) => (
-                    <Link key={q} to="/browse">
-                      <Badge
-                        variant="secondary"
-                        className="rounded-full px-2.5 py-1 text-[10px] hover:bg-accent flex items-center gap-1"
-                      >
-                        <Search className="h-2.5 w-2.5" /> {q}
-                      </Badge>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
           </div>
         ) : activeTab === "offers" ? (
           <div className="space-y-6">

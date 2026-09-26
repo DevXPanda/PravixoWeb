@@ -50,7 +50,7 @@ export function AvatarPickerModal({
                   activeTab === "boys" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                👦 Boys & Young Men
+                Men & Boys
               </button>
               <button
                 type="button"
@@ -59,7 +59,7 @@ export function AvatarPickerModal({
                   activeTab === "girls" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                👧 Girls & Women
+                Women & Girls
               </button>
               <button
                 type="button"
@@ -68,7 +68,7 @@ export function AvatarPickerModal({
                   activeTab === "aged" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                🧓 Elders & Senior Pros
+                Senior & Mature
               </button>
             </div>
 
@@ -191,7 +191,7 @@ export function AvatarPickerModal({
                   activeTab === "categories" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                🛍️ Industry & Products (Shoes, Tech, etc.)
+                Industry & Products
               </button>
               <button
                 type="button"
@@ -200,7 +200,7 @@ export function AvatarPickerModal({
                   activeTab === "brand_faces" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                💼 Executive & Corporate Avatars
+                Executive & Corporate
               </button>
             </div>
 
@@ -228,7 +228,6 @@ export function AvatarPickerModal({
                       />
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-sm">{item.icon}</span>
                       <span className="text-[11px] font-medium text-center truncate">
                         {item.name}
                       </span>

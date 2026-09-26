@@ -368,61 +368,20 @@ export default function CreatorMediaKit() {
   const liveFacebookFeeds = customFacebook.length > 0 ? customFacebook : defaultFacebookFeeds;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-primary selection:text-white pb-24">
-      {/* Top Media Kit Bar (Screen Only) */}
-      <header className="print:hidden sticky top-0 z-40 bg-slate-950/95 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-6 py-2.5 shadow-md">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="bg-gradient-to-r from-amber-500 to-rose-500 text-white font-black text-[11px] px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
-              <Sparkles className="w-3 h-3" /> Media Kit
-            </span>
-            <span className="text-xs font-semibold text-slate-400 hidden sm:inline">
-              pravixo.com/c/{rawHandle}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCopyLink}
-              className="rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 text-xs font-semibold gap-1.5 cursor-pointer"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
-              {copied ? "Link Copied!" : "Share Link"}
-            </Button>
-            {isOwnProfile ? (
-              <Link to="/dashboard/influencer">
-                <Button size="sm" className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer">
-                  <Sparkles className="w-3.5 h-3.5" /> Edit My Profile
-                </Button>
-              </Link>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => handleHireAction(`/influencer/${creator._id}`)}
-                className="rounded-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-semibold text-xs px-4 shadow-md gap-1.5 cursor-pointer"
-              >
-                <MessageCircle className="w-3.5 h-3.5" /> Hire @{rawHandle}
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary selection:text-white pb-24">
       {/* Main Printable Container */}
       <main ref={mediaKitRef} className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 print:p-0 print:space-y-6">
         
         {/* HERO BRANDED HEADER CARD */}
-        <section className="relative rounded-3xl overflow-hidden border border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 shadow-2xl">
+        <section className="relative rounded-3xl overflow-hidden border border-border bg-card shadow-lg">
           {/* Banner */}
           <div className="h-48 sm:h-64 w-full relative overflow-hidden">
             <img
               src={coverUrl}
               alt={`${creator.fullName} banner`}
-              className="w-full h-full object-cover brightness-75"
+              className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
           </div>
 
           {/* Profile Header Details */}
@@ -432,39 +391,39 @@ export default function CreatorMediaKit() {
                 <img
                   src={avatarUrl}
                   alt={creator.fullName}
-                  className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl sm:rounded-3xl border-4 border-slate-950 object-cover shadow-2xl bg-slate-800"
+                  className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl sm:rounded-3xl border-4 border-card object-cover shadow-2xl bg-secondary"
                 />
                 {creator.verificationStatus === "verified" && (
-                  <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-full border-2 border-slate-950 shadow-lg" title="Verified Creator">
-                    <ShieldCheck className="w-5 h-5" fill="currentColor" stroke="#020617" />
+                  <div className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-full border-2 border-card shadow-lg" title="Verified Creator">
+                    <ShieldCheck className="w-5 h-5" fill="currentColor" stroke="var(--card)" />
                   </div>
                 )}
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl sm:text-4xl font-extrabold font-display tracking-tight text-white">
+                  <h1 className="text-2xl sm:text-4xl font-extrabold font-display tracking-tight text-foreground">
                     {creator.fullName}
                   </h1>
-                  <span className="text-slate-400 font-medium text-lg">@{rawHandle}</span>
+                  <span className="text-muted-foreground font-medium text-lg">@{rawHandle}</span>
                 </div>
 
-                <p className="text-amber-400 font-medium text-sm sm:text-base">
+                <p className="text-primary font-semibold text-sm sm:text-base">
                   {creator.mediaKitTagline || categories.join(" • ")}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-slate-400 pt-1">
+                <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-muted-foreground pt-1">
                   {creator.location && (
                     <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-rose-400" /> {creator.location}
+                      <MapPin className="w-3.5 h-3.5 text-rose-500" /> {creator.location}
                     </span>
                   )}
-                  <span className="flex items-center gap-1 text-amber-300 font-semibold">
+                  <span className="flex items-center gap-1 text-amber-500 font-semibold">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> {creator.rating?.toFixed(1) || "5.0"}
-                    <span className="text-slate-400 font-normal">({creator.reviewsCount || 0} reviews)</span>
+                    <span className="text-muted-foreground font-normal">({creator.reviewsCount || 0} reviews)</span>
                   </span>
                   {creator.isBarterAllowed && (
-                    <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs">
+                    <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-xs">
                       ✓ Open to Barter Collabs
                     </Badge>
                   )}
@@ -473,17 +432,26 @@ export default function CreatorMediaKit() {
             </div>
 
             {/* Quick Action in Header */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 print:hidden">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 print:hidden">
+              <Button
+                variant="outline"
+                onClick={handleCopyLink}
+                className="rounded-full bg-secondary/50 hover:bg-secondary text-foreground border-border text-xs font-semibold gap-1.5 px-4 h-10 cursor-pointer shadow-sm"
+              >
+                {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
+                {copied ? "Link Copied!" : "Share Media Kit"}
+              </Button>
+
               {isOwnProfile ? (
                 <Link to="/dashboard/influencer" className="w-full sm:w-auto">
-                  <Button className="w-full rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold px-6 shadow-lg cursor-pointer">
-                    <Sparkles className="w-4 h-4 mr-1.5 text-primary" /> Edit My Media Kit
+                  <Button className="w-full rounded-full gradient-sunset hover:opacity-95 text-white font-bold px-6 h-10 shadow-glow cursor-pointer border-0">
+                    <Sparkles className="w-4 h-4 mr-1.5" /> Edit My Media Kit
                   </Button>
                 </Link>
               ) : (
                 <Button
                   onClick={() => handleHireAction(`/messages?recipientId=${creator._id}`)}
-                  className="w-full sm:w-auto rounded-full bg-gradient-to-r from-orange-500 to-rose-500 hover:from-orange-600 hover:to-rose-600 text-white font-bold px-6 shadow-lg shadow-orange-500/20 cursor-pointer"
+                  className="w-full sm:w-auto rounded-full gradient-sunset hover:opacity-95 text-white font-bold px-6 h-10 shadow-glow cursor-pointer border-0"
                 >
                   <Zap className="w-4 h-4 mr-1.5" /> Book Collaboration
                 </Button>
@@ -494,56 +462,56 @@ export default function CreatorMediaKit() {
 
         {/* KEY AUDITED PERFORMANCE STATS GRID */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition-all">
+          <div className="p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-primary/40 shadow-sm transition-all">
             <div className="absolute top-0 right-0 w-24 h-24 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-all" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
+            <div className="flex items-center justify-between text-muted-foreground mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider">Total Reach</span>
               <Users className="w-4 h-4 text-primary" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-white font-display">
+            <div className="text-2xl sm:text-3xl font-black text-foreground font-display">
               {formatFollowers(totalFollowers)}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400 inline" /> Cross-platform audience
+            <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-emerald-500 inline" /> Cross-platform audience
             </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition-all">
+          <div className="p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-emerald-500/40 shadow-sm transition-all">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
+            <div className="flex items-center justify-between text-muted-foreground mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider">Avg Engagement</span>
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-display">
+            <div className="text-2xl sm:text-3xl font-black text-emerald-500 font-display">
               {erRate}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-muted-foreground mt-1">
               {primaryVerifiedConnection?.verified ? "✓ Live Audited via API" : "Industry Top 10% Tier"}
             </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition-all">
+          <div className="p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-amber-500/40 shadow-sm transition-all">
             <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
+            <div className="flex items-center justify-between text-muted-foreground mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider">Starting Rate</span>
-              <Award className="w-4 h-4 text-amber-400" />
+              <Award className="w-4 h-4 text-amber-500" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-amber-400 font-display">
+            <div className="text-2xl sm:text-3xl font-black text-gradient-sunset font-display">
               {creator.startingPrice > 0 ? formatINR(creator.startingPrice) : "Custom SOW"}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">Per deliverable package</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Per deliverable package</p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 relative overflow-hidden group hover:border-slate-700 transition-all">
+          <div className="p-5 rounded-2xl bg-card border border-border relative overflow-hidden group hover:border-purple-500/40 shadow-sm transition-all">
             <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all" />
-            <div className="flex items-center justify-between text-slate-400 mb-2">
+            <div className="flex items-center justify-between text-muted-foreground mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider">Avg Views / Reel</span>
-              <Eye className="w-4 h-4 text-purple-400" />
+              <Eye className="w-4 h-4 text-purple-500" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-purple-300 font-display">
+            <div className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-300 font-display">
               {creator.audienceHighlights?.avgViewsPerReel || "35K - 90K"}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">High conversion organic reach</p>
+            <p className="text-[11px] text-muted-foreground mt-1">High conversion organic reach</p>
           </div>
         </section>
 
@@ -551,18 +519,18 @@ export default function CreatorMediaKit() {
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Creator Bio & Audience Highlights */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-4">
-              <h2 className="text-lg sm:text-xl font-bold font-display text-white flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-400" /> About The Creator
+            <div className="p-6 sm:p-8 rounded-3xl bg-card border border-border shadow-sm space-y-4">
+              <h2 className="text-lg sm:text-xl font-bold font-display text-foreground flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" /> About The Creator
               </h2>
-              <p className="text-slate-300 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+              <p className="text-muted-foreground text-sm sm:text-base leading-relaxed whitespace-pre-line">
                 {creator.mediaKitBio || creator.bio || `${creator.fullName} is a professional ${categories.join(" & ")} creator creating engaging, high-retention content for modern brands.`}
               </p>
 
               {/* Niches Tags */}
               <div className="flex flex-wrap gap-2 pt-2">
                 {categories.map((cat, i) => (
-                  <span key={i} className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-200 border border-slate-700">
+                  <span key={i} className="px-3 py-1 rounded-full text-xs font-semibold bg-secondary text-foreground border border-border/80">
                     #{cat}
                   </span>
                 ))}
@@ -570,61 +538,61 @@ export default function CreatorMediaKit() {
             </div>
 
             {/* AUDIENCE DEMOGRAPHICS & INSIGHTS */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-5">
+            <div className="p-6 sm:p-8 rounded-3xl bg-card border border-border shadow-sm space-y-5">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg sm:text-xl font-bold font-display text-white flex items-center gap-2">
-                  <Users className="w-5 h-5 text-indigo-400" /> Audience Demographics
+                <h2 className="text-lg sm:text-xl font-bold font-display text-foreground flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-500" /> Audience Demographics
                 </h2>
-                <span className="text-xs bg-indigo-500/10 text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-500/20 font-semibold">
+                <span className="text-xs bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-500/20 font-semibold">
                   Audited Sample
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-1">
-                  <span className="text-xs font-medium text-slate-400">Primary Age Group</span>
-                  <div className="text-lg font-bold text-white">
+                <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70 space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Primary Age Group</span>
+                  <div className="text-lg font-bold text-foreground">
                     {creator.audienceHighlights?.topAgeGroup || "18–24 (48%)"}
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2">
+                  <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mt-2">
                     <div className="bg-indigo-500 h-full w-[48%]" />
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-1">
-                  <span className="text-xs font-medium text-slate-400">Gender Split</span>
-                  <div className="text-lg font-bold text-white">
+                <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70 space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Gender Split</span>
+                  <div className="text-lg font-bold text-foreground">
                     {creator.audienceHighlights?.topGender || "62% Female / 38% Male"}
                   </div>
-                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-2 flex">
+                  <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden mt-2 flex">
                     <div className="bg-rose-400 h-full w-[62%]" />
                     <div className="bg-blue-400 h-full w-[38%]" />
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-1">
-                  <span className="text-xs font-medium text-slate-400">Top Tier-1 Cities</span>
-                  <div className="text-sm font-bold text-white line-clamp-1">
+                <div className="p-4 rounded-2xl bg-secondary/40 border border-border/70 space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">Top Tier-1 Cities</span>
+                  <div className="text-sm font-bold text-foreground line-clamp-1">
                     {creator.audienceHighlights?.topLocations || "Mumbai, Delhi, Bangalore"}
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-2">High purchase intent metros</p>
+                  <p className="text-[11px] text-muted-foreground mt-2">High purchase intent metros</p>
                 </div>
               </div>
             </div>
 
             {/* PAST BRANDS & COLLABS */}
             {(creator.pastBrandsWorkedWith?.length > 0 || (creator.reviews && creator.reviews.length > 0)) && (
-              <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-4">
-                <h2 className="text-lg sm:text-xl font-bold font-display text-white flex items-center gap-2">
-                  <Briefcase className="w-5 h-5 text-emerald-400" /> Brand Collaborations & Testimonials
+              <div className="p-6 sm:p-8 rounded-3xl bg-card border border-border shadow-sm space-y-4">
+                <h2 className="text-lg sm:text-xl font-bold font-display text-foreground flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-emerald-500" /> Brand Collaborations & Testimonials
                 </h2>
                 
                 {creator.pastBrandsWorkedWith?.length > 0 && (
                   <div>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Trusted By:</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trusted By:</span>
                     <div className="flex flex-wrap gap-2.5 mt-2">
                       {creator.pastBrandsWorkedWith.map((brand, idx) => (
-                        <span key={idx} className="px-3.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-semibold text-slate-200">
+                        <span key={idx} className="px-3.5 py-1.5 rounded-xl bg-secondary border border-border text-sm font-semibold text-foreground">
                           ⚡ {brand}
                         </span>
                       ))}
@@ -634,17 +602,17 @@ export default function CreatorMediaKit() {
 
                 {creator.reviews?.length > 0 && (
                   <div className="space-y-3 pt-3">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Client Reviews:</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client Reviews:</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {creator.reviews.slice(0, 4).map((rev, i) => (
-                        <div key={i} className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800/80 space-y-1.5 text-xs">
+                        <div key={i} className="p-3.5 rounded-2xl bg-secondary/40 border border-border/80 space-y-1.5 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-200">{rev.brandName || rev.customerName || "Brand Partner"}</span>
-                            <div className="flex items-center text-amber-400 font-bold">
+                            <span className="font-bold text-foreground">{rev.brandName || rev.customerName || "Brand Partner"}</span>
+                            <div className="flex items-center text-amber-500 font-bold">
                               <Star className="w-3 h-3 fill-amber-400 mr-1" /> {rev.rating || 5}
                             </div>
                           </div>
-                          <p className="text-slate-300 italic line-clamp-3">"{rev.comment || rev.text || "Exceptional deliverable quality and on-time execution."}"</p>
+                          <p className="text-muted-foreground italic line-clamp-3">"{rev.comment || rev.text || "Exceptional deliverable quality and on-time execution."}"</p>
                         </div>
                       ))}
                     </div>
@@ -657,10 +625,10 @@ export default function CreatorMediaKit() {
           {/* Right Column: Verified Social Handles & Live Rate Cards */}
           <div className="space-y-6">
             {/* SOCIAL ACCOUNTS LIST */}
-            <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-4">
-              <h3 className="text-base font-bold font-display text-white flex items-center justify-between">
+            <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
+              <h3 className="text-base font-bold font-display text-foreground flex items-center justify-between">
                 <span>Social Presence</span>
-                <span className="text-xs text-slate-400 font-normal">Audited Channels</span>
+                <span className="text-xs text-muted-foreground font-normal">Audited Channels</span>
               </h3>
 
               <div className="space-y-3">
@@ -673,25 +641,25 @@ export default function CreatorMediaKit() {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-pink-500/50 hover:bg-slate-950/90 transition-all group"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border hover:border-pink-500/50 hover:bg-secondary/50 transition-all group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-pink-500/10 text-pink-500 group-hover:scale-110 transition-transform">
                         <FaInstagram className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-pink-400 transition-colors">
+                        <div className="font-bold text-sm text-foreground flex items-center gap-1.5 group-hover:text-pink-500 transition-colors">
                           @{creator.instagramHandle.replace("@", "")}
                           <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="text-xs text-slate-400">Instagram Creator</div>
+                        <div className="text-xs text-muted-foreground">Instagram Creator</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-extrabold text-sm text-white">
+                      <div className="font-extrabold text-sm text-foreground">
                         {formatFollowers(creator.instagramFollowers || 0)}
                       </div>
-                      <div className="text-[10px] text-slate-400">Followers</div>
+                      <div className="text-[10px] text-muted-foreground">Followers</div>
                     </div>
                   </a>
                 )}
@@ -707,25 +675,25 @@ export default function CreatorMediaKit() {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-red-500/50 hover:bg-slate-950/90 transition-all group"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border hover:border-red-500/50 hover:bg-secondary/50 transition-all group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform">
                         <FaYoutube className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-red-400 transition-colors">
+                        <div className="font-bold text-sm text-foreground flex items-center gap-1.5 group-hover:text-red-500 transition-colors">
                           {creator.youtubeHandle}
                           <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="text-xs text-slate-400">YouTube Channel</div>
+                        <div className="text-xs text-muted-foreground">YouTube Channel</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-extrabold text-sm text-white">
+                      <div className="font-extrabold text-sm text-foreground">
                         {formatFollowers(creator.youtubeFollowers || 0)}
                       </div>
-                      <div className="text-[10px] text-slate-400">Subscribers</div>
+                      <div className="text-[10px] text-muted-foreground">Subscribers</div>
                     </div>
                   </a>
                 )}
@@ -739,25 +707,25 @@ export default function CreatorMediaKit() {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-950/90 transition-all group"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border hover:border-blue-500/50 hover:bg-secondary/50 transition-all group"
                   >
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform">
                         <FaFacebook className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-blue-400 transition-colors">
+                        <div className="font-bold text-sm text-foreground flex items-center gap-1.5 group-hover:text-blue-500 transition-colors">
                           {creator.facebookHandle}
                           <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="text-xs text-slate-400">Facebook Page</div>
+                        <div className="text-xs text-muted-foreground">Facebook Page</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-extrabold text-sm text-white">
+                      <div className="font-extrabold text-sm text-foreground">
                         {formatFollowers(creator.facebookFollowers || 0)}
                       </div>
-                      <div className="text-[10px] text-slate-400">Followers</div>
+                      <div className="text-[10px] text-muted-foreground">Followers</div>
                     </div>
                   </a>
                 )}
@@ -771,25 +739,25 @@ export default function CreatorMediaKit() {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-sky-500/50 hover:bg-slate-950/90 transition-all group"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border hover:border-sky-500/50 hover:bg-secondary/50 transition-all group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 group-hover:scale-110 transition-transform">
+                      <div className="p-2 rounded-xl bg-sky-500/10 text-sky-500 group-hover:scale-110 transition-transform">
                         <FaTwitter className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-sky-400 transition-colors">
+                        <div className="font-bold text-sm text-foreground flex items-center gap-1.5 group-hover:text-sky-500 transition-colors">
                           @{creator.twitterHandle.replace("@", "")}
                           <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="text-xs text-slate-400">X (Twitter)</div>
+                        <div className="text-xs text-muted-foreground">X (Twitter)</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-extrabold text-sm text-white">
+                      <div className="font-extrabold text-sm text-foreground">
                         {formatFollowers(creator.twitterFollowers || 0)}
                       </div>
-                      <div className="text-[10px] text-slate-400">Followers</div>
+                      <div className="text-[10px] text-muted-foreground">Followers</div>
                     </div>
                   </a>
                 )}
@@ -803,25 +771,25 @@ export default function CreatorMediaKit() {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 hover:border-blue-600/50 hover:bg-slate-950/90 transition-all group"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-secondary/30 border border-border hover:border-blue-600/50 hover:bg-secondary/50 transition-all group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-blue-600/10 text-blue-400 group-hover:scale-110 transition-transform">
+                      <div className="p-2 rounded-xl bg-blue-600/10 text-blue-500 group-hover:scale-110 transition-transform">
                         <FaLinkedin className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="font-bold text-sm text-white flex items-center gap-1.5 group-hover:text-blue-400 transition-colors">
+                        <div className="font-bold text-sm text-foreground flex items-center gap-1.5 group-hover:text-blue-500 transition-colors">
                           {creator.linkedinHandle}
                           <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
-                        <div className="text-xs text-slate-400">LinkedIn Profile</div>
+                        <div className="text-xs text-muted-foreground">LinkedIn Profile</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-extrabold text-sm text-white">
+                      <div className="font-extrabold text-sm text-foreground">
                         {formatFollowers(creator.linkedinFollowers || 0)}
                       </div>
-                      <div className="text-[10px] text-slate-400">Connections</div>
+                      <div className="text-[10px] text-muted-foreground">Connections</div>
                     </div>
                   </a>
                 )}
@@ -829,12 +797,12 @@ export default function CreatorMediaKit() {
             </div>
 
             {/* RATE CARD / PRICING PACKAGES */}
-            <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-4">
+            <div className="p-6 rounded-3xl bg-card border border-border shadow-sm space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold font-display text-white flex items-center gap-2">
-                  <Award className="w-4 h-4 text-amber-400" /> Collaboration Rate Card
+                <h3 className="text-base font-bold font-display text-foreground flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-500" /> Collaboration Rate Card
                 </h3>
-                <span className="text-[10px] text-emerald-400 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
                   Standard Rates
                 </span>
               </div>
@@ -842,12 +810,12 @@ export default function CreatorMediaKit() {
               {pricingTiers.length > 0 ? (
                 <div className="space-y-2.5">
                   {pricingTiers.map((tier, idx) => (
-                    <div key={idx} className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                    <div key={idx} className="p-3.5 rounded-2xl bg-secondary/40 border border-border/80 flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-sm text-slate-100">{tier.name || `Package ${idx + 1}`}</div>
-                        <div className="text-xs text-slate-400">{tier.description || "Dedicated video / post deliverable"}</div>
+                        <div className="font-bold text-sm text-foreground">{tier.name || `Package ${idx + 1}`}</div>
+                        <div className="text-xs text-muted-foreground">{tier.description || "Dedicated video / post deliverable"}</div>
                       </div>
-                      <div className="text-right font-extrabold text-amber-400 text-base font-display">
+                      <div className="text-right font-extrabold text-gradient-sunset text-base font-display">
                         {formatINR(tier.price || 0)}
                       </div>
                     </div>
@@ -855,30 +823,30 @@ export default function CreatorMediaKit() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <div className="p-3.5 rounded-2xl bg-secondary/40 border border-border/80 flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-sm text-slate-100">1x Instagram Reel / Video</div>
-                      <div className="text-xs text-slate-400">High-energy product demo + hook</div>
+                      <div className="font-bold text-sm text-foreground">1x Instagram Reel / Video</div>
+                      <div className="text-xs text-muted-foreground">High-energy product demo + hook</div>
                     </div>
-                    <div className="text-right font-extrabold text-amber-400 text-base font-display">
+                    <div className="text-right font-extrabold text-gradient-sunset text-base font-display">
                       {creator.startingPrice > 0 ? formatINR(creator.startingPrice) : "₹15,000"}
                     </div>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <div className="p-3.5 rounded-2xl bg-secondary/40 border border-border/80 flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-sm text-slate-100">2x Story Frames with Link</div>
-                      <div className="text-xs text-slate-400">24hr live swipe up with direct CTA</div>
+                      <div className="font-bold text-sm text-foreground">2x Story Frames with Link</div>
+                      <div className="text-xs text-muted-foreground">24hr live swipe up with direct CTA</div>
                     </div>
-                    <div className="text-right font-extrabold text-amber-400 text-base font-display">
+                    <div className="text-right font-extrabold text-gradient-sunset text-base font-display">
                       {creator.startingPrice > 0 ? formatINR(Math.round(creator.startingPrice * 0.4)) : "₹6,000"}
                     </div>
                   </div>
-                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                  <div className="p-3.5 rounded-2xl bg-secondary/40 border border-border/80 flex items-center justify-between">
                     <div>
-                      <div className="font-bold text-sm text-slate-100">Full Campaign Bundle</div>
-                      <div className="text-xs text-slate-400">1 Reel + 3 Stories + Whitelist Rights</div>
+                      <div className="font-bold text-sm text-foreground">Full Campaign Bundle</div>
+                      <div className="text-xs text-muted-foreground">1 Reel + 3 Stories + Whitelist Rights</div>
                     </div>
-                    <div className="text-right font-extrabold text-amber-400 text-base font-display">
+                    <div className="text-right font-extrabold text-gradient-sunset text-base font-display">
                       {creator.startingPrice > 0 ? formatINR(Math.round(creator.startingPrice * 1.8)) : "₹25,000"}
                     </div>
                   </div>
@@ -888,7 +856,7 @@ export default function CreatorMediaKit() {
               <div className="pt-2">
                 <Button
                   onClick={() => handleHireAction(`/messages?with=${creator._id}`)}
-                  className="w-full rounded-2xl bg-primary hover:bg-primary/90 text-white font-bold text-sm h-11 cursor-pointer"
+                  className="w-full rounded-2xl gradient-sunset hover:opacity-90 text-white font-bold text-sm h-11 cursor-pointer border-0 shadow-glow"
                 >
                   Request Custom Scope of Work (SOW)
                 </Button>
@@ -898,14 +866,14 @@ export default function CreatorMediaKit() {
         </section>
 
         {/* LIVE SOCIAL FEEDS & REELS CAROUSEL SHOWCASE */}
-        <section className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-6 relative overflow-hidden">
+        <section className="p-6 sm:p-8 rounded-3xl bg-card border border-border shadow-sm space-y-6 relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-400">Live Feed Synchronization</span>
+                <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-600 dark:text-emerald-400">Live Feed Synchronization</span>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold font-display text-white mt-1 flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold font-display text-foreground mt-1 flex items-center gap-2">
                 {activeSocialFeedTab === "instagram" ? (
                   <FaInstagram className="w-6 h-6 text-pink-500" />
                 ) : activeSocialFeedTab === "youtube" ? (
@@ -915,19 +883,19 @@ export default function CreatorMediaKit() {
                 )}
                 <span>Recent Posts & Viral Content</span>
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                 Explore latest content, reels, engagement rates & video metrics from @{rawHandle}'s connected accounts.
               </p>
             </div>
 
             {/* Switch Channel Tabs */}
-            <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 self-start">
+            <div className="flex items-center gap-1.5 bg-secondary/50 p-1.5 rounded-2xl border border-border self-start">
               <button
                 onClick={() => setActiveSocialFeedTab("instagram")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeSocialFeedTab === "instagram"
-                    ? "bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white shadow-md"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "gradient-sunset text-white shadow-glow"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <FaInstagram className="w-3.5 h-3.5" />
@@ -940,7 +908,7 @@ export default function CreatorMediaKit() {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeSocialFeedTab === "youtube"
                       ? "bg-red-600 text-white shadow-md"
-                      : "text-slate-400 hover:text-slate-200"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <FaYoutube className="w-3.5 h-3.5" />
@@ -954,7 +922,7 @@ export default function CreatorMediaKit() {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeSocialFeedTab === "facebook"
                       ? "bg-blue-600 text-white shadow-md"
-                      : "text-slate-400 hover:text-slate-200"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <FaFacebook className="w-3.5 h-3.5" />
@@ -968,7 +936,7 @@ export default function CreatorMediaKit() {
           <div className="relative group/scroll">
             <div
               id="social-feed-scroll-container"
-              className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent hover:scrollbar-thumb-slate-700"
+              className="flex gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/30"
               style={{ scrollBehavior: "smooth" }}
             >
               {(activeSocialFeedTab === "instagram"
@@ -982,10 +950,10 @@ export default function CreatorMediaKit() {
                   href={feedItem.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-none w-[240px] sm:w-[270px] snap-start rounded-3xl overflow-hidden bg-slate-950/90 border border-slate-800/90 hover:border-slate-700 shadow-xl flex flex-col group/card transition-all duration-300 hover:-translate-y-1"
+                  className="flex-none w-[240px] sm:w-[270px] snap-start rounded-3xl overflow-hidden bg-card border border-border hover:border-primary/50 shadow-sm flex flex-col group/card transition-all duration-300 hover:-translate-y-1"
                 >
                   {/* Media Frame Header */}
-                  <div className="relative aspect-[9/14] w-full overflow-hidden bg-slate-900">
+                  <div className="relative aspect-[9/14] w-full overflow-hidden bg-secondary">
                     <img
                       src={feedItem.thumbnail}
                       alt={feedItem.caption}
@@ -993,7 +961,7 @@ export default function CreatorMediaKit() {
                     />
 
                     {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-black/30" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
 
                     {/* Top Channel Badge */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
@@ -1011,7 +979,7 @@ export default function CreatorMediaKit() {
                     </div>
 
                     {/* Engagement Badges Overlay */}
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-bold text-white bg-slate-950/80 backdrop-blur-md p-2.5 rounded-2xl border border-white/10">
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs font-bold text-white bg-black/70 backdrop-blur-md p-2.5 rounded-2xl border border-white/10">
                       <div className="flex items-center gap-1 text-rose-400">
                         <Heart className="w-3.5 h-3.5 fill-rose-400" />
                         <span>{feedItem.likes}</span>
@@ -1028,16 +996,16 @@ export default function CreatorMediaKit() {
                   </div>
 
                   {/* Caption & Account Footer */}
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-2.5">
-                    <p className="text-xs text-slate-200 line-clamp-2 leading-snug font-medium">
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-2.5 bg-card">
+                    <p className="text-xs text-foreground line-clamp-2 leading-snug font-medium">
                       {feedItem.caption}
                     </p>
 
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                      <span className="text-slate-400 font-semibold truncate max-w-[130px]">
+                    <div className="pt-2 border-t border-border flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground font-semibold truncate max-w-[130px]">
                         @{activeSocialFeedTab === "instagram" ? instaHandleClean || rawHandle : rawHandle}
                       </span>
-                      <span className="text-slate-500 text-[10px]">{feedItem.timeAgo}</span>
+                      <span className="text-muted-foreground text-[10px]">{feedItem.timeAgo}</span>
                     </div>
                   </div>
                 </a>
@@ -1050,7 +1018,7 @@ export default function CreatorMediaKit() {
                 const el = document.getElementById("social-feed-scroll-container");
                 if (el) el.scrollBy({ left: -300, behavior: "smooth" });
               }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-slate-800 cursor-pointer z-10"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-card/90 text-foreground border border-border shadow-lg flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-secondary cursor-pointer z-10"
               aria-label="Scroll left"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -1061,7 +1029,7 @@ export default function CreatorMediaKit() {
                 const el = document.getElementById("social-feed-scroll-container");
                 if (el) el.scrollBy({ left: 300, behavior: "smooth" });
               }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-xl flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-slate-800 cursor-pointer z-10"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-card/90 text-foreground border border-border shadow-lg flex items-center justify-center opacity-0 group-hover/scroll:opacity-100 transition-opacity hover:bg-secondary cursor-pointer z-10"
               aria-label="Scroll right"
             >
               <ChevronRight className="w-5 h-5" />
@@ -1071,27 +1039,27 @@ export default function CreatorMediaKit() {
 
         {/* PORTFOLIO & WORK SHOWCASE GALLERY */}
         {portfolio.length > 0 && (
-          <section className="p-6 sm:p-8 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-6">
+          <section className="p-6 sm:p-8 rounded-3xl bg-card border border-border shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold font-display text-white flex items-center gap-2">
+                <h2 className="text-xl font-bold font-display text-foreground flex items-center gap-2">
                   <Play className="w-5 h-5 text-rose-500 fill-rose-500" /> Verified Creative Portfolio
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                   High-converting viral reels, aesthetic posts, and UGC videos produced by @{rawHandle}
                 </p>
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 self-start">
+              <div className="flex items-center gap-1.5 bg-secondary/50 p-1 rounded-xl border border-border self-start">
                 {["all", "reel", "post"].map((t) => (
                   <button
                     key={t}
                     onClick={() => setActiveMediaTab(t)}
                     className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all capitalize cursor-pointer ${
                       activeMediaTab === t
-                        ? "bg-slate-800 text-white shadow-sm"
-                        : "text-slate-400 hover:text-slate-200"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {t === "all" ? "All Formats" : `${t}s`}
@@ -1106,7 +1074,7 @@ export default function CreatorMediaKit() {
                 return (
                   <div
                     key={item._id || idx}
-                    className="group relative aspect-[4/5] rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md"
+                    className="group relative aspect-[4/5] rounded-2xl overflow-hidden bg-secondary border border-border shadow-sm"
                   >
                     <img
                       src={imgUrl}
@@ -1132,25 +1100,25 @@ export default function CreatorMediaKit() {
         )}
 
         {/* BOTTOM CTA BAR */}
-        <section className="rounded-3xl bg-gradient-to-r from-orange-600 via-rose-600 to-indigo-700 p-8 text-center text-white space-y-4 shadow-2xl relative overflow-hidden">
+        <section className="rounded-3xl gradient-sunset p-8 text-center text-white space-y-4 shadow-glow relative overflow-hidden border border-white/15">
           <div className="max-w-2xl mx-auto space-y-3 relative z-10">
-            <h2 className="text-2xl sm:text-3xl font-black font-display tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-black font-display tracking-tight text-white drop-shadow-sm">
               Ready to collaborate with @{rawHandle}?
             </h2>
-            <p className="text-sm text-white/90">
+            <p className="text-sm text-white/95 leading-relaxed">
               Create agreements with legally verified e-signatures, track shipments, and review deliverables inside Pravixo.
             </p>
             <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
               <Button
                 onClick={() => handleHireAction(`/influencer/${creator._id}`)}
-                className="rounded-full bg-white hover:bg-slate-100 text-slate-950 font-extrabold px-8 shadow-xl cursor-pointer"
+                className="btn-bouncy rounded-full bg-white hover:bg-slate-100 text-slate-950 font-extrabold px-8 shadow-xl cursor-pointer"
               >
                 Start Brand Campaign
               </Button>
               <Button
                 variant="outline"
                 onClick={handleCopyLink}
-                className="rounded-full bg-black/20 hover:bg-black/40 text-white border-white/30 font-semibold px-6 cursor-pointer"
+                className="rounded-full bg-black/20 hover:bg-black/30 text-white border-white/40 font-semibold px-6 cursor-pointer"
               >
                 Copy Media Kit Link
               </Button>
@@ -1162,30 +1130,30 @@ export default function CreatorMediaKit() {
 
       {/* Sweet Brand Account Registration/Login Dialog for Unauthenticated Visitors */}
       <Dialog open={showBrandPromptModal} onOpenChange={setShowBrandPromptModal}>
-        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-slate-900 border-slate-800 text-slate-100 shadow-2xl">
+        <DialogContent className="sm:max-w-md rounded-3xl p-6 bg-card border-border text-foreground shadow-2xl">
           <DialogHeader className="text-center sm:text-center space-y-2">
-            <div className="mx-auto w-14 h-14 rounded-3xl bg-gradient-to-tr from-amber-500 via-rose-500 to-primary flex items-center justify-center text-white shadow-glow mb-1">
+            <div className="mx-auto w-14 h-14 rounded-3xl gradient-sunset flex items-center justify-center text-white shadow-glow mb-1">
               <Sparkles className="w-7 h-7" />
             </div>
-            <DialogTitle className="font-display text-2xl font-bold text-white">
+            <DialogTitle className="font-display text-2xl font-bold text-foreground">
               Want to hire this creator as a Brand?
             </DialogTitle>
-            <DialogDescription className="text-slate-300 text-sm leading-relaxed">
+            <DialogDescription className="text-muted-foreground text-sm leading-relaxed">
               Please create an account as a <strong>Brand</strong> on <strong>Pravixo</strong> to collaborate, send offers, and book verified campaigns with @{rawHandle}!
             </DialogDescription>
           </DialogHeader>
 
-          <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 my-2 space-y-2 text-xs text-slate-300">
+          <div className="bg-secondary/40 rounded-2xl p-4 border border-border/80 my-2 space-y-2 text-xs text-foreground/90">
             <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
               <span>Direct escrow payment protection & verified milestones</span>
             </div>
             <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
               <span>Real-time deliverable submission review & approval</span>
             </div>
             <div className="flex items-center gap-2">
-              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <Check className="w-4 h-4 text-emerald-500 shrink-0" />
               <span>Audited audience insights & legally binding agreements</span>
             </div>
           </div>
@@ -1202,7 +1170,7 @@ export default function CreatorMediaKit() {
             </Button>
             <Button
               variant="outline"
-              className="w-full rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 font-semibold h-10 text-xs cursor-pointer"
+              className="w-full rounded-full bg-secondary hover:bg-secondary/80 text-foreground border-border font-semibold h-10 text-xs cursor-pointer"
               onClick={() => {
                 setShowBrandPromptModal(false);
                 navigate("/login");
@@ -1215,7 +1183,7 @@ export default function CreatorMediaKit() {
       </Dialog>
 
       {/* Footer Branding */}
-      <footer className="max-w-6xl mx-auto px-4 text-center mt-12 text-xs text-slate-500">
+      <footer className="max-w-6xl mx-auto px-4 text-center mt-12 text-xs text-muted-foreground">
         Audited Creator Media Kit generated by <Link to="/" className="text-primary hover:underline font-bold">Pravixo</Link> • Guaranteed verified metrics
       </footer>
     </div>

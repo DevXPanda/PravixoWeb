@@ -447,15 +447,15 @@ export function MessagesPage() {
                     <img
                       src={
                         isFromAdmin
-                          ? "https://ui-avatars.com/api/?name=Pravixo+Admin&background=EC4899&color=fff"
+                          ? "/log.png"
                           : resolveImageUrl(msg.senderId?.avatarUrl, senderName)
                       }
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName)}&background=random`;
+                        e.target.src = isFromAdmin ? "/log.png" : `https://ui-avatars.com/api/?name=${encodeURIComponent(senderName)}&background=random`;
                       }}
                       alt=""
-                      className="mt-1 h-7 w-7 shrink-0 rounded-full border border-border object-cover"
+                      className="mt-1 h-7 w-7 shrink-0 rounded-full border border-border object-contain bg-white p-0.5"
                     />
 
                     <div className={`max-w-[75%] ${isFromAdmin ? "text-right" : "text-left"}`}>

@@ -61,6 +61,7 @@ import { AgreementModal } from "@/components/collaboration/AgreementModal";
 import { useAuth } from "@/components/auth/AuthProvider";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import logoImg from "@/assets/log.png";
 
 const resolveImageUrl = (url) => {
   if (!url || url === "undefined" || url === "null") return null;
@@ -1442,18 +1443,21 @@ export default function Messages() {
                       <div className="relative shrink-0">
 
                         <img src={
-                            resolveImageUrl(other?.avatarUrl) ||
-                            `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
-                              other?.fullName ||
-                                "User"
-                            )}`
+                            (other?.role === "admin" || conversation.conversationType?.startsWith("admin_"))
+                              ? logoImg
+                              : (resolveImageUrl(other?.avatarUrl) ||
+                                `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
+                                  other?.fullName ||
+                                    "User"
+                                )}`)
                           }
                           alt={
-                            other?.fullName ||
-                            "User"
+                            (other?.role === "admin" || conversation.conversationType?.startsWith("admin_"))
+                              ? "Pravixo Admin"
+                              : (other?.fullName || "User")
                           }
-                          className="h-12 w-12 rounded-2xl object-cover shadow-soft"
-                         onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                          className="h-12 w-12 rounded-2xl object-contain bg-white/95 p-1 border border-border/50 shadow-soft"
+                         onError={(e) => { e.target.onerror = null; e.target.src = logoImg; }} />
 
                         {conversation.unreadCount >
                           0 && (
@@ -1551,6 +1555,8 @@ export default function Messages() {
                 ? activeConversation.brandId
                 : activeConversation.creatorId || activeConversation.brandId);
 
+            const isOtherAdmin = otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_");
+
             return (
               <>
                 {/* CHAT HEADER */}
@@ -1569,28 +1575,31 @@ export default function Messages() {
 
                   {/* AVATAR */}
                   <img src={
-                      resolveImageUrl(otherProfile?.avatarUrl) ||
-                      `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
-                        otherProfile?.fullName ||
-                          "User"
-                      )}`
+                      isOtherAdmin
+                        ? logoImg
+                        : (resolveImageUrl(otherProfile?.avatarUrl) ||
+                          `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(
+                            otherProfile?.fullName ||
+                              "User"
+                          )}`)
                     }
                     alt={
-                      otherProfile?.fullName ||
-                      "User"
+                      isOtherAdmin
+                        ? "Pravixo Admin"
+                        : (otherProfile?.fullName || "User")
                     }
-                    className="h-11 w-11 rounded-2xl object-cover"
-                   onError={(e) => { e.target.onerror = null; e.target.src = "https://api.dicebear.com/9.x/avataaars/svg?seed=Fallback"; }} />
+                    className="h-11 w-11 rounded-2xl object-contain bg-white/95 p-1 border border-border/50"
+                   onError={(e) => { e.target.onerror = null; e.target.src = logoImg; }} />
 
                   {/* NAME */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate font-display font-semibold">
-                        {otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")
+                        {isOtherAdmin
                           ? "Pravixo Admin"
                           : otherProfile?.fullName || "Unknown User"}
                       </h2>
-                      {(otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")) && (
+                      {isOtherAdmin && (
                         <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary border border-primary/20">
                           🛡️ Pravixo Team
                         </span>
@@ -1598,7 +1607,7 @@ export default function Messages() {
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                      {otherProfile?.role === "admin" || activeConversation.conversationType?.startsWith("admin_")
+                      {isOtherAdmin
                         ? "Official Support & Platform Coordination"
                         : activeConversation.status === "active"
                         ? "Active conversation"
@@ -3488,7 +3497,7 @@ export default function Messages() {
                   <Button
                     type="submit"
                     disabled={!timestampFeedbackComment.trim() || isSubmittingTimestampComment}
-                    className="rounded-full bg-gradient-to-r from-indigo-600 to-primary hover:opacity-90 text-white text-xs font-bold px-5 h-9 shadow-glow"
+                    className="rounded-full gradient-sunset hover:opacity-90 text-white text-xs font-bold px-5 h-9 shadow-glow border-0"
                   >
                     {isSubmittingTimestampComment ? "Posting..." : "Post Timestamp Note to Chat"}
                   </Button>

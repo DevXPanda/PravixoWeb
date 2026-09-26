@@ -341,15 +341,15 @@ export function ConversationsPage() {
                         <img
                           src={
                             partyA?.role === "admin"
-                              ? "https://ui-avatars.com/api/?name=Pravixo+Admin&background=EC4899&color=fff"
+                              ? "/log.png"
                               : resolveImageUrl(partyA?.avatarUrl, partyA?.fullName || "User")
                           }
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(partyA?.fullName || "A")}&background=random`;
+                            e.target.src = partyA?.role === "admin" ? "/log.png" : `https://ui-avatars.com/api/?name=${encodeURIComponent(partyA?.fullName || "A")}&background=random`;
                           }}
                           alt=""
-                          className="h-10 w-10 rounded-full border border-border object-cover"
+                          className="h-10 w-10 rounded-full border border-border object-contain bg-white p-0.5"
                         />
                         <div>
                           <span className="text-sm font-semibold block">

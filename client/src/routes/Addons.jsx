@@ -454,13 +454,13 @@ export default function Addons() {
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Tab switch */}
-            <div className="flex rounded-full bg-secondary/30 p-1 border border-border/40 text-xs font-semibold">
+            <div className="flex rounded-full bg-secondary/30 p-1.5 border border-border/40 text-xs font-semibold shadow-inner">
               <button
                 type="button"
                 onClick={() => setActiveTab("services")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all duration-200 ${
                   activeTab === "services"
-                    ? "bg-primary text-white shadow-sm"
+                    ? "gradient-sunset text-white shadow-glow border-0 font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -474,9 +474,9 @@ export default function Addons() {
                   setActiveTab("bookings");
                   fetchBookings();
                 }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all relative ${
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all duration-200 relative ${
                   activeTab === "bookings"
-                    ? "bg-primary text-white shadow-sm"
+                    ? "gradient-sunset text-white shadow-glow border-0 font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -484,9 +484,9 @@ export default function Addons() {
                 {isAdmin ? "Booking Requests" : "My Bookings"}
                 {bookings.length > 0 && (
                   <span
-                    className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                       activeTab === "bookings"
-                        ? "bg-white/20 text-white"
+                        ? "bg-white/25 text-white"
                         : "bg-primary/20 text-primary"
                     }`}
                   >
@@ -499,7 +499,7 @@ export default function Addons() {
             {isAdmin && activeTab === "services" && (
               <Button
                 onClick={handleOpenCreate}
-                className="rounded-full gradient-sunset border-0 text-white font-semibold shadow-glow"
+                className="btn-bouncy rounded-full gradient-sunset border-0 text-white font-semibold shadow-glow hover:opacity-95"
               >
                 <Plus className="h-4.5 w-4.5 mr-2" />
                 Add Service
@@ -526,7 +526,7 @@ export default function Addons() {
               {services.map((service) => (
                 <div
                   key={service._id}
-                  className="rounded-3xl border border-border bg-card flex flex-col justify-between overflow-hidden relative shadow-sm hover:shadow-elevated transition-all duration-200"
+                  className="rounded-3xl border border-border bg-card flex flex-col justify-between overflow-hidden relative shadow-sm hover:shadow-elevated transition-all duration-200 group"
                 >
                   {/* Image */}
                   <div className="space-y-4">
@@ -537,7 +537,7 @@ export default function Addons() {
                           "https://images.unsplash.com/photo-1590608897129-79da98d15969?w=800"
                         }
                         alt={service.name}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
 
@@ -547,7 +547,7 @@ export default function Addons() {
                         <h4 className="font-display text-base font-bold text-foreground">
                           {service.name}
                         </h4>
-                        <span className="text-sm font-bold text-primary">
+                        <span className="text-sm font-bold text-gradient-sunset">
                           ₹
                           {Number(
                             service.price || 0
@@ -565,7 +565,7 @@ export default function Addons() {
                   <div className="p-6 pt-0 flex justify-between items-center">
                     <Button
                       size="sm"
-                      className="rounded-full font-semibold px-5"
+                      className="btn-bouncy rounded-full font-bold px-6 gradient-sunset text-white border-0 shadow-glow hover:opacity-95 transition-all disabled:opacity-50 disabled:shadow-none"
                       disabled={!service.enabled}
                       onClick={() => {
                         if (!profile) {
