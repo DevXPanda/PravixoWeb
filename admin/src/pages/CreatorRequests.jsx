@@ -125,7 +125,7 @@ function ReviewModal({ creator, onClose, onApprove, onReject, onReset, onSendMes
             <div className="flex-1 min-w-0">
               <h3 className="font-display text-lg sm:text-xl font-bold truncate">{creator.fullName}</h3>
               <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                <span className="truncate">{creator.handle ? `@${creator.handle}` : "No handle set"}</span>
+                <span className="truncate">{creator.handle ? `@${creator.handle.replace(/^@+/, '')}` : "No handle set"}</span>
                 <span>•</span>
                 <span className="capitalize font-medium text-primary">Creator</span>
               </div>
@@ -181,7 +181,7 @@ function ReviewModal({ creator, onClose, onApprove, onReject, onReset, onSendMes
               />
               <InfoRow
                 label="Handle"
-                value={creator.handle ? `@${creator.handle}` : null}
+                value={creator.handle ? `@${creator.handle.replace(/^@+/, '')}` : null}
                 missing="Not set"
                 icon={User}
               />
@@ -711,7 +711,7 @@ export default function CreatorRequests() {
                   <div className="min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate">{c.fullName}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {c.handle ? `@${c.handle}` : "No handle"}
+                      {c.handle ? `@${c.handle.replace(/^@+/, '')}` : "No handle"}
                     </p>
                   </div>
                 </div>
@@ -894,7 +894,7 @@ export default function CreatorRequests() {
                     </TableCell>
 
                     <TableCell className="text-sm text-muted-foreground">
-                      {c.handle ? `@${c.handle}` : "—"}
+                      {c.handle ? `@${c.handle.replace(/^@+/, '')}` : "—"}
                     </TableCell>
 
                     <TableCell>

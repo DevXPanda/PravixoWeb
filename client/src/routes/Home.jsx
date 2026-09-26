@@ -7,6 +7,24 @@ import {
   Star,
   MapPin,
   AlertTriangle,
+  Sparkles,
+  TrendingUp,
+  Shirt,
+  Sparkle,
+  Coffee,
+  UtensilsCrossed,
+  Plane,
+  Dumbbell,
+  Gamepad2,
+  Laptop,
+  Coins,
+  GraduationCap,
+  Clapperboard,
+  HeartPulse,
+  Camera,
+  Music2,
+  Trophy,
+  Compass,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
@@ -31,6 +49,154 @@ import { cn } from "@/lib/utils";
 
 import heroBanner from "@/assets/hero-banner.jpg";
 import pravixoFlow from "@/assets/pravixo-flow.jpeg";
+
+
+const CATEGORY_METADATA = {
+  "Fashion": {
+    icon: Shirt,
+    gradient: "from-pink-500/20 via-rose-500/10 to-transparent",
+    borderGlow: "hover:border-pink-500/50 hover:shadow-pink-500/15",
+    iconBg: "bg-gradient-to-tr from-pink-500 to-rose-600 text-white shadow-pink-500/25",
+    badge: "Trending",
+    tagColor: "text-pink-500 bg-pink-500/10 border-pink-500/20",
+    desc: "Apparel, runway, streetwear & styling"
+  },
+  "Beauty": {
+    icon: Sparkle,
+    gradient: "from-purple-500/20 via-pink-500/10 to-transparent",
+    borderGlow: "hover:border-purple-500/50 hover:shadow-purple-500/15",
+    iconBg: "bg-gradient-to-tr from-purple-500 to-pink-600 text-white shadow-purple-500/25",
+    badge: "Popular",
+    tagColor: "text-purple-500 bg-purple-500/10 border-purple-500/20",
+    desc: "Makeup, skincare & personal glow"
+  },
+  "Lifestyle": {
+    icon: Coffee,
+    gradient: "from-amber-500/20 via-orange-500/10 to-transparent",
+    borderGlow: "hover:border-amber-500/50 hover:shadow-amber-500/15",
+    iconBg: "bg-gradient-to-tr from-amber-500 to-orange-600 text-white shadow-amber-500/25",
+    badge: "High ROI",
+    tagColor: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+    desc: "Daily vlogs, home decor & routines"
+  },
+  "Food & Dining": {
+    icon: UtensilsCrossed,
+    gradient: "from-red-500/20 via-amber-500/10 to-transparent",
+    borderGlow: "hover:border-red-500/50 hover:shadow-red-500/15",
+    iconBg: "bg-gradient-to-tr from-red-500 to-amber-600 text-white shadow-red-500/25",
+    badge: "Hot",
+    tagColor: "text-red-500 bg-red-500/10 border-red-500/20",
+    desc: "Gourmet recipes, cafe reviews & culinary"
+  },
+  "Travel": {
+    icon: Plane,
+    gradient: "from-sky-500/20 via-cyan-500/10 to-transparent",
+    borderGlow: "hover:border-sky-500/50 hover:shadow-sky-500/15",
+    iconBg: "bg-gradient-to-tr from-sky-500 to-cyan-600 text-white shadow-sky-500/25",
+    badge: "Explore",
+    tagColor: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+    desc: "Wanderlust, destinations & stays"
+  },
+  "Fitness": {
+    icon: Dumbbell,
+    gradient: "from-emerald-500/20 via-teal-500/10 to-transparent",
+    borderGlow: "hover:border-emerald-500/50 hover:shadow-emerald-500/15",
+    iconBg: "bg-gradient-to-tr from-emerald-500 to-teal-600 text-white shadow-emerald-500/25",
+    badge: "Active",
+    tagColor: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+    desc: "Workouts, nutrition & healthy living"
+  },
+  "Gaming": {
+    icon: Gamepad2,
+    gradient: "from-indigo-500/20 via-violet-500/10 to-transparent",
+    borderGlow: "hover:border-indigo-500/50 hover:shadow-indigo-500/15",
+    iconBg: "bg-gradient-to-tr from-indigo-500 to-violet-600 text-white shadow-indigo-500/25",
+    badge: "Esports",
+    tagColor: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+    desc: "Live streams, walkthroughs & gaming rigs"
+  },
+  "Technology": {
+    icon: Laptop,
+    gradient: "from-blue-500/20 via-indigo-500/10 to-transparent",
+    borderGlow: "hover:border-blue-500/50 hover:shadow-blue-500/15",
+    iconBg: "bg-gradient-to-tr from-blue-500 to-indigo-600 text-white shadow-blue-500/25",
+    badge: "Tech Giants",
+    tagColor: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+    desc: "Gadget unboxing, AI software & setups"
+  },
+  "Finance": {
+    icon: Coins,
+    gradient: "from-emerald-600/20 via-green-500/10 to-transparent",
+    borderGlow: "hover:border-emerald-500/50 hover:shadow-emerald-500/15",
+    iconBg: "bg-gradient-to-tr from-emerald-600 to-green-600 text-white shadow-emerald-500/25",
+    badge: "Investing",
+    tagColor: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+    desc: "Stocks, crypto, wealth building & taxes"
+  },
+  "Education": {
+    icon: GraduationCap,
+    gradient: "from-violet-500/20 via-purple-500/10 to-transparent",
+    borderGlow: "hover:border-violet-500/50 hover:shadow-violet-500/15",
+    iconBg: "bg-gradient-to-tr from-violet-500 to-purple-600 text-white shadow-violet-500/25",
+    badge: "Learn",
+    tagColor: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+    desc: "Upskilling, exam prep & career growth"
+  },
+  "Entertainment": {
+    icon: Clapperboard,
+    gradient: "from-fuchsia-500/20 via-pink-500/10 to-transparent",
+    borderGlow: "hover:border-fuchsia-500/50 hover:shadow-fuchsia-500/15",
+    iconBg: "bg-gradient-to-tr from-fuchsia-500 to-pink-600 text-white shadow-fuchsia-500/25",
+    badge: "Viral",
+    tagColor: "text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20",
+    desc: "Comedy sketches, podcasts & cinema"
+  },
+  "Health": {
+    icon: HeartPulse,
+    gradient: "from-rose-500/20 via-pink-500/10 to-transparent",
+    borderGlow: "hover:border-rose-500/50 hover:shadow-rose-500/15",
+    iconBg: "bg-gradient-to-tr from-rose-500 to-pink-600 text-white shadow-rose-500/25",
+    badge: "Wellness",
+    tagColor: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+    desc: "Holistic care, mental peace & wellness"
+  },
+  "Photography": {
+    icon: Camera,
+    gradient: "from-slate-500/20 via-zinc-500/10 to-transparent",
+    borderGlow: "hover:border-slate-400/50 hover:shadow-slate-500/15",
+    iconBg: "bg-gradient-to-tr from-slate-600 to-zinc-800 text-white shadow-slate-500/25",
+    badge: "Visuals",
+    tagColor: "text-slate-400 bg-slate-500/10 border-slate-500/20",
+    desc: "Cinematography, photo shoots & gear"
+  },
+  "Music": {
+    icon: Music2,
+    gradient: "from-purple-600/20 via-indigo-600/10 to-transparent",
+    borderGlow: "hover:border-purple-500/50 hover:shadow-purple-500/15",
+    iconBg: "bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-purple-500/25",
+    badge: "Audio",
+    tagColor: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+    desc: "Original tracks, covers & sound artists"
+  },
+  "Sports": {
+    icon: Trophy,
+    gradient: "from-orange-500/20 via-amber-500/10 to-transparent",
+    borderGlow: "hover:border-orange-500/50 hover:shadow-orange-500/15",
+    iconBg: "bg-gradient-to-tr from-orange-500 to-amber-600 text-white shadow-orange-500/25",
+    badge: "Athletics",
+    tagColor: "text-orange-500 bg-orange-500/10 border-orange-500/20",
+    desc: "Cricket, athletics, training & fitness"
+  },
+  "Other": {
+    icon: Compass,
+    gradient: "from-primary/20 via-pink-500/10 to-transparent",
+    borderGlow: "hover:border-primary/50 hover:shadow-primary/15",
+    iconBg: "bg-gradient-to-tr from-primary to-pink-600 text-white shadow-primary/25",
+    badge: "Niche",
+    tagColor: "text-primary bg-primary/10 border-primary/20",
+    desc: "Custom niches, creators & specialities"
+  }
+};
 
 const resolveImageUrl = (url) => {
   if (!url || url === "undefined" || url === "null" || typeof url !== "string") return "";
@@ -262,7 +428,7 @@ export default function Home() {
         id: p._id || p.id,
         name: p.fullName || p.name || "Creator",
         handle:
-          p.handle ||
+          p.handle ? `@${p.handle.replace(/^@+/, '')}` :
           `@${(p.fullName || p.name || "creator")
             .toLowerCase()
             .replace(/\s/g, "")}`,
@@ -584,45 +750,106 @@ export default function Home() {
       {/* =========================
           BROWSE BY CATEGORY
       ========================= */}
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-10 flex items-end justify-between">
+      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 relative">
+        {/* Subtle decorative background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-tr from-pink-500/10 via-purple-500/5 to-sky-500/10 blur-3xl pointer-events-none -z-10" />
+
+        <div className="mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h2 className="font-display text-3xl font-bold sm:text-4xl">
-              Browse by category
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider mb-3 shadow-xs">
+              <Sparkles className="h-3.5 w-3.5" /> Curated Creator Niches
+            </div>
+            <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl text-foreground">
+              Browse by <span className="text-gradient-primary">Category</span>
             </h2>
-            <p className="mt-2 text-muted-foreground">
-              Find the perfect voice for your brand.
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground max-w-2xl">
+              Connect with high-impact creators across top performing industries tailored for your brand campaigns.
             </p>
           </div>
           <Link
             to="/browse"
-            className="text-sm font-semibold text-primary hover:underline transition-colors flex items-center gap-1"
+            className="group inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary/80 transition-all self-start sm:self-auto bg-primary/5 hover:bg-primary/10 border border-primary/20 px-4 py-2 rounded-full"
           >
-            All categories →
+            <span>Explore all categories</span>
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {categories.map((c) => (
-            <Link
-              key={c.name}
-              to={`/browse?category=${encodeURIComponent(c.name)}`}
-              className="group relative overflow-hidden rounded-3xl border border-border/80 bg-card p-6 shadow-card transition-all duration-300 hover:-translate-y-2 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/10 card-3d"
-            >
-              <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="mb-4 inline-flex h-13 w-13 items-center justify-center rounded-2xl bg-secondary/80 text-2xl transition-transform duration-300 group-hover:scale-115 group-hover:rotate-3 shadow-xs">
-                {c.emoji}
-              </div>
-              <h3 className="font-display font-bold text-foreground group-hover:text-primary transition-colors text-base">
-                {c.name}
-              </h3>
-              {c.count && (
-                <p className="mt-1 text-xs text-muted-foreground font-medium">
-                  {c.count.toLocaleString()} creators
-                </p>
-              )}
-            </Link>
-          ))}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {categories.map((c) => {
+            const meta = CATEGORY_METADATA[c.name] || {
+              gradient: "from-primary/15 via-pink-500/10 to-transparent",
+              borderGlow: "hover:border-primary/50 hover:shadow-primary/15",
+              iconBg: "bg-gradient-to-tr from-primary to-rose-600 text-white",
+              badge: "Popular",
+              tagColor: "text-primary bg-primary/10 border-primary/20",
+              desc: "Top tier creators & influencers"
+            };
+
+            const creatorCount = (liveCreators || []).filter((p) => {
+              if (isTestOrDummyProfile(p)) return false;
+              const cats = (p.category || "").toLowerCase();
+              return cats.includes(c.name.toLowerCase());
+            }).length;
+
+            return (
+              <Link
+                key={c.name}
+                to={`/browse?category=${encodeURIComponent(c.name)}`}
+                className={cn(
+                  "group relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-b from-card to-card/70 backdrop-blur-md p-5 sm:p-6 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:shadow-2xl flex flex-col justify-between",
+                  meta.borderGlow
+                )}
+              >
+                {/* Background Ambient Brand Glow */}
+                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none", meta.gradient)} />
+
+                {/* Top Corner Light Streak */}
+                <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-transparent via-primary/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                <div className="relative z-10">
+                  <div className="flex items-start justify-between mb-4">
+                    {/* Natural Lucide Icon Badge */}
+                    <div className={cn(
+                      "h-12 w-12 sm:h-13 sm:w-13 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 shadow-md shrink-0",
+                      meta.iconBg
+                    )}>
+                      {(() => {
+                        const IconComp = meta.icon || Sparkles;
+                        return <IconComp className="h-6 w-6 stroke-[2.2]" />;
+                      })()}
+                    </div>
+
+                    {/* Category Tag / Metric */}
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full border shadow-2xs uppercase tracking-wider", meta.tagColor)}>
+                        {meta.badge}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Title & Description */}
+                  <h3 className="font-display text-base sm:text-lg font-bold text-foreground group-hover:text-primary transition-colors tracking-tight leading-snug">
+                    {c.name}
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground line-clamp-1 leading-relaxed">
+                    {meta.desc}
+                  </p>
+                </div>
+
+                {/* Bottom Footer Info */}
+                <div className="relative z-10 mt-4 pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground font-medium">
+                  <span className="flex items-center gap-1.5 font-semibold text-foreground/85">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    {creatorCount > 0 ? `${creatorCount} Verified` : "Active Rosters"}
+                  </span>
+                  <span className="text-primary font-bold group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
+                    View →
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 

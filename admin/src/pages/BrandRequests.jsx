@@ -118,7 +118,7 @@ function BrandReviewModal({ brand, onClose, onApprove, onReject, onReset, onSend
             <div className="flex-1 min-w-0">
               <h3 className="font-display text-lg sm:text-xl font-bold truncate">{brand.fullName}</h3>
               <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                <span className="truncate">{brand.handle ? `@${brand.handle}` : "No handle set"}</span>
+                <span className="truncate">{brand.handle ? `@${brand.handle.replace(/^@+/, '')}` : "No handle set"}</span>
                 <span>•</span>
                 <span className="capitalize font-medium text-primary">Brand</span>
               </div>
@@ -161,7 +161,7 @@ function BrandReviewModal({ brand, onClose, onApprove, onReject, onReset, onSend
               <InfoRow icon={Mail} label="Email" value={brand.email} />
               <InfoRow icon={MapPin} label="Location" value={brand.location} missing="Not set" />
               <InfoRow icon={FileText} label="Category" value={brand.category} missing="Not set" />
-              <InfoRow icon={User} label="Handle" value={brand.handle ? `@${brand.handle}` : null} missing="Not set" />
+              <InfoRow icon={User} label="Handle" value={brand.handle ? `@${brand.handle.replace(/^@+/, '')}` : null} missing="Not set" />
               <InfoRow icon={Building2} label="Company Size" value={brand.companySize} missing="Not set" />
               <InfoRow icon={ExternalLink} label="Website" value={brand.website} missing="Not set" />
               <InfoRow label="GST Number" icon={FileText}
@@ -587,7 +587,7 @@ export default function BrandRequests() {
                   <div className="min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate">{b.fullName}</p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {b.handle ? `@${b.handle}` : "No handle"}
+                      {b.handle ? `@${b.handle.replace(/^@+/, '')}` : "No handle"}
                     </p>
                   </div>
                 </div>
@@ -753,7 +753,7 @@ export default function BrandRequests() {
                     </TableCell>
 
                     <TableCell className="text-sm text-muted-foreground">
-                      {b.handle ? `@${b.handle}` : "—"}
+                      {b.handle ? `@${b.handle.replace(/^@+/, '')}` : "—"}
                     </TableCell>
 
                     <TableCell className="text-sm font-medium font-mono">

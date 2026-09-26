@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { resolveImageUrl } from "@/lib/utils";
+import { resolveImageUrl, resolveFrontendUrl } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Search, Trash2, MoreHorizontal, ArrowUpDown, UserX, UserMinus, Clock, Calendar, Users, ChevronDown, RotateCcw, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import api from "@/lib/axios";
@@ -91,6 +91,7 @@ export function UsersPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteName, setDeleteName] = useState("");
   const [deleteReason, setDeleteReason] = useState("");
+  const [deleteMode, setDeleteMode] = useState("soft"); // "soft" | "permanent"
 
   const [suspendTarget, setSuspendTarget] = useState(null);
   const [suspendName, setSuspendName] = useState("");
@@ -208,12 +209,19 @@ export function UsersPage() {
     return filteredProfiles.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredProfiles, safeCurrentPage, itemsPerPage]);
 
-  const handleDelete = async (e) => {
+  const handleDelete = async (e, forcePermanent = false) => {
     if (e) e.preventDefault();
     if (!deleteTarget) return;
+    const isPerm = forcePermanent || deleteMode === "permanent";
     try {
-      await api.delete(`/admin/profiles/${deleteTarget}`, { data: { reason: deleteReason } });
-      toast.success(`Deleted ${deleteName}`);
+      await api.delete(`/admin/profiles/${deleteTarget}`, {
+        data: { reason: deleteReason, permanent: isPerm },
+      });
+      toast.success(
+        isPerm
+          ? `Permanently deleted ${deleteName} from database.`
+          : `Moved ${deleteName} to deleted users.`
+      );
       fetchProfiles();
     } catch (err) {
       toast.error(err.response?.data?.message || err.message);
@@ -221,6 +229,7 @@ export function UsersPage() {
     setDeleteTarget(null);
     setDeleteName("");
     setDeleteReason("");
+    setDeleteMode("soft");
   };
 
   const handleSuspend = async (e) => {
@@ -525,7 +534,7 @@ export function UsersPage() {
                     className={`group cursor-pointer hover:bg-secondary/20 transition-colors ${u.isDeleted ? "opacity-60" : ""}`}
                     onClick={() =>
                       window.open(
-                        `${import.meta.env.VITE_FRONTEND_URL || "https://pravixo-web.vercel.app"}/${u.role === "creator" ? "influencer" : "brand"}/${u._id}`,
+                        resolveFrontendUrl(`/${u.role === "creator" ? "influencer" : "brand"}/${u._id}`),
                         "_blank"
                       )
                     }
@@ -560,7 +569,7 @@ export function UsersPage() {
                             {u.fullName}
                           </div>
                           <div className="text-xs text-muted-foreground truncate">
-                            {u.handle ? `@${u.handle}` : u.userId?.slice(0, 16) + "…"}
+                            {u.handle ? `@${u.handle.replace(/^@+/, '')}` : u.userId?.slice(0, 16) + "…"}
                           </div>
                         </div>
                       </div>
@@ -609,16 +618,30 @@ export function UsersPage() {
                     {/* Actions column */}
                     {activeTab === "deleted" ? (
                       <TableCell className="text-right pr-6">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRestore(u._id, u.fullName);
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Restore to Active
-                        </button>
+                        <div className="inline-flex items-center gap-2 justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRestore(u._id, u.fullName);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Restore to Active
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteTarget(u._id);
+                              setDeleteName(u.fullName);
+                              setDeleteMode("permanent");
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            Permanent Delete
+                          </button>
+                        </div>
                       </TableCell>
                     ) : (
                       <TableCell className="text-right pr-6">
@@ -633,7 +656,7 @@ export function UsersPage() {
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52 rounded-xl" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuContent align="end" className="w-56 rounded-xl" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuItem
                               className="cursor-pointer font-medium text-primary focus:text-primary"
                               onClick={(e) => {
@@ -688,15 +711,28 @@ export function UsersPage() {
 
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="text-destructive focus:text-destructive cursor-pointer"
+                              className="text-amber-600 focus:text-amber-600 cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setDeleteTarget(u._id);
                                 setDeleteName(u.fullName);
+                                setDeleteMode("soft");
+                              }}
+                            >
+                              <UserX className="mr-2 h-4 w-4" />
+                              Move to Deleted Users
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive cursor-pointer font-medium"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteTarget(u._id);
+                                setDeleteName(u.fullName);
+                                setDeleteMode("permanent");
                               }}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Delete user
+                              Permanent Delete from DB
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -788,24 +824,62 @@ export function UsersPage() {
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md rounded-3xl border border-border bg-card p-6">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl font-bold text-destructive">
-              Delete user "{deleteName}"?
+            <DialogTitle className={`font-display text-xl font-bold ${deleteMode === "permanent" ? "text-destructive" : "text-amber-600"}`}>
+              {deleteMode === "permanent" ? "Permanently Delete" : "Move to Deleted Users"}: "{deleteName}"?
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground mt-2">
-              This will permanently delete this user and all associated data including portfolio images, conversations, and favorites. This action cannot be undone.
+              {deleteMode === "permanent"
+                ? "This will completely PURGE this user and all data from the database. They will NOT appear in the Deleted Users tab. This action is irreversible."
+                : "This marks the user as deleted and moves them to the Deleted Users tab. You can restore them anytime."}
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleDelete} className="space-y-4 mt-4">
+            {/* Delete Type Selector */}
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Deletion Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteMode("soft")}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                    deleteMode === "soft"
+                      ? "border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-300 font-semibold"
+                      : "border-border hover:bg-secondary/40 text-muted-foreground text-sm"
+                  }`}
+                >
+                  <p className="text-xs font-bold flex items-center gap-1.5">
+                    <UserX className="h-3.5 w-3.5 text-amber-500" /> Soft Delete
+                  </p>
+                  <p className="text-[11px] mt-1 opacity-80">Moves to Deleted Users tab</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDeleteMode("permanent")}
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                    deleteMode === "permanent"
+                      ? "border-red-500 bg-red-500/10 text-red-900 dark:text-red-300 font-semibold"
+                      : "border-border hover:bg-secondary/40 text-muted-foreground text-sm"
+                  }`}
+                >
+                  <p className="text-xs font-bold flex items-center gap-1.5 text-destructive">
+                    <Trash2 className="h-3.5 w-3.5" /> Permanent Delete
+                  </p>
+                  <p className="text-[11px] mt-1 opacity-80">Purge completely from DB</p>
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="deleteReason">Reason for Deletion (Optional)</Label>
               <textarea
                 id="deleteReason"
-                rows={3}
+                rows={2}
                 value={deleteReason}
                 onChange={(e) => setDeleteReason(e.target.value)}
                 placeholder="e.g. Fraudulent activity, requested by user"
-                className="w-full min-h-[80px] rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:border-destructive"
+                className="w-full min-h-[60px] rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus:border-destructive"
               />
             </div>
 
@@ -820,9 +894,13 @@ export function UsersPage() {
               </Button>
               <Button
                 type="submit"
-                className="rounded-full flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-glow"
+                className={`rounded-full flex-1 text-white shadow-glow ${
+                  deleteMode === "permanent"
+                    ? "bg-destructive hover:bg-destructive/90"
+                    : "bg-amber-600 hover:bg-amber-700"
+                }`}
               >
-                Delete permanently
+                {deleteMode === "permanent" ? "Purge Permanently" : "Move to Deleted"}
               </Button>
             </DialogFooter>
           </form>

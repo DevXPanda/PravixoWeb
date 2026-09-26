@@ -20,7 +20,20 @@ import {
   Layers,
   ChevronLeft,
   ChevronRight,
+  Upload,
+  Link2,
 } from "lucide-react";
+
+const resolveImageUrl = (url) => {
+  if (!url) return "";
+  if (typeof url !== "string") return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    return url;
+  }
+  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const baseUrl = apiBase.replace(/\/api\/?$/, "");
+  return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+};
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -85,6 +98,9 @@ export function BookingsPage() {
   // Service Create/Edit Modal
   const [serviceModalOpen, setServiceModalOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
+  const [serviceImageMode, setServiceImageMode] = useState("upload"); // "upload" | "link"
+  const [serviceImageFile, setServiceImageFile] = useState(null);
+  const [serviceImagePreview, setServiceImagePreview] = useState("");
   const [serviceForm, setServiceForm] = useState({
     name: "",
     description: "",
@@ -99,8 +115,8 @@ export function BookingsPage() {
     setLoading(true);
     try {
       const [bookingsRes, servicesRes] = await Promise.all([
-        api.get("/addons/bookings"),
-        api.get("/addons/services"),
+        api.get("/addons/bookings", { params: { role: "admin" } }),
+        api.get("/addons/services", { params: { role: "admin" } }),
       ]);
 
       if (bookingsRes.data.success) {
@@ -238,6 +254,13 @@ export function BookingsPage() {
         imageUrl: service.imageUrl || "",
         enabled: service.enabled ?? true,
       });
+      setServiceImageFile(null);
+      setServiceImagePreview(resolveImageUrl(service.imageUrl) || "");
+      setServiceImageMode(
+        service.imageUrl?.startsWith("http") && !service.imageUrl.includes("/uploads/")
+          ? "link"
+          : "upload"
+      );
     } else {
       setEditingService(null);
       setServiceForm({
@@ -247,8 +270,29 @@ export function BookingsPage() {
         imageUrl: "",
         enabled: true,
       });
+      setServiceImageFile(null);
+      setServiceImagePreview("");
+      setServiceImageMode("upload");
     }
     setServiceModalOpen(true);
+  };
+
+  const handleServiceImageFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file (JPG, PNG, WEBP).");
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("Image file size should be less than 15MB.");
+      return;
+    }
+
+    setServiceImageFile(file);
+    setServiceImagePreview(URL.createObjectURL(file));
   };
 
   const handleSaveService = async (e) => {
@@ -260,11 +304,37 @@ export function BookingsPage() {
 
     setServiceSaving(true);
     try {
-      if (editingService) {
-        const res = await api.patch(`/addons/services/${editingService._id}`, {
+      let payload;
+      let headers = {};
+
+      if (serviceImageFile) {
+        const formData = new FormData();
+        formData.append("name", serviceForm.name.trim());
+        formData.append("description", serviceForm.description.trim());
+        formData.append("price", String(Number(serviceForm.price)));
+        formData.append("enabled", String(serviceForm.enabled));
+        formData.append("role", "admin");
+        formData.append("image", serviceImageFile);
+        payload = formData;
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        payload = {
           ...serviceForm,
+          imageUrl:
+            serviceImageMode === "link"
+              ? serviceForm.imageUrl.trim()
+              : serviceForm.imageUrl.trim() || undefined,
           price: Number(serviceForm.price),
-        });
+          role: "admin",
+        };
+      }
+
+      if (editingService) {
+        const res = await api.patch(
+          `/addons/services/${editingService._id}`,
+          payload,
+          { headers }
+        );
         if (res.data.success) {
           toast.success("Service updated successfully.");
           setServices((prev) =>
@@ -273,10 +343,7 @@ export function BookingsPage() {
           setServiceModalOpen(false);
         }
       } else {
-        const res = await api.post("/addons/services", {
-          ...serviceForm,
-          price: Number(serviceForm.price),
-        });
+        const res = await api.post("/addons/services", payload, { headers });
         if (res.data.success) {
           toast.success("New service added to catalog.");
           setServices((prev) => [res.data.data, ...prev]);
@@ -305,6 +372,66 @@ export function BookingsPage() {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to delete service.");
+    }
+  };
+
+  const [serviceFilter, setServiceFilter] = useState("all"); // "all" | "approved" | "pending" | "rejected"
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [serviceToReject, setServiceToReject] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [actionServiceId, setActionServiceId] = useState(null);
+
+  const handleApproveService = async (serviceId) => {
+    setActionServiceId(serviceId);
+    try {
+      const res = await api.patch(`/addons/services/${serviceId}`, {
+        approvalStatus: "approved",
+        enabled: true,
+      });
+      if (res.data.success) {
+        toast.success("Add-on service approved and published live for brands!");
+        setServices((prev) =>
+          prev.map((s) =>
+            s._id === serviceId
+              ? { ...s, approvalStatus: "approved", enabled: true }
+              : s
+          )
+        );
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to approve service.");
+    } finally {
+      setActionServiceId(null);
+    }
+  };
+
+  const handleRejectServiceSubmit = async (e) => {
+    e.preventDefault();
+    if (!serviceToReject) return;
+    setActionServiceId(serviceToReject._id);
+    try {
+      const res = await api.patch(`/addons/services/${serviceToReject._id}`, {
+        approvalStatus: "rejected",
+        rejectionReason: rejectReason.trim(),
+        enabled: false,
+      });
+      if (res.data.success) {
+        toast.success("Add-on service rejected.");
+        setServices((prev) =>
+          prev.map((s) =>
+            s._id === serviceToReject._id
+              ? { ...s, approvalStatus: "rejected", rejectionReason: rejectReason.trim(), enabled: false }
+              : s
+          )
+        );
+        setRejectModalOpen(false);
+        setServiceToReject(null);
+        setRejectReason("");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to reject service.");
+    } finally {
+      setActionServiceId(null);
     }
   };
 
@@ -791,19 +918,48 @@ export function BookingsPage() {
         </div>
       )}
 
-      {/* VIEW: SERVICES CATALOG */}
+      {/* VIEW: SERVICES CATALOG & CREATOR SERVICE APPROVALS */}
       {activeTab === "services" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              These services are displayed on the client Add-ons page for brands and creators to book.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "all", label: `All Services (${services?.length || 0})` },
+                {
+                  key: "pending",
+                  label: `Pending Review (${services?.filter((s) => s.approvalStatus === "pending")?.length || 0})`,
+                },
+                {
+                  key: "approved",
+                  label: `Approved (${services?.filter((s) => s.approvalStatus === "approved" || !s.approvalStatus)?.length || 0})`,
+                },
+                {
+                  key: "rejected",
+                  label: `Rejected (${services?.filter((s) => s.approvalStatus === "rejected")?.length || 0})`,
+                },
+              ].map((tab) => (
+                <Button
+                  key={tab.key}
+                  size="sm"
+                  variant={serviceFilter === tab.key ? "default" : "outline"}
+                  onClick={() => setServiceFilter(tab.key)}
+                  className={`rounded-full text-xs h-8 px-3.5 ${
+                    serviceFilter === tab.key
+                      ? "gradient-sunset border-0 text-white shadow-xs"
+                      : ""
+                  }`}
+                >
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
+
             <Button
               size="sm"
               onClick={() => handleOpenServiceModal()}
-              className="rounded-xl h-8 gradient-sunset text-white text-xs border-0"
+              className="rounded-xl h-8 gradient-sunset text-white text-xs border-0 shrink-0"
             >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Service
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Platform Service
             </Button>
           </div>
 
@@ -816,88 +972,229 @@ export function BookingsPage() {
                   <Skeleton className="h-4 w-1/2" />
                 </div>
               ))
-            ) : services?.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-sm text-muted-foreground border border-border rounded-2xl bg-card">
-                No services configured yet. Click "New Service" to add one.
-              </div>
             ) : (
-              services?.map((svc) => (
-                <div
-                  key={svc._id}
-                  className="rounded-2xl border border-border bg-card overflow-hidden shadow-xs flex flex-col justify-between hover:border-primary/40 transition-colors"
-                >
-                  {svc.imageUrl ? (
-                    <img
-                      src={svc.imageUrl}
-                      alt={svc.name}
-                      className="h-40 w-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-40 w-full bg-muted/60 flex items-center justify-center text-muted-foreground">
-                      <Sparkles className="h-8 w-8 text-muted-foreground/40" />
-                    </div>
-                  )}
+              services
+                ?.filter((svc) => {
+                  if (serviceFilter === "all") return true;
+                  if (serviceFilter === "approved") return svc.approvalStatus === "approved" || !svc.approvalStatus;
+                  if (serviceFilter === "pending") return svc.approvalStatus === "pending";
+                  if (serviceFilter === "rejected") return svc.approvalStatus === "rejected";
+                  return true;
+                })
+                .map((svc) => {
+                  const isCreatorSubmitted = Boolean(svc.creatorId);
+                  const isPendingReview = svc.approvalStatus === "pending";
+                  const isRejected = svc.approvalStatus === "rejected";
+                  const isApproved = svc.approvalStatus === "approved" || !svc.approvalStatus;
 
-                  <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-base text-foreground leading-tight">
-                          {svc.name}
-                        </h3>
-                        <Badge
-                          variant={svc.enabled ? "default" : "secondary"}
-                          className={`text-[10px] cursor-pointer ${
-                            svc.enabled
-                              ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                          onClick={() => handleToggleServiceStatus(svc)}
-                          title="Click to toggle status"
-                        >
-                          {svc.enabled ? "Active" : "Disabled"}
-                        </Badge>
+                  return (
+                    <div
+                      key={svc._id}
+                      className={`rounded-2xl border bg-card overflow-hidden shadow-xs flex flex-col justify-between transition-colors ${
+                        isPendingReview
+                          ? "border-amber-500/50 ring-1 ring-amber-500/20"
+                          : isRejected
+                          ? "border-red-500/30 opacity-80"
+                          : "border-border hover:border-primary/40"
+                      }`}
+                    >
+                      <div className="relative">
+                        {svc.imageUrl ? (
+                          <img
+                            src={resolveImageUrl(svc.imageUrl)}
+                            alt={svc.name}
+                            onError={(e) => {
+                              e.currentTarget.src =
+                                "https://images.unsplash.com/photo-1590608897129-79da98d15969?w=800";
+                            }}
+                            className="h-40 w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-40 w-full bg-muted/60 flex items-center justify-center text-muted-foreground">
+                            <Sparkles className="h-8 w-8 text-muted-foreground/40" />
+                          </div>
+                        )}
+
+                        {/* Status Pills */}
+                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                          <Badge
+                            className={`text-[10px] font-bold ${
+                              isPendingReview
+                                ? "bg-amber-500 text-white shadow-sm"
+                                : isRejected
+                                ? "bg-red-500 text-white"
+                                : "bg-emerald-600 text-white"
+                            }`}
+                          >
+                            {isPendingReview ? "⏳ Pending Review" : isRejected ? "✕ Rejected" : "✓ Approved"}
+                          </Badge>
+                        </div>
                       </div>
 
-                      <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                        {svc.description}
-                      </p>
-                    </div>
+                      <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-semibold text-base text-foreground leading-tight">
+                              {svc.name}
+                            </h3>
+                            <Badge
+                              variant={svc.enabled ? "default" : "secondary"}
+                              className={`text-[10px] cursor-pointer ${
+                                svc.enabled
+                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                              onClick={() => handleToggleServiceStatus(svc)}
+                              title="Click to toggle active status"
+                            >
+                              {svc.enabled ? "Active" : "Disabled"}
+                            </Badge>
+                          </div>
 
-                    <div className="pt-3 mt-3 border-t border-border flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Price</span>
-                        <span className="text-base font-bold text-foreground">
-                          ₹{Number(svc.price || 0).toLocaleString("en-IN")}
-                        </span>
-                      </div>
+                          {/* Creator Details if submitted by a creator */}
+                          {isCreatorSubmitted ? (
+                            <div className="mt-1.5 rounded-lg bg-secondary/30 p-2 text-xs flex items-center gap-2 border border-border/40">
+                              <User className="h-3.5 w-3.5 text-primary shrink-0" />
+                              <span className="truncate text-foreground font-medium">
+                                Creator: {svc.creatorId?.fullName || "Creator"}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground truncate">
+                                ({svc.creatorId?.email})
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-[11px] text-muted-foreground font-medium">
+                              Platform Official Service
+                            </div>
+                          )}
 
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenServiceModal(svc)}
-                          className="h-8 px-2.5 text-xs rounded-lg"
-                        >
-                          <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteService(svc._id)}
-                          className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                          title="Delete service"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                          <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                            {svc.description}
+                          </p>
+
+                          {isRejected && svc.rejectionReason && (
+                            <div className="mt-2 rounded-lg bg-red-500/10 border border-red-500/20 p-2 text-xs text-red-600">
+                              <span className="font-bold">Rejection Note:</span> {svc.rejectionReason}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-3 mt-3 border-t border-border space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Price</span>
+                              <span className="text-base font-bold text-foreground">
+                                ₹{Number(svc.price || 0).toLocaleString("en-IN")}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenServiceModal(svc)}
+                                className="h-8 px-2.5 text-xs rounded-lg"
+                              >
+                                <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteService(svc._id)}
+                                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                                title="Delete service"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Admin Approval Action Buttons */}
+                          {isPendingReview && (
+                            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/40">
+                              <Button
+                                size="sm"
+                                disabled={actionServiceId === svc._id}
+                                onClick={() => handleApproveService(svc._id)}
+                                className="h-8 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={actionServiceId === svc._id}
+                                onClick={() => {
+                                  setServiceToReject(svc);
+                                  setRejectReason("");
+                                  setRejectModalOpen(true);
+                                }}
+                                className="h-8 text-xs rounded-lg text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/20"
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))
+                  );
+                })
             )}
           </div>
         </div>
       )}
+
+      {/* MODAL: REJECT SERVICE */}
+      <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Reject Creator Add-on Service
+            </DialogTitle>
+            <DialogDescription>
+              Please provide feedback or a reason why this service submission is being rejected. The creator will be notified.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleRejectServiceSubmit} className="space-y-4 py-2">
+            <div>
+              <p className="text-xs font-semibold text-foreground mb-1.5">
+                Service: <span className="font-bold text-primary">{serviceToReject?.name}</span>
+              </p>
+              <Textarea
+                placeholder="Explain what needs improvement (e.g., price is missing clear deliverables, image is low quality...)"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+                required
+                className="rounded-xl text-xs"
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRejectModalOpen(false)}
+                className="rounded-xl text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={actionServiceId === serviceToReject?._id}
+                className="rounded-xl text-xs bg-red-600 hover:bg-red-700 text-white font-medium"
+              >
+                Confirm Rejection
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* MODAL: BOOKING DETAILS */}
       <Dialog open={!!selectedBooking} onOpenChange={(o) => !o && setSelectedBooking(null)}>
@@ -1039,18 +1336,104 @@ export function BookingsPage() {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Image URL
-              </label>
-              <Input
-                placeholder="https://images.unsplash.com/..."
-                value={serviceForm.imageUrl}
-                onChange={(e) =>
-                  setServiceForm({ ...serviceForm, imageUrl: e.target.value })
-                }
-                className="h-9 rounded-xl text-xs"
-              />
+            {/* Image Upload or Link */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-foreground">
+                  Service / Rental Photo
+                </label>
+                <div className="flex items-center rounded-lg bg-muted p-0.5 border border-border text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setServiceImageMode("upload")}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                      serviceImageMode === "upload"
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Upload className="h-3 w-3" /> Upload Photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setServiceImageMode("link")}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition-all ${
+                      serviceImageMode === "link"
+                        ? "bg-background text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Link2 className="h-3 w-3" /> Image Link
+                  </button>
+                </div>
+              </div>
+
+              {serviceImageMode === "upload" ? (
+                <div className="space-y-2">
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-3.5 cursor-pointer bg-muted/20 transition-colors group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleServiceImageFileChange}
+                    />
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-1.5 group-hover:scale-105 transition-transform">
+                        <Upload className="h-4 w-4" />
+                      </div>
+                      <p className="text-xs font-semibold text-foreground">
+                        {serviceImageFile ? serviceImageFile.name : "Click to select or drop photo"}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        JPG, PNG, WEBP (Max 15MB)
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Input
+                    placeholder="https://images.unsplash.com/... or direct image URL"
+                    value={serviceForm.imageUrl}
+                    onChange={(e) => {
+                      setServiceForm({ ...serviceForm, imageUrl: e.target.value });
+                      setServiceImagePreview(e.target.value);
+                    }}
+                    className="h-9 rounded-xl text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Paste a direct image link from Unsplash, Cloudinary, etc.
+                  </p>
+                </div>
+              )}
+
+              {/* Preview */}
+              {(serviceImagePreview || serviceForm.imageUrl) && (
+                <div className="relative rounded-xl overflow-hidden border border-border h-24 bg-muted/30 flex items-center justify-center">
+                  <img
+                    src={serviceImagePreview || resolveImageUrl(serviceForm.imageUrl)}
+                    alt="Preview"
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <div className="absolute top-1.5 right-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServiceImageFile(null);
+                        setServiceImagePreview("");
+                        setServiceForm({ ...serviceForm, imageUrl: "" });
+                      }}
+                      className="rounded-full bg-black/70 text-white p-1 hover:bg-black text-[10px]"
+                      title="Remove image"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">

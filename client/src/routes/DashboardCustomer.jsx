@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   Camera,
   ImageIcon,
+  LayoutGrid,
+  SlidersHorizontal,
   Upload,
   Plus,
   Star,
@@ -276,9 +278,10 @@ export function DashboardCustomer() {
     try {
       const res = await api.patch(`/profiles/${profile._id}`, { avatarUrl });
       const updated = res?.data?.data || res?.data?.profile || res?.data;
-      if (updated && updateProfile) {
-        updateProfile(updated);
+      if (updated && updateLocalProfile) {
+        updateLocalProfile(updated);
       }
+      if (fetchProfile) fetchProfile();
       toast.success("Brand avatar updated successfully!");
     } catch (err) {
       console.error(err);
@@ -292,9 +295,10 @@ export function DashboardCustomer() {
     try {
       const res = await api.delete(`/profiles/${profile._id}/avatar`);
       const updated = res?.data?.data || res?.data?.profile || res?.data;
-      if (updated && updateProfile) {
-        updateProfile(updated);
+      if (updated && updateLocalProfile) {
+        updateLocalProfile(updated);
       }
+      if (fetchProfile) fetchProfile();
       toast.success("Brand logo reset to default!");
     } catch (err) {
       console.error("Failed to reset avatar:", err);
@@ -308,9 +312,10 @@ export function DashboardCustomer() {
     try {
       const res = await api.delete(`/profiles/${profile._id}/cover`);
       const updated = res?.data?.data || res?.data?.profile || res?.data;
-      if (updated && updateProfile) {
-        updateProfile(updated);
+      if (updated && updateLocalProfile) {
+        updateLocalProfile(updated);
       }
+      if (fetchProfile) fetchProfile();
       toast.success("Brand banner reset to default!");
     } catch (err) {
       console.error("Failed to reset banner:", err);
@@ -522,6 +527,7 @@ export function DashboardCustomer() {
 
   // Portfolio tab & view states
   const [portfolioTab, setPortfolioTab] = useState("all");
+  const [portfolioLayout, setPortfolioLayout] = useState("carousel"); // "carousel" (scroll x) or "grid"
   const [selectedPortfolioItem, setSelectedPortfolioItem] = useState(null);
   const [showAddPortfolioModal, setShowAddPortfolioModal] = useState(false);
   const [uploadingPortfolioItem, setUploadingPortfolioItem] = useState(false);
@@ -857,9 +863,10 @@ const [submittingVerification, setSubmittingVerification] =
         headers: { "Content-Type": "multipart/form-data" },
       });
       const updatedProfile = res.data?.data || res.data?.profile || res.data;
-      if (updatedProfile && updateProfile) {
-        updateProfile(updatedProfile);
+      if (updatedProfile && updateLocalProfile) {
+        updateLocalProfile(updatedProfile);
       }
+      if (fetchProfile) fetchProfile();
       toast.success("Brand logo updated successfully!");
     } catch (err) {
       console.error(err);
@@ -874,23 +881,9 @@ const [submittingVerification, setSubmittingVerification] =
     if (!profile || !e.target.files?.length) return;
     const file = e.target.files[0];
 
-    // Validate image dimensions (1361x450 max)
-    const isImageValid = await new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(img.src);
-        if (img.width > 1361 || img.height > 450) {
-          resolve(false);
-        } else {
-          resolve(true);
-        }
-      };
-      img.onerror = () => resolve(false);
-      img.src = URL.createObjectURL(file);
-    });
-
-    if (!isImageValid) {
-      toast.error("Banner size must be 1361x450 pixels or smaller.");
+    // Quick file check
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file.");
       if (coverFileRef.current) coverFileRef.current.value = "";
       return;
     }
@@ -903,9 +896,10 @@ const [submittingVerification, setSubmittingVerification] =
         headers: { "Content-Type": "multipart/form-data" },
       });
       const updatedProfile = res.data?.data || res.data?.profile || res.data;
-      if (updatedProfile && updateProfile) {
-        updateProfile(updatedProfile);
+      if (updatedProfile && updateLocalProfile) {
+        updateLocalProfile(updatedProfile);
       }
+      if (fetchProfile) fetchProfile();
       toast.success("Cover banner updated successfully!");
     } catch (err) {
       console.error(err);
@@ -1541,9 +1535,9 @@ const [submittingVerification, setSubmittingVerification] =
             </section>
           </div>
 
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="flex items-center gap-4 sm:gap-5 -mt-16 sm:-mt-20 z-10">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
+              <div className="flex items-center gap-4 sm:gap-5 -mt-16 sm:-mt-20 z-10 min-w-0">
                 {/* AVATAR WITH INSTA-STYLE HOVER/CLICK ACTIONS */}
                 <div className="relative group shrink-0">
                   <img
@@ -1597,11 +1591,11 @@ const [submittingVerification, setSubmittingVerification] =
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1 pt-12 sm:pt-14">
+                <div className="flex flex-col gap-1 pt-12 sm:pt-14 min-w-0">
                   <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                     Brand dashboard
                   </p>
-                  <h1 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl flex items-center gap-2">
+                  <h1 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl flex items-center gap-2 truncate">
                     {fullName || profile?.fullName || displayName}
                     {status === "verified" && (
                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 shadow-xs" title="Verified Brand">
@@ -1636,32 +1630,34 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
               </div>
 
-              {/* Action Buttons Row */}
-              <div className="flex flex-wrap items-center gap-2">
+              {/* Action Buttons Row - Shifted Inward & Protected from Clipping */}
+              <div className="flex items-center flex-nowrap gap-2 py-1 shrink-0 overflow-x-auto no-scrollbar max-w-full lg:max-w-none pr-1">
                 {profile?.handle && (
-                  <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
+                  <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
                     <Button
                       variant="default"
-                      className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 gradient-sunset text-white shadow-glow hover:opacity-90 cursor-pointer border-0"
+                      size="sm"
+                      className="rounded-full text-xs font-bold px-3.5 flex items-center gap-1.5 gradient-sunset text-white shadow-glow hover:opacity-90 cursor-pointer border-0 shrink-0 whitespace-nowrap h-9"
                     >
                       <Sparkles className="h-3.5 w-3.5" /> Media Kit
                     </Button>
                   </Link>
                 )}
-                <Link to={`/influencer/${profile?._id}`}>
+                <Link to={`/influencer/${profile?._id}`} className="shrink-0">
                   <Button
                     variant="outline"
-                    className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+                    size="sm"
+                    className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary shrink-0 whitespace-nowrap h-9"
                   >
                     <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
                   </Button>
                 </Link>
                 {/* COMBINED FOLLOWERS & FOLLOWING IN ONE UNIFIED PILL */}
-                <div className="inline-flex items-center rounded-full border border-border/80 bg-card text-xs font-semibold overflow-hidden shadow-xs">
+                <div className="inline-flex items-center rounded-full border border-border/80 bg-card text-xs font-semibold overflow-hidden shadow-xs shrink-0 whitespace-nowrap h-9">
                   <button
                     type="button"
                     onClick={() => openFollowModal("followers")}
-                    className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+                    className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer whitespace-nowrap"
                   >
                     <Users className="h-3.5 w-3.5 text-primary" />
                     <span className="font-bold text-foreground">{followCounts.followers}</span>
@@ -1671,7 +1667,7 @@ const [submittingVerification, setSubmittingVerification] =
                   <button
                     type="button"
                     onClick={() => openFollowModal("following")}
-                    className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+                    className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer whitespace-nowrap"
                   >
                     <span className="font-bold text-foreground">{followCounts.following}</span>
                     <span className="text-muted-foreground">Following</span>
@@ -1679,12 +1675,13 @@ const [submittingVerification, setSubmittingVerification] =
                 </div>
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={() => {
                     const url = `${window.location.origin}/influencer/${profile?._id}`;
                     navigator.clipboard.writeText(url);
                     toast.success("Brand profile link copied to clipboard!");
                   }}
-                  className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
+                  className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer shrink-0 whitespace-nowrap h-9"
                 >
                   <Share2 className="h-3.5 w-3.5 text-primary" /> Share Link
                 </Button>
@@ -2335,187 +2332,206 @@ const [submittingVerification, setSubmittingVerification] =
               </div>
 
               {/* 3. SOCIAL PRESENCE ACCORDION */}
-              <div className="rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all mb-4">
+              <div className="rounded-3xl border border-border/80 overflow-hidden bg-card/70 backdrop-blur-md shadow-sm transition-all mb-5 hover:border-primary/30">
                 <button
                   type="button"
                   onClick={() => setOpenSocialSection(!openSocialSection)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-between p-5 text-left hover:bg-secondary/30 transition-colors cursor-pointer"
                 >
-                  <div>
-                    <h3 className="font-display text-base font-bold flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" /> Social Presence
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Instagram, Facebook, LinkedIn, YouTube, Twitter / X, and Quora handles
-                    </p>
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-pink-500/20 via-primary/20 to-sky-500/20 flex items-center justify-center text-primary shadow-xs">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-display text-base font-bold text-foreground">
+                          Social Presence & Handles
+                        </h3>
+                        <Badge variant="secondary" className="text-[10px] font-semibold bg-primary/10 text-primary border-0 rounded-full px-2">
+                          6 Platforms
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Manage your official Instagram, Facebook, LinkedIn, YouTube, X, and Quora presence
+                      </p>
+                    </div>
                   </div>
-                  <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openSocialSection && "rotate-90 text-primary")} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-primary hidden sm:inline-block">
+                      {openSocialSection ? "Collapse" : "Manage"}
+                    </span>
+                    <div className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center">
+                      <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300", openSocialSection && "rotate-90 text-primary")} />
+                    </div>
+                  </div>
                 </button>
 
                 {openSocialSection && (
-                  <div className="p-4 pt-2 border-t border-border/40">
-                    <p className="text-xs text-muted-foreground mb-4">
-                      Update your brand's official social handles and follower counts.
-                    </p>
+                  <div className="p-5 pt-3 border-t border-border/40 space-y-5">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {[
+                        {
+                          id: "instagram",
+                          name: "Instagram",
+                          icon: FaInstagram,
+                          gradient: "from-pink-500/15 via-purple-500/10 to-transparent",
+                          badgeColor: "text-pink-500 bg-pink-500/10 border-pink-500/20",
+                          iconColor: "text-pink-500",
+                          handle: instaHandle,
+                          setHandle: setInstaHandle,
+                          placeholder: "@brandname",
+                          followers: instaFollowers,
+                          setFollowers: setInstaFollowers,
+                          prefix: "@",
+                        },
+                        {
+                          id: "facebook",
+                          name: "Facebook",
+                          icon: FaFacebook,
+                          gradient: "from-blue-600/15 via-blue-500/10 to-transparent",
+                          badgeColor: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+                          iconColor: "text-blue-500",
+                          handle: fbHandle,
+                          setHandle: setFbHandle,
+                          placeholder: "brandpage",
+                          followers: fbFollowers,
+                          setFollowers: setFbFollowers,
+                          prefix: "/",
+                        },
+                        {
+                          id: "linkedin",
+                          name: "LinkedIn",
+                          icon: FaLinkedin,
+                          gradient: "from-sky-600/15 via-sky-500/10 to-transparent",
+                          badgeColor: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+                          iconColor: "text-sky-500",
+                          handle: liHandle,
+                          setHandle: setLiHandle,
+                          placeholder: "company/brand",
+                          followers: liFollowers,
+                          setFollowers: setLiFollowers,
+                          prefix: "in/",
+                        },
+                        {
+                          id: "youtube",
+                          name: "YouTube",
+                          icon: FaYoutube,
+                          gradient: "from-red-600/15 via-red-500/10 to-transparent",
+                          badgeColor: "text-red-500 bg-red-500/10 border-red-500/20",
+                          iconColor: "text-red-500",
+                          handle: ytHandle,
+                          setHandle: setYtHandle,
+                          placeholder: "@brandchannel",
+                          followers: ytFollowers,
+                          setFollowers: setYtFollowers,
+                          prefix: "@",
+                        },
+                        {
+                          id: "twitter",
+                          name: "X / Twitter",
+                          icon: FaTwitter,
+                          gradient: "from-slate-400/15 via-slate-500/10 to-transparent",
+                          badgeColor: "text-foreground bg-foreground/10 border-foreground/20",
+                          iconColor: "text-sky-400",
+                          handle: twHandle,
+                          setHandle: setTwHandle,
+                          placeholder: "@brandhandle",
+                          followers: twFollowers,
+                          setFollowers: setTwFollowers,
+                          prefix: "@",
+                        },
+                        {
+                          id: "quora",
+                          name: "Quora",
+                          icon: QuoraIcon,
+                          gradient: "from-rose-700/15 via-red-600/10 to-transparent",
+                          badgeColor: "text-rose-600 bg-rose-600/10 border-rose-600/20",
+                          iconColor: "text-rose-600",
+                          handle: quoraHandle,
+                          setHandle: setQuoraHandle,
+                          placeholder: "brand-profile",
+                          followers: quoraFollowers,
+                          setFollowers: setQuoraFollowers,
+                          prefix: "q/",
+                        },
+                      ].map((plat) => {
+                        const Icon = plat.icon;
+                        const hasData = Boolean(plat.handle || plat.followers > 0);
+                        return (
+                          <div
+                            key={plat.id}
+                            className={cn(
+                              "group/card relative rounded-2xl border p-4.5 transition-all duration-300 flex flex-col justify-between overflow-hidden",
+                              "bg-gradient-to-b bg-card/90 hover:-translate-y-0.5 hover:shadow-lg",
+                              hasData ? "border-border/90" : "border-border/60 opacity-90 hover:opacity-100"
+                            )}
+                          >
+                            <div className={cn("absolute inset-0 bg-gradient-to-br opacity-60 pointer-events-none", plat.gradient)} />
 
-                    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                        <div className="flex items-center gap-2">
-                          <FaInstagram className="h-4 w-4 text-pink-600" />
-                          <span className="text-sm font-semibold">Instagram</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
-                          <Input
-                            value={instaHandle}
-                            onChange={(e) => setInstaHandle(e.target.value)}
-                            placeholder="@username"
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
-                          <Input
-                            type="number"
-                            value={instaFollowers}
-                            onChange={(e) => setInstaFollowers(Number(e.target.value))}
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                      </div>
+                            <div className="relative z-10 space-y-3.5">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="h-8 w-8 rounded-xl bg-background/90 border border-border/80 shadow-xs flex items-center justify-center shrink-0">
+                                    <Icon className={cn("h-4 w-4", plat.iconColor)} />
+                                  </div>
+                                  <span className="text-sm font-bold text-foreground tracking-tight">
+                                    {plat.name}
+                                  </span>
+                                </div>
+                                <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border", plat.badgeColor)}>
+                                  {hasData ? "Connected" : "Not Set"}
+                                </span>
+                              </div>
 
-                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                        <div className="flex items-center gap-2">
-                          <FaFacebook className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm font-semibold">Facebook</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
-                          <Input
-                            value={fbHandle}
-                            onChange={(e) => setFbHandle(e.target.value)}
-                            placeholder="username"
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
-                          <Input
-                            type="number"
-                            value={fbFollowers}
-                            onChange={(e) => setFbFollowers(Number(e.target.value))}
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                      </div>
+                              <div className="space-y-2.5">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                    <span>Handle / Username</span>
+                                  </Label>
+                                  <div className="relative">
+                                    <Input
+                                      value={plat.handle}
+                                      onChange={(e) => plat.setHandle(e.target.value)}
+                                      placeholder={plat.placeholder}
+                                      className="h-9 text-xs rounded-xl bg-background/70 border-border/80 focus:bg-background focus:border-primary transition-all font-medium"
+                                    />
+                                  </div>
+                                </div>
 
-                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                        <div className="flex items-center gap-2">
-                          <FaLinkedin className="h-4 w-4 text-blue-800" />
-                          <span className="text-sm font-semibold">LinkedIn</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
-                          <Input
-                            value={liHandle}
-                            onChange={(e) => setLiHandle(e.target.value)}
-                            placeholder="in/username"
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
-                          <Input
-                            type="number"
-                            value={liFollowers}
-                            onChange={(e) => setLiFollowers(Number(e.target.value))}
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                        <div className="flex items-center gap-2">
-                          <FaYoutube className="h-4 w-4 text-red-600" />
-                          <span className="text-sm font-semibold">YouTube</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
-                          <Input
-                            value={ytHandle}
-                            onChange={(e) => setYtHandle(e.target.value)}
-                            placeholder="@username"
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
-                          <Input
-                            type="number"
-                            value={ytFollowers}
-                            onChange={(e) => setYtFollowers(Number(e.target.value))}
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                        <div className="flex items-center gap-2">
-                          <QuoraIcon className="h-4 w-4 text-red-700" />
-                          <span className="text-sm font-semibold">Quora</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
-                          <Input
-                            value={quoraHandle}
-                            onChange={(e) => setQuoraHandle(e.target.value)}
-                            placeholder="username"
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
-                          <Input
-                            type="number"
-                            value={quoraFollowers}
-                            onChange={(e) => setQuoraFollowers(Number(e.target.value))}
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 rounded-2xl border border-border p-4 bg-secondary/10">
-                        <div className="flex items-center gap-2">
-                          <FaTwitter className="h-4 w-4 text-sky-500" />
-                          <span className="text-sm font-semibold">X / Twitter</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Handle</Label>
-                          <Input
-                            value={twHandle}
-                            onChange={(e) => setTwHandle(e.target.value)}
-                            placeholder="@username"
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Followers</Label>
-                          <Input
-                            type="number"
-                            value={twFollowers}
-                            onChange={(e) => setTwFollowers(Number(e.target.value))}
-                            className="h-8 text-xs rounded-lg"
-                          />
-                        </div>
-                      </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                    <span>Followers / Audience</span>
+                                    {plat.followers > 0 && (
+                                      <span className="text-primary font-bold lowercase">
+                                        {Number(plat.followers).toLocaleString()} fans
+                                      </span>
+                                    )}
+                                  </Label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={plat.followers || ""}
+                                    onChange={(e) => plat.setFollowers(Number(e.target.value))}
+                                    placeholder="0"
+                                    className="h-9 text-xs rounded-xl bg-background/70 border-border/80 focus:bg-background focus:border-primary transition-all font-medium"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    <div className="flex justify-end pt-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
+                      <p className="text-xs text-muted-foreground text-center sm:text-left">
+                        ✨ Social stats help creators understand your brand's reach and audience presence.
+                      </p>
                       <Button
                         type="button"
                         onClick={handleSaveProfile}
                         disabled={savingProfile}
-                        className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow px-6 font-bold text-xs h-9"
+                        className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow px-6 font-bold text-xs h-10 w-full sm:w-auto cursor-pointer"
                       >
                         {savingProfile ? "Saving..." : "Save Social Handles"}
                       </Button>
@@ -2552,14 +2568,14 @@ const [submittingVerification, setSubmittingVerification] =
 
                 {openPortfolioSection && (
                   <div className="p-4 pt-2 border-t border-border/40">
-                    {/* Format Tabs & Action Buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                      <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                    {/* Format Tabs, View Switcher & Action Buttons */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs overflow-x-auto">
                         <button
                           type="button"
                           onClick={() => setPortfolioTab("all")}
                           className={cn(
-                            "px-3 py-1 rounded-lg font-medium transition-all",
+                            "px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                             portfolioTab === "all"
                               ? "bg-background text-foreground shadow-xs font-semibold"
                               : "text-muted-foreground hover:text-foreground"
@@ -2571,7 +2587,7 @@ const [submittingVerification, setSubmittingVerification] =
                           type="button"
                           onClick={() => setPortfolioTab("post")}
                           className={cn(
-                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                             portfolioTab === "post"
                               ? "bg-background text-foreground shadow-xs font-semibold"
                               : "text-muted-foreground hover:text-foreground"
@@ -2583,7 +2599,7 @@ const [submittingVerification, setSubmittingVerification] =
                           type="button"
                           onClick={() => setPortfolioTab("reel")}
                           className={cn(
-                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                             portfolioTab === "reel"
                               ? "bg-background text-foreground shadow-xs font-semibold"
                               : "text-muted-foreground hover:text-foreground"
@@ -2595,7 +2611,7 @@ const [submittingVerification, setSubmittingVerification] =
                           type="button"
                           onClick={() => setPortfolioTab("story")}
                           className={cn(
-                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                            "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                             portfolioTab === "story"
                               ? "bg-background text-foreground shadow-xs font-semibold"
                               : "text-muted-foreground hover:text-foreground"
@@ -2605,19 +2621,51 @@ const [submittingVerification, setSubmittingVerification] =
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        {/* Horizontal Carousel vs Grid view toggle */}
+                        <div className="flex items-center p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setPortfolioLayout("carousel")}
+                            title="Horizontal Scroll Strip View"
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1 cursor-pointer",
+                              portfolioLayout === "carousel"
+                                ? "bg-background text-foreground shadow-xs font-semibold text-primary"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            <span className="hidden md:inline">Scroll X</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPortfolioLayout("grid")}
+                            title="Compact Grid View"
+                            className={cn(
+                              "px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1 cursor-pointer",
+                              portfolioLayout === "grid"
+                                ? "bg-background text-foreground shadow-xs font-semibold text-primary"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            <span className="hidden md:inline">Grid</span>
+                          </button>
+                        </div>
+
                         <Button
                           type="button"
                           size="sm"
                           onClick={() => setShowAddPortfolioModal(true)}
-                          className="rounded-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white font-semibold text-xs shadow-sm hover:opacity-95"
+                          className="rounded-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white font-semibold text-xs shadow-sm hover:opacity-95 cursor-pointer"
                         >
                           <Plus className="h-3.5 w-3.5 mr-1" /> Add Media / Reel / Story
                         </Button>
                       </div>
                     </div>
 
-                    {/* Portfolio Feed / Grid */}
+                    {/* Portfolio Feed / Horizontal Scroll View */}
                     {(() => {
                       const filtered = (portfolioImages || []).filter((item) => {
                         if (portfolioTab === "all") return true;
@@ -2639,7 +2687,7 @@ const [submittingVerification, setSubmittingVerification] =
                               type="button"
                               size="sm"
                               onClick={() => setShowAddPortfolioModal(true)}
-                              className="mt-4 rounded-full gradient-sunset text-white text-xs"
+                              className="mt-4 rounded-full gradient-sunset text-white text-xs cursor-pointer"
                             >
                               <Plus className="h-3.5 w-3.5 mr-1" /> Add Media
                             </Button>
@@ -2647,109 +2695,161 @@ const [submittingVerification, setSubmittingVerification] =
                         );
                       }
 
-                      return (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
-                          {filtered.map((item, idx) => {
-                            const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
-                            const isReel = item.type === "reel";
-                            const isStory = item.type === "story";
-                            const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
-                            const likes = item.likesCount || 0;
-                            const comments = item.commentsCount || (item.comments?.length || 0);
-                            const views = item.viewsCount || (isReel ? 1200 : 0);
+                      const renderMediaCard = (item, idx, customWidth = "") => {
+                        const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
+                        const isReel = item.type === "reel";
+                        const isStory = item.type === "story";
+                        const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
+                        const likes = item.likesCount || 0;
+                        const comments = item.commentsCount || (item.comments?.length || 0);
+                        const views = item.viewsCount || (isReel ? 1200 : 0);
 
-                            return (
-                              <div
-                                key={item._id || idx}
-                                onClick={() => setSelectedPortfolioPost(item)}
-                                className="group relative aspect-square w-full rounded-2xl overflow-hidden border border-border/80 bg-neutral-900 cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
-                              >
-                                {/* Media Thumbnail */}
-                                {isVideo ? (
-                                  <video
-                                    src={imageSrc}
-                                    className="h-full w-full object-cover"
-                                    preload="metadata"
-                                    muted
-                                    playsInline
-                                  />
-                                ) : (
-                                  <img
-                                    src={imageSrc}
-                                    alt={item.caption || "Showcase item"}
-                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    onError={(e) => {
-                                      e.target.onerror = null;
-                                      e.target.src = "https://api.dicebear.com/9.x/shapes/svg?seed=BrandCreative";
-                                    }}
-                                  />
-                                )}
+                        return (
+                          <div
+                            key={item._id || idx}
+                            onClick={() => setSelectedPortfolioPost(item)}
+                            className={cn(
+                              "group relative aspect-square rounded-2xl overflow-hidden border border-border/80 bg-neutral-900 cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:border-pink-500/40 shrink-0",
+                              customWidth || "w-full"
+                            )}
+                          >
+                            {/* Media Thumbnail */}
+                            {isVideo ? (
+                              <video
+                                src={imageSrc}
+                                className="h-full w-full object-cover"
+                                preload="metadata"
+                                muted
+                                playsInline
+                              />
+                            ) : (
+                              <img
+                                src={imageSrc}
+                                alt={item.caption || "Showcase item"}
+                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = "https://api.dicebear.com/9.x/shapes/svg?seed=BrandCreative";
+                                }}
+                              />
+                            )}
 
-                                {/* Type Pill Badge (Top Left) */}
-                                <div className="absolute top-2 left-2 z-10">
-                                  {isReel ? (
-                                    <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30 shadow-xs">
-                                      <Film className="h-2.5 w-2.5" /> Reel
-                                    </span>
-                                  ) : isStory ? (
-                                    <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 shadow-xs">
-                                      <Sparkles className="h-2.5 w-2.5" /> Story
-                                    </span>
-                                  ) : (
-                                    <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 shadow-xs">
-                                      <Camera className="h-2.5 w-2.5" /> Post
-                                    </span>
-                                  )}
-                                </div>
+                            {/* Type Pill Badge (Top Left) */}
+                            <div className="absolute top-2 left-2 z-10">
+                              {isReel ? (
+                                <span className="flex items-center gap-1 bg-black/75 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30 shadow-xs">
+                                  <Film className="h-2.5 w-2.5" /> Reel
+                                </span>
+                              ) : isStory ? (
+                                <span className="flex items-center gap-1 bg-black/75 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 shadow-xs">
+                                  <Sparkles className="h-2.5 w-2.5" /> Story
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 bg-black/75 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 shadow-xs">
+                                  <Camera className="h-2.5 w-2.5" /> Post
+                                </span>
+                              )}
+                            </div>
 
-                                {/* Brand Tag Badge (Top Right) */}
-                                {item.brandTag && (
-                                  <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
-                                    <span className="block truncate bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
-                                      {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Delete Button (Visible on hover) */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemovePortfolioImage(item._id || idx);
-                                  }}
-                                  className="absolute top-2 right-2 z-20 bg-destructive/90 hover:bg-destructive text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
-                                  title="Delete item"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-
-                                {/* Reel Play / Views pill (Bottom Left) */}
-                                {isReel && views > 0 && (
-                                  <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
-                                  </div>
-                                )}
-
-                                {/* Hover Overlay with Likes & Comments */}
-                                <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
-                                  {item.caption && (
-                                    <p className="text-[11px] font-medium text-white/90 line-clamp-2 mb-2">
-                                      {item.caption}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-3 text-xs font-bold">
-                                    <span className="flex items-center gap-1">
-                                      <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
-                                    </span>
-                                  </div>
-                                </div>
+                            {/* Brand Tag Badge (Top Right) */}
+                            {item.brandTag && (
+                              <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
+                                <span className="block truncate bg-black/75 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
+                                  {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
+                                </span>
                               </div>
-                            );
-                          })}
+                            )}
+
+                            {/* Delete Button (Visible on hover) */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemovePortfolioImage(item._id || idx);
+                              }}
+                              className="absolute top-2 right-2 z-20 bg-destructive/90 hover:bg-destructive text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                              title="Delete item"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+
+                            {/* Reel Play / Views pill (Bottom Left) */}
+                            {isReel && views > 0 && (
+                              <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/75 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10">
+                                <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
+                              </div>
+                            )}
+
+                            {/* Hover Overlay with Likes & Comments */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent backdrop-blur-[1.5px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
+                              {item.caption && (
+                                <p className="text-[11px] font-medium text-white/95 line-clamp-2 mb-2 leading-snug">
+                                  {item.caption}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-3 text-xs font-bold">
+                                <span className="flex items-center gap-1 text-rose-300">
+                                  <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
+                                </span>
+                                <span className="flex items-center gap-1 text-white/90">
+                                  <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      };
+
+                      if (portfolioLayout === "carousel") {
+                        return (
+                          <div className="relative group/scroll">
+                            {/* Scroll container */}
+                            <div
+                              id="portfolio-carousel-container"
+                              className="flex items-center gap-3.5 overflow-x-auto pb-3 pt-1 scroll-smooth no-scrollbar snap-x snap-mandatory"
+                              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                            >
+                              {filtered.map((item, idx) => (
+                                <div key={item._id || idx} className="snap-start shrink-0">
+                                  {renderMediaCard(item, idx, "w-48 sm:w-52 md:w-56")}
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Left Scroll Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const container = document.getElementById("portfolio-carousel-container");
+                                if (container) container.scrollBy({ left: -320, behavior: "smooth" });
+                              }}
+                              className="absolute left-1 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-background/90 hover:bg-background border border-border/80 shadow-lg flex items-center justify-center text-foreground opacity-0 group-hover/scroll:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+                              title="Scroll left"
+                            >
+                              <ChevronLeft className="h-5 w-5" />
+                            </button>
+
+                            {/* Right Scroll Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const container = document.getElementById("portfolio-carousel-container");
+                                if (container) container.scrollBy({ left: 320, behavior: "smooth" });
+                              }}
+                              className="absolute right-1 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-background/90 hover:bg-background border border-border/80 shadow-lg flex items-center justify-center text-foreground opacity-0 group-hover/scroll:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+                              title="Scroll right"
+                            >
+                              <ChevronRight className="h-5 w-5" />
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="max-h-[520px] overflow-y-auto pr-1">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                            {filtered.map((item, idx) => renderMediaCard(item, idx, "w-full"))}
+                          </div>
                         </div>
                       );
                     })()}

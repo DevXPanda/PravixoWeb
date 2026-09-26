@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { resolveImageUrl } from "@/lib/utils";
+import { resolveImageUrl, resolveFrontendUrl } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -378,7 +378,7 @@ import { NotificationBell } from "@/components/notification-bell";
                   key={u._id}
                   onClick={() =>
                     window.open(
-                      `${import.meta.env.VITE_FRONTEND_URL || "https://pravixo-web.vercel.app"}/${u.role === "creator" ? "influencer" : "brand"}/${u._id}`,
+                      resolveFrontendUrl(`/${u.role === "creator" ? "influencer" : "brand"}/${u._id}`),
                       "_blank"
                     )
                   }
@@ -396,7 +396,7 @@ import { NotificationBell } from "@/components/notification-bell";
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold">{u.fullName}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {u.handle ? `@${u.handle}` : u.category || "—"}
+                      {u.handle ? `@${u.handle.replace(/^@+/, '')}` : u.category || "—"}
                     </div>
                   </div>
                   <Badge

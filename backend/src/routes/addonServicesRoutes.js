@@ -1,4 +1,6 @@
 import express from "express";
+import upload from "../middleware/upload.js";
+import { optionalAuth } from "../middleware/auth.js";
 
 import {
   listAddonServices,
@@ -13,14 +15,14 @@ import {
 
 const router = express.Router();
 
-router.get("/services", listAddonServices);
-router.post("/services", createAddonService);
-router.patch("/services/:id", updateAddonService);
-router.delete("/services/:id", deleteAddonService);
+router.get("/services", optionalAuth, listAddonServices);
+router.post("/services", optionalAuth, upload.single("image"), createAddonService);
+router.patch("/services/:id", optionalAuth, upload.single("image"), updateAddonService);
+router.delete("/services/:id", optionalAuth, deleteAddonService);
 
-router.get("/bookings", listAddonBookings);
-router.post("/bookings", createAddonBooking);
-router.patch("/bookings/:id", updateAddonBookingStatus);
-router.delete("/bookings/:id", deleteAddonBooking);
+router.get("/bookings", optionalAuth, listAddonBookings);
+router.post("/bookings", optionalAuth, createAddonBooking);
+router.patch("/bookings/:id", optionalAuth, updateAddonBookingStatus);
+router.delete("/bookings/:id", optionalAuth, deleteAddonBooking);
 
 export default router;

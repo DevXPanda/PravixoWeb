@@ -57,6 +57,13 @@ function getNotificationIcon(type) {
     case "deliverable_rejected":
     case "dispute_raised":
       return AlertCircle;
+    case "addon_booking":
+    case "addon_booking_confirmed":
+    case "addon_booking_cancelled":
+    case "addon_service_submitted":
+    case "addon_service_approved":
+    case "addon_service_rejected":
+      return Sparkles;
     default:
       return Activity;
   }
@@ -258,6 +265,14 @@ export default function Notifications() {
       case "verification_requested":
       case "dispute_raised":
         navigate("/dashboard");
+        break;
+      case "addon_booking":
+      case "addon_booking_confirmed":
+      case "addon_booking_cancelled":
+      case "addon_service_submitted":
+      case "addon_service_approved":
+      case "addon_service_rejected":
+        navigate("/addons");
         break;
       default:
         break;

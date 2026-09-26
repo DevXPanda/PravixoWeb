@@ -584,7 +584,7 @@ export function ConversationsPage() {
                             {u.fullName}
                           </span>
                           <span className="text-[10px] text-muted-foreground">
-                            {u.handle ? `@${u.handle}` : u.email}
+                            {u.handle ? `@${u.handle.replace(/^@+/, '')}` : u.email}
                           </span>
                         </div>
                       </div>

@@ -845,10 +845,23 @@ export default function InfluencerDetails() {
     }
   };
 
+  const [profileLoading, setProfileLoading] = useState(() => !inf);
+  const [profileNotFound, setProfileNotFound] = useState(false);
+
   useEffect(() => {
     let isMounted = true;
     const loadProfile = async () => {
-      if (!profileId) return;
+      if (!profileId) {
+        setProfileLoading(false);
+        setProfileNotFound(true);
+        return;
+      }
+
+      // If we don't have it in initial state, mark loading
+      if (!inf) {
+        setProfileLoading(true);
+      }
+
       try {
         const profile = await fetchProfileById(profileId);
         if (profile && isMounted) {
@@ -865,7 +878,7 @@ export default function InfluencerDetails() {
           const formatted = {
             id: profile._id,
             name: fullName,
-            handle: profile.handle || `@${fullName.toLowerCase().replace(/\s/g, "")}`,
+            handle: profile.handle ? `@${profile.handle.replace(/^@+/, "")}` : `@${fullName.toLowerCase().replace(/\s/g, "")}`,
             bio: profile.bio || "",
             role: profile.role,
             category: profile.category || "General",
@@ -897,6 +910,10 @@ export default function InfluencerDetails() {
             quoraFollowers: Number(profile.quoraFollowers || 0),
             twitterHandle: profile.twitterHandle,
             twitterFollowers: Number(profile.twitterFollowers || 0),
+            pricingTiers: profile.pricingTiers || [],
+            verificationStatus: profile.verificationStatus,
+            website: profile.website,
+            companySize: profile.companySize,
             prefNiches: profile.prefNiches,
             prefBudget: profile.prefBudget,
             prefReach: profile.prefReach,
@@ -907,12 +924,22 @@ export default function InfluencerDetails() {
           };
 
           setInf(formatted);
+          setProfileNotFound(false);
           if (portfolio.length > 0) {
             setPortfolioImages(portfolio);
           }
+        } else if (isMounted && !inf) {
+          setProfileNotFound(true);
         }
       } catch (err) {
         console.error("Failed to load live profile:", err);
+        if (isMounted && !inf) {
+          setProfileNotFound(true);
+        }
+      } finally {
+        if (isMounted) {
+          setProfileLoading(false);
+        }
       }
     };
 
@@ -1483,17 +1510,46 @@ export default function InfluencerDetails() {
   }, [inf]);
 
   // ===================================================
-  // PROFILE LOADING GUARD
+  // PROFILE LOADING & ERROR GUARDS
   // ===================================================
 
-  // The profile is loaded asynchronously. Until it arrives, `inf` can be null.
-  // Stop rendering before any direct `inf.*` access happens.
-  if (!inf) {
+  if (profileLoading && !inf) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-muted-foreground animate-pulse">
-          Loading profile...
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="relative aspect-[1361/450] w-full rounded-b-2xl sm:rounded-b-3xl bg-secondary/50 animate-pulse border border-border/50" />
+        <div className="flex flex-col sm:flex-row items-center sm:items-end gap-5 -mt-14 sm:-mt-20 px-4">
+          <div className="h-28 w-28 sm:h-36 sm:w-36 rounded-full bg-secondary animate-pulse border-4 border-background shadow-elevated" />
+          <div className="space-y-2 flex-1 pb-2">
+            <div className="h-7 w-48 bg-secondary animate-pulse rounded-lg" />
+            <div className="h-4 w-32 bg-secondary animate-pulse rounded" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 rounded-2xl bg-secondary/40 animate-pulse border border-border/50" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (profileNotFound || !inf) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+        <div className="h-16 w-16 rounded-2xl bg-secondary flex items-center justify-center mb-4 border border-border">
+          <Users className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-bold font-display tracking-tight text-foreground">
+          Profile Not Found
+        </h2>
+        <p className="text-sm text-muted-foreground mt-2 max-w-md">
+          This creator or brand profile does not exist, has been removed, or is currently unavailable.
         </p>
+        <Link to="/browse" className="mt-6">
+          <Button className="rounded-full px-6 shadow-sm">
+            Browse Creators & Brands
+          </Button>
+        </Link>
       </div>
     );
   }

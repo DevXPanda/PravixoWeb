@@ -22,6 +22,8 @@ import {
  
   Camera,
   ImageIcon,
+  LayoutGrid,
+  SlidersHorizontal,
 
   Check,
   ChevronsUpDown,
@@ -655,6 +657,7 @@ export function DashboardInfluencer() {
 
   // Instagram-style Portfolio States
   const [portfolioTab, setPortfolioTab] = useState("all"); // "all" | "post" | "reel" | "story"
+  const [portfolioLayout, setPortfolioLayout] = useState("carousel"); // "carousel" (scroll x) or "grid"
   const [showAddPortfolioModal, setShowAddPortfolioModal] = useState(false);
   const [selectedPortfolioPost, setSelectedPortfolioPost] = useState(null);
   const [portfolioCommentText, setPortfolioCommentText] = useState("");
@@ -1947,9 +1950,9 @@ const CAMPAIGNS_PER_PAGE = 6;
         </section>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4 sm:gap-5 -mt-16 sm:-mt-20 z-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
+          <div className="flex items-center gap-4 sm:gap-5 -mt-16 sm:-mt-20 z-10 min-w-0">
             {/* AVATAR WITH INSTA-STYLE HOVER/CLICK ACTIONS */}
             <div className="relative group shrink-0">
               <img
@@ -2003,11 +2006,11 @@ const CAMPAIGNS_PER_PAGE = 6;
               </div>
             </div>
 
-            <div className="flex flex-col gap-1 pt-12 sm:pt-14">
+            <div className="flex flex-col gap-1 pt-12 sm:pt-14 min-w-0">
               <p className="text-xs sm:text-sm text-muted-foreground font-medium">
                 Creator dashboard
               </p>
-              <h1 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl flex items-center gap-2">
+              <h1 className="font-display text-2xl font-bold sm:text-3xl lg:text-4xl flex items-center gap-2 truncate">
                 {displayName}
                 {status === "verified" && (
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500 shadow-xs" title="Verified Creator">
@@ -2018,32 +2021,34 @@ const CAMPAIGNS_PER_PAGE = 6;
             </div>
           </div>
 
-          {/* Action Buttons Row */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Action Buttons Row - Shifted Inward & Protected from Clipping */}
+          <div className="flex items-center flex-nowrap gap-2 py-1 shrink-0 overflow-x-auto no-scrollbar max-w-full lg:max-w-none pr-1">
             {profile?.handle && (
-              <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer">
+              <Link to={`/c/${profile.handle.replace("@", "")}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
                 <Button
                   variant="default"
-                  className="rounded-full text-xs font-bold px-4 flex items-center gap-1.5 gradient-sunset text-white shadow-glow hover:opacity-90 cursor-pointer border-0"
+                  size="sm"
+                  className="rounded-full text-xs font-bold px-3.5 flex items-center gap-1.5 gradient-sunset text-white shadow-glow hover:opacity-90 cursor-pointer border-0 shrink-0 whitespace-nowrap h-9"
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Media Kit
                 </Button>
               </Link>
             )}
-            <Link to={`/influencer/${profile?._id}`}>
+            <Link to={`/influencer/${profile?._id}`} className="shrink-0">
               <Button
                 variant="outline"
-                className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary"
+                size="sm"
+                className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary shrink-0 whitespace-nowrap h-9"
               >
                 <ExternalLink className="h-3.5 w-3.5 text-primary" /> View Profile
               </Button>
             </Link>
             {/* COMBINED FOLLOWERS & FOLLOWING IN ONE UNIFIED PILL */}
-            <div className="inline-flex items-center rounded-full border border-border/80 bg-card text-xs font-semibold overflow-hidden shadow-xs">
+            <div className="inline-flex items-center rounded-full border border-border/80 bg-card text-xs font-semibold overflow-hidden shadow-xs shrink-0 whitespace-nowrap h-9">
               <button
                 type="button"
                 onClick={() => openFollowModal("followers")}
-                className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+                className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer whitespace-nowrap"
               >
                 <Users className="h-3.5 w-3.5 text-primary" />
                 <span className="font-bold text-foreground">{followCounts.followers}</span>
@@ -2053,7 +2058,7 @@ const CAMPAIGNS_PER_PAGE = 6;
               <button
                 type="button"
                 onClick={() => openFollowModal("following")}
-                className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer"
+                className="px-3 py-1.5 flex items-center gap-1.5 hover:bg-secondary transition-colors cursor-pointer whitespace-nowrap"
               >
                 <span className="font-bold text-foreground">{followCounts.following}</span>
                 <span className="text-muted-foreground">Following</span>
@@ -2061,13 +2066,14 @@ const CAMPAIGNS_PER_PAGE = 6;
             </div>
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 const handleClean = profile?.handle?.replace("@", "") || profile?._id;
                 const url = `${window.location.origin}/c/${handleClean}`;
                 navigator.clipboard.writeText(url);
                 toast.success("Media Kit shareable link copied to clipboard!");
               }}
-              className="rounded-full text-xs font-semibold px-4 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer"
+              className="rounded-full text-xs font-semibold px-3.5 flex items-center gap-1.5 border-border/80 hover:bg-secondary cursor-pointer shrink-0 whitespace-nowrap h-9"
             >
               <Share2 className="h-3.5 w-3.5 text-primary" /> Share Media Kit
             </Button>
@@ -2634,43 +2640,69 @@ const CAMPAIGNS_PER_PAGE = 6;
                     )}
                   </div>
 
-                  {/* SOCIAL PRESENCE COLLAPSIBLE SECTION */}
-                  <div className="mt-6 rounded-2xl border border-border/70 overflow-hidden bg-card/60 transition-all">
+                  {/* 3. SOCIAL PRESENCE ACCORDION */}
+                  <div className="rounded-3xl border border-border/80 overflow-hidden bg-card/70 backdrop-blur-md shadow-sm transition-all mb-5 hover:border-primary/30 mt-6">
                     <button
                       type="button"
                       onClick={() => setOpenSocialSection(!openSocialSection)}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-secondary/40 transition-colors"
+                      className="w-full flex items-center justify-between p-5 text-left hover:bg-secondary/30 transition-colors cursor-pointer"
                     >
-                      <div>
-                        <h3 className="font-display text-base font-bold flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 text-primary" /> Social Presence
-                          {connections && connections.some((c) => c.verified) && (
-                            <Badge variant="secondary" className="text-[10px] font-bold text-sky-500 bg-sky-500/10">
-                              Verified ✓
+                      <div className="flex items-center gap-3.5">
+                        <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-pink-500/20 via-primary/20 to-sky-500/20 flex items-center justify-center text-primary shadow-xs">
+                          <Sparkles className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-display text-base font-bold text-foreground">
+                              Social Presence & Handles
+                            </h3>
+                            {connections && connections.some((c) => c.verified) && (
+                              <Badge variant="secondary" className="text-[10px] font-bold text-sky-500 bg-sky-500/10 border border-sky-500/20 rounded-full px-2">
+                                Verified ✓
+                              </Badge>
+                            )}
+                            <Badge variant="secondary" className="text-[10px] font-semibold bg-primary/10 text-primary border-0 rounded-full px-2">
+                              {[instaHandle, ytHandle, liHandle, fbHandle, xHandle, snapHandle, pinHandle, quoraHandle].filter(Boolean).length}/8 Connected
                             </Badge>
-                          )}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Click to {openSocialSection ? "collapse" : "view and connect Instagram, YouTube, LinkedIn, Facebook, X, etc."}
-                        </p>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Connect and verify your Instagram, YouTube, LinkedIn, Facebook, X, Snapchat, and Quora
+                          </p>
+                        </div>
                       </div>
-                      <ChevronRight className={cn("h-5 w-5 text-muted-foreground transition-transform duration-200", openSocialSection && "rotate-90 text-primary")} />
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-primary hidden sm:inline-block">
+                          {openSocialSection ? "Collapse" : "Manage"}
+                        </span>
+                        <div className="h-8 w-8 rounded-full bg-secondary/60 flex items-center justify-center">
+                          <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform duration-300", openSocialSection && "rotate-90 text-primary")} />
+                        </div>
+                      </div>
                     </button>
 
                     {openSocialSection && (
-                      <div className="p-4 pt-2 border-t border-border/40">
-                        <p className="mb-4 text-xs text-muted-foreground">
-                          Verify your accounts using official OAuth platforms or update them manually.
-                        </p>
-                        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                      <div className="p-5 pt-3 border-t border-border/40 space-y-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+                          <p className="text-xs text-muted-foreground">
+                            Verify your accounts with real-time sync, quick audits, or direct OAuth to attract high-paying brand collaborations.
+                          </p>
+                          <span className="text-[11px] font-medium text-emerald-500/90 bg-emerald-500/10 px-2.5 py-1 rounded-md border border-emerald-500/20 self-start sm:self-auto">
+                            ✓ Realtime Profile Sync
+                          </span>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                           {[
                             {
                               id: "instagram",
                               name: "Instagram",
                               icon: FaInstagram,
-                              iconClass: "text-pink-600",
+                              gradient: "from-pink-500/15 via-purple-500/10 to-transparent",
+                              badgeColor: "text-pink-500 bg-pink-500/10 border-pink-500/20",
+                              iconColor: "text-pink-500",
                               handle: instaHandle,
                               setHandle: setInstaHandle,
+                              placeholder: "@username",
                               followers: instaFollowers,
                               setFollowers: setInstaFollowers,
                               oauth: true,
@@ -2679,9 +2711,12 @@ const CAMPAIGNS_PER_PAGE = 6;
                               id: "youtube",
                               name: "YouTube",
                               icon: FaYoutube,
-                              iconClass: "text-red-600",
+                              gradient: "from-red-600/15 via-red-500/10 to-transparent",
+                              badgeColor: "text-red-500 bg-red-500/10 border-red-500/20",
+                              iconColor: "text-red-500",
                               handle: ytHandle,
                               setHandle: setYtHandle,
+                              placeholder: "@channel",
                               followers: ytFollowers,
                               setFollowers: setYtFollowers,
                               oauth: true,
@@ -2690,9 +2725,12 @@ const CAMPAIGNS_PER_PAGE = 6;
                               id: "linkedin",
                               name: "LinkedIn",
                               icon: FaLinkedin,
-                              iconClass: "text-blue-600",
+                              gradient: "from-sky-600/15 via-sky-500/10 to-transparent",
+                              badgeColor: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+                              iconColor: "text-sky-500",
                               handle: liHandle,
                               setHandle: setLiHandle,
+                              placeholder: "in/username",
                               followers: liFollowers,
                               setFollowers: setLiFollowers,
                               oauth: false,
@@ -2701,20 +2739,26 @@ const CAMPAIGNS_PER_PAGE = 6;
                               id: "facebook",
                               name: "Facebook",
                               icon: FaFacebook,
-                              iconClass: "text-blue-500",
+                              gradient: "from-blue-600/15 via-blue-500/10 to-transparent",
+                              badgeColor: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+                              iconColor: "text-blue-500",
                               handle: fbHandle,
                               setHandle: setFbHandle,
+                              placeholder: "profile/page",
                               followers: fbFollowers,
                               setFollowers: setFbFollowers,
                               oauth: true,
                             },
                             {
                               id: "twitter",
-                              name: "Twitter / X",
+                              name: "X / Twitter",
                               icon: FaTwitter,
-                              iconClass: "text-sky-500",
+                              gradient: "from-slate-400/15 via-slate-500/10 to-transparent",
+                              badgeColor: "text-foreground bg-foreground/10 border-foreground/20",
+                              iconColor: "text-sky-400",
                               handle: xHandle,
                               setHandle: setXHandle,
+                              placeholder: "@username",
                               followers: xFollowers,
                               setFollowers: setXFollowers,
                               oauth: false,
@@ -2723,9 +2767,12 @@ const CAMPAIGNS_PER_PAGE = 6;
                               id: "snapchat",
                               name: "Snapchat",
                               icon: Sparkles,
-                              iconClass: "text-yellow-500",
+                              gradient: "from-yellow-500/15 via-amber-500/10 to-transparent",
+                              badgeColor: "text-yellow-500 bg-yellow-500/10 border-yellow-500/20",
+                              iconColor: "text-yellow-500",
                               handle: snapHandle,
                               setHandle: setSnapHandle,
+                              placeholder: "@snap_handle",
                               followers: snapFollowers,
                               setFollowers: setSnapFollowers,
                               oauth: false,
@@ -2734,9 +2781,12 @@ const CAMPAIGNS_PER_PAGE = 6;
                               id: "pinterest",
                               name: "Pinterest",
                               icon: Sparkles,
-                              iconClass: "text-red-500",
+                              gradient: "from-rose-500/15 via-red-500/10 to-transparent",
+                              badgeColor: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+                              iconColor: "text-rose-500",
                               handle: pinHandle,
                               setHandle: setPinHandle,
+                              placeholder: "pin/username",
                               followers: pinFollowers,
                               setFollowers: setPinFollowers,
                               oauth: false,
@@ -2745,9 +2795,12 @@ const CAMPAIGNS_PER_PAGE = 6;
                               id: "quora",
                               name: "Quora",
                               icon: Sparkles,
-                              iconClass: "text-red-700",
+                              gradient: "from-rose-700/15 via-red-600/10 to-transparent",
+                              badgeColor: "text-rose-600 bg-rose-600/10 border-rose-600/20",
+                              iconColor: "text-rose-600",
                               handle: quoraHandle,
                               setHandle: setQuoraHandle,
+                              placeholder: "profile/name",
                               followers: quoraFollowers,
                               setFollowers: setQuoraFollowers,
                               oauth: false,
@@ -2756,131 +2809,162 @@ const CAMPAIGNS_PER_PAGE = 6;
                             const Icon = plat.icon;
                             const conn = connections?.find((c) => c.platform === plat.id);
                             const isVerified = conn?.verified;
+                            const hasData = Boolean((plat.handle && plat.handle.trim()) || Number(plat.followers) > 0);
 
                             return (
                               <div
                                 key={plat.id}
-                                className="rounded-2xl border border-border/80 bg-background/50 p-4 space-y-3 relative overflow-hidden flex flex-col justify-between"
+                                className={cn(
+                                  "group/card relative rounded-2xl border p-4.5 transition-all duration-300 flex flex-col justify-between overflow-hidden",
+                                  "bg-gradient-to-b bg-card/90 hover:-translate-y-0.5 hover:shadow-lg",
+                                  hasData ? "border-border/90 shadow-sm" : "border-border/60 opacity-90 hover:opacity-100"
+                                )}
                               >
-                                <div className="flex items-center justify-between border-b border-border/50 pb-2">
-                                  <div className="flex items-center gap-1.5 min-w-0">
+                                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-60 pointer-events-none", plat.gradient)} />
+
+                                <div className="relative z-10 space-y-3.5">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2.5 min-w-0">
                                       <a
                                         href={
-                                          plat.handle 
+                                          plat.handle
                                             ? (plat.id === "linkedin" ? `https://linkedin.com/${plat.handle}` : plat.id === "quora" ? `https://quora.com/profile/${plat.handle}` : `https://${plat.id}.com/${plat.handle.replace('@', '')}`)
                                             : `https://${plat.id}.com`
                                         }
                                         target="_blank"
                                         rel="noreferrer"
-                                        className="hover:opacity-80 transition-opacity cursor-pointer"
+                                        className="h-8 w-8 rounded-xl bg-background/90 border border-border/80 shadow-xs flex items-center justify-center shrink-0 hover:scale-105 transition-transform"
                                       >
-                                        <Icon className={cn("h-4 w-4 shrink-0", plat.iconClass)} />
+                                        <Icon className={cn("h-4 w-4", plat.iconColor)} />
                                       </a>
-                                    <span className="text-sm font-semibold truncate">
-                                      {plat.name}
-                                    </span>
-                                  </div>
-                                  {isVerified ? (
-                                    <Badge
-                                      variant="secondary"
-                                      className="text-[10px] bg-sky-500/10 text-sky-500 hover:bg-sky-500/20 border-0 flex items-center gap-1 shrink-0"
-                                    >
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      Verified
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] text-muted-foreground border-border shrink-0"
-                                    >
-                                      Unverified
-                                    </Badge>
-                                  )}
-                                </div>
-
-                                <div className="space-y-2 text-xs">
-                                  <div>
-                                    <label className="text-muted-foreground text-[10px] font-medium block mb-0.5">Handle / Profile URL</label>
-                                    <Input
-                                      value={plat.handle}
-                                      onChange={(e) => plat.setHandle(e.target.value)}
-                                      placeholder={`@${plat.id}`}
-                                      className="h-8 text-xs bg-background/50 border-border"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-muted-foreground text-[10px] font-medium block mb-0.5">Followers / Audience Count</label>
-                                    <Input
-                                      type="number"
-                                      value={plat.followers}
-                                      onChange={(e) => plat.setFollowers(e.target.value)}
-                                      placeholder="e.g. 50000"
-                                      className="h-8 text-xs bg-background/50 border-border"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="pt-2 border-t border-border/40 flex flex-col gap-1.5">
-                                  {isVerified ? (
-                                    <div className="flex items-center gap-1.5 w-full">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="flex-1 text-[11px] h-7 rounded-lg border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 text-sky-600 gap-1 font-semibold"
-                                        disabled={syncingPlatform === plat.id}
-                                        onClick={() => handleLiveReSync(conn?._id, plat.id)}
-                                      >
-                                        <RotateCw className={cn("h-3 w-3", syncingPlatform === plat.id && "animate-spin")} />
-                                        {syncingPlatform === plat.id ? "Syncing..." : "Live Sync"}
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="text-[11px] h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg"
-                                        onClick={() => handleDisconnect(conn?._id, plat.id)}
-                                        title="Disconnect verified account"
-                                      >
-                                        Disconnect
-                                      </Button>
+                                      <div className="min-w-0">
+                                        <span className="text-sm font-bold text-foreground tracking-tight block truncate">
+                                          {plat.name}
+                                        </span>
+                                      </div>
                                     </div>
-                                  ) : (
-                                    <div className="flex items-center gap-1.5 w-full">
-                                      <Button
-                                        size="sm"
-                                        className="flex-1 text-[11px] h-7 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1"
-                                        disabled={syncingPlatform === plat.id}
-                                        onClick={() => handleQuickVerify(plat.id, plat.handle, plat.followers)}
+
+                                    {isVerified ? (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[10px] font-bold bg-sky-500/10 text-sky-500 border border-sky-500/20 flex items-center gap-1 shrink-0 px-2 py-0.5"
                                       >
-                                        <ShieldCheck className="h-3 w-3" />
-                                        {syncingPlatform === plat.id ? "Auditing..." : "Quick Verify"}
-                                      </Button>
-                                      {plat.oauth && (
+                                        <CheckCircle2 className="h-3 w-3" />
+                                        Verified
+                                      </Badge>
+                                    ) : (
+                                      <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0", plat.badgeColor)}>
+                                        {hasData ? "Connected" : "Not Set"}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <div className="space-y-2.5">
+                                    <div className="space-y-1">
+                                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                        <span>Handle / Username</span>
+                                      </Label>
+                                      <div className="relative">
+                                        <Input
+                                          value={plat.handle}
+                                          onChange={(e) => plat.setHandle(e.target.value)}
+                                          placeholder={plat.placeholder}
+                                          className="h-9 text-xs rounded-xl bg-background/70 border-border/80 focus:bg-background focus:border-primary transition-all font-medium"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                                        <span>Followers / Audience</span>
+                                        {Number(plat.followers) > 0 && (
+                                          <span className="text-primary font-bold lowercase">
+                                            {Number(plat.followers).toLocaleString()} fans
+                                          </span>
+                                        )}
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        value={plat.followers || ""}
+                                        onChange={(e) => plat.setFollowers(Number(e.target.value))}
+                                        placeholder="0"
+                                        className="h-9 text-xs rounded-xl bg-background/70 border-border/80 focus:bg-background focus:border-primary transition-all font-medium"
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <div className="pt-2 border-t border-border/40 flex flex-col gap-1.5">
+                                    {isVerified ? (
+                                      <div className="flex items-center gap-1.5 w-full">
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          className="text-[11px] h-7 px-2 border-border text-muted-foreground hover:text-foreground rounded-lg"
-                                          onClick={() => handleOAuthConnect(plat.id)}
-                                          title="OAuth Login verification"
+                                          className="flex-1 text-[11px] h-7.5 rounded-lg border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/15 text-sky-500 gap-1.5 font-semibold transition-all cursor-pointer"
+                                          disabled={syncingPlatform === plat.id}
+                                          onClick={() => handleLiveReSync(conn?._id, plat.id)}
                                         >
-                                          OAuth
+                                          <RotateCw className={cn("h-3 w-3", syncingPlatform === plat.id && "animate-spin")} />
+                                          {syncingPlatform === plat.id ? "Syncing..." : "Live Sync"}
                                         </Button>
-                                      )}
-                                    </div>
-                                  )}
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="text-[11px] h-7.5 px-2.5 text-red-500/80 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
+                                          onClick={() => handleDisconnect(conn?._id, plat.id)}
+                                          title="Disconnect verified account"
+                                        >
+                                          Disconnect
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1.5 w-full">
+                                        <Button
+                                          size="sm"
+                                          className="flex-1 text-[11px] h-7.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 shadow-xs transition-all cursor-pointer"
+                                          disabled={syncingPlatform === plat.id}
+                                          onClick={() => handleQuickVerify(plat.id, plat.handle, plat.followers)}
+                                        >
+                                          <ShieldCheck className="h-3.5 w-3.5" />
+                                          {syncingPlatform === plat.id ? "Auditing..." : "Quick Verify"}
+                                        </Button>
+                                        {plat.oauth && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="text-[11px] h-7.5 px-2.5 border-border hover:border-primary/40 text-muted-foreground hover:text-foreground rounded-lg transition-all cursor-pointer"
+                                            onClick={() => handleOAuthConnect(plat.id)}
+                                            title="OAuth Login verification"
+                                          >
+                                            OAuth
+                                          </Button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-                        
-                        <div className="mt-4 flex justify-end">
+
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border/40">
+                          <p className="text-xs text-muted-foreground text-center sm:text-left">
+                            ✨ Verified stats and updated handles help brands discover and book you directly.
+                          </p>
                           <Button
+                            type="button"
                             onClick={() => saveSocialPresence()}
                             disabled={saving}
-                            size="sm"
-                            className="rounded-full gradient-sunset border-0 text-white shadow-glow"
+                            className="btn-bouncy rounded-full gradient-sunset border-0 text-white shadow-glow px-6 font-bold text-xs h-10 w-full sm:w-auto cursor-pointer"
                           >
-                            {saving ? "Saving…" : "Save Social Presence"}
+                            {saving ? (
+                              <span className="flex items-center gap-2">
+                                <RotateCw className="h-4 w-4 animate-spin" /> Saving...
+                              </span>
+                            ) : (
+                              "Save Social Presence"
+                            )}
                           </Button>
                         </div>
 
@@ -3109,14 +3193,14 @@ const CAMPAIGNS_PER_PAGE = 6;
 
                     {openPortfolioSection && (
                       <div className="p-4 pt-2 border-t border-border/40">
-                        {/* Format Tabs & Action Buttons */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-                          <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                        {/* Format Tabs, Layout Switcher & Action Buttons */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/50 text-xs overflow-x-auto">
                             <button
                               type="button"
                               onClick={() => setPortfolioTab("all")}
                               className={cn(
-                                "px-3 py-1 rounded-lg font-medium transition-all",
+                                "px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                                 portfolioTab === "all"
                                   ? "bg-background text-foreground shadow-xs font-semibold"
                                   : "text-muted-foreground hover:text-foreground"
@@ -3128,7 +3212,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                               type="button"
                               onClick={() => setPortfolioTab("post")}
                               className={cn(
-                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                                 portfolioTab === "post"
                                   ? "bg-background text-foreground shadow-xs font-semibold"
                                   : "text-muted-foreground hover:text-foreground"
@@ -3140,7 +3224,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                               type="button"
                               onClick={() => setPortfolioTab("reel")}
                               className={cn(
-                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                                 portfolioTab === "reel"
                                   ? "bg-background text-foreground shadow-xs font-semibold"
                                   : "text-muted-foreground hover:text-foreground"
@@ -3152,7 +3236,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                               type="button"
                               onClick={() => setPortfolioTab("story")}
                               className={cn(
-                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all",
+                                "flex items-center gap-1 px-3 py-1 rounded-lg font-medium transition-all shrink-0 cursor-pointer",
                                 portfolioTab === "story"
                                   ? "bg-background text-foreground shadow-xs font-semibold"
                                   : "text-muted-foreground hover:text-foreground"
@@ -3162,19 +3246,51 @@ const CAMPAIGNS_PER_PAGE = 6;
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 self-end sm:self-auto">
+                            {/* Horizontal Carousel vs Grid view toggle */}
+                            <div className="flex items-center p-1 bg-muted/40 rounded-xl border border-border/50 text-xs">
+                              <button
+                                type="button"
+                                onClick={() => setPortfolioLayout("carousel")}
+                                title="Horizontal Scroll Strip View"
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1 cursor-pointer",
+                                  portfolioLayout === "carousel"
+                                    ? "bg-background text-foreground shadow-xs font-semibold text-primary"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                <SlidersHorizontal className="h-3.5 w-3.5" />
+                                <span className="hidden md:inline">Scroll X</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPortfolioLayout("grid")}
+                                title="Compact Grid View"
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1 cursor-pointer",
+                                  portfolioLayout === "grid"
+                                    ? "bg-background text-foreground shadow-xs font-semibold text-primary"
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                <LayoutGrid className="h-3.5 w-3.5" />
+                                <span className="hidden md:inline">Grid</span>
+                              </button>
+                            </div>
+
                             <Button
                               type="button"
                               size="sm"
                               onClick={() => setShowAddPortfolioModal(true)}
-                              className="rounded-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white font-semibold text-xs shadow-sm hover:opacity-95"
+                              className="rounded-full bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 text-white font-semibold text-xs shadow-sm hover:opacity-95 cursor-pointer"
                             >
-                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Post / Reel / Story
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Deliverable
                             </Button>
                           </div>
                         </div>
 
-                        {/* Portfolio Feed / Grid */}
+                        {/* Portfolio Feed / Horizontal Scroll View */}
                         {(() => {
                           const filtered = (portfolioImages || []).filter((item) => {
                             if (portfolioTab === "all") return true;
@@ -3196,7 +3312,7 @@ const CAMPAIGNS_PER_PAGE = 6;
                                   type="button"
                                   size="sm"
                                   onClick={() => setShowAddPortfolioModal(true)}
-                                  className="mt-4 rounded-full gradient-sunset text-white text-xs"
+                                  className="mt-4 rounded-full gradient-sunset text-white text-xs cursor-pointer"
                                 >
                                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Deliverable
                                 </Button>
@@ -3204,109 +3320,161 @@ const CAMPAIGNS_PER_PAGE = 6;
                             );
                           }
 
-                          return (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
-                              {filtered.map((item, idx) => {
-                                const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
-                                const isReel = item.type === "reel";
-                                const isStory = item.type === "story";
-                                const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
-                                const likes = item.likesCount || 0;
-                                const comments = item.commentsCount || (item.comments?.length || 0);
-                                const views = item.viewsCount || (isReel ? 1200 : 0);
+                          const renderMediaCard = (item, idx, customWidth = "") => {
+                            const imageSrc = resolveImageUrl(item.url || item.imageUrl || item);
+                            const isReel = item.type === "reel";
+                            const isStory = item.type === "story";
+                            const isVideo = item.mediaType === "video" || /\.(mp4|mov|avi|webm)$/i.test(imageSrc || "");
+                            const likes = item.likesCount || 0;
+                            const comments = item.commentsCount || (item.comments?.length || 0);
+                            const views = item.viewsCount || (isReel ? 1200 : 0);
 
-                                return (
-                                  <div
-                                    key={item._id || idx}
-                                    onClick={() => setSelectedPortfolioPost(item)}
-                                    className="group relative aspect-square w-full rounded-2xl overflow-hidden border border-border/80 bg-neutral-900 cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-md"
-                                  >
-                                    {/* Media Thumbnail */}
-                                    {isVideo ? (
-                                      <video
-                                        src={imageSrc}
-                                        className="h-full w-full object-cover"
-                                        preload="metadata"
-                                        muted
-                                        playsInline
-                                      />
-                                    ) : (
-                                      <img
-                                        src={imageSrc}
-                                        alt={item.caption || "Portfolio item"}
-                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                        onError={(e) => {
-                                          e.target.onerror = null;
-                                          e.target.src = "https://api.dicebear.com/9.x/shapes/svg?seed=Portfolio";
-                                        }}
-                                      />
-                                    )}
+                            return (
+                              <div
+                                key={item._id || idx}
+                                onClick={() => setSelectedPortfolioPost(item)}
+                                className={cn(
+                                  "group relative aspect-square rounded-2xl overflow-hidden border border-border/80 bg-neutral-900 cursor-pointer shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:border-pink-500/40 shrink-0",
+                                  customWidth || "w-full"
+                                )}
+                              >
+                                {/* Media Thumbnail */}
+                                {isVideo ? (
+                                  <video
+                                    src={imageSrc}
+                                    className="h-full w-full object-cover"
+                                    preload="metadata"
+                                    muted
+                                    playsInline
+                                  />
+                                ) : (
+                                  <img
+                                    src={imageSrc}
+                                    alt={item.caption || "Portfolio item"}
+                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = "https://api.dicebear.com/9.x/shapes/svg?seed=Portfolio";
+                                    }}
+                                  />
+                                )}
 
-                                    {/* Type Pill Badge (Top Left) */}
-                                    <div className="absolute top-2 left-2 z-10">
-                                      {isReel ? (
-                                        <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30 shadow-xs">
-                                          <Film className="h-2.5 w-2.5" /> Reel
-                                        </span>
-                                      ) : isStory ? (
-                                        <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 shadow-xs">
-                                          <Sparkles className="h-2.5 w-2.5" /> Story
-                                        </span>
-                                      ) : (
-                                        <span className="flex items-center gap-1 bg-black/70 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 shadow-xs">
-                                          <Camera className="h-2.5 w-2.5" /> Post
-                                        </span>
-                                      )}
-                                    </div>
+                                {/* Type Pill Badge (Top Left) */}
+                                <div className="absolute top-2 left-2 z-10">
+                                  {isReel ? (
+                                    <span className="flex items-center gap-1 bg-black/75 backdrop-blur-md text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-pink-500/30 shadow-xs">
+                                      <Film className="h-2.5 w-2.5" /> Reel
+                                    </span>
+                                  ) : isStory ? (
+                                    <span className="flex items-center gap-1 bg-black/75 backdrop-blur-md text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/30 shadow-xs">
+                                      <Sparkles className="h-2.5 w-2.5" /> Story
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1 bg-black/75 backdrop-blur-md text-blue-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-500/30 shadow-xs">
+                                      <Camera className="h-2.5 w-2.5" /> Post
+                                    </span>
+                                  )}
+                                </div>
 
-                                    {/* Brand Tag Badge (Top Right) */}
-                                    {item.brandTag && (
-                                      <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
-                                        <span className="block truncate bg-black/70 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
-                                          {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
-                                        </span>
-                                      </div>
-                                    )}
-
-                                    {/* Delete Button (Visible on hover) */}
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleRemovePortfolioImage(item._id || idx);
-                                      }}
-                                      className="absolute top-2 right-2 z-20 bg-destructive/90 hover:bg-destructive text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
-                                      title="Delete item"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </button>
-
-                                    {/* Reel Play / Views pill (Bottom Left) */}
-                                    {isReel && views > 0 && (
-                                      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                        <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
-                                      </div>
-                                    )}
-
-                                    {/* Hover Overlay with Likes & Comments */}
-                                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
-                                      {item.caption && (
-                                        <p className="text-[11px] font-medium text-white/90 line-clamp-2 mb-2">
-                                          {item.caption}
-                                        </p>
-                                      )}
-                                      <div className="flex items-center gap-3 text-xs font-bold">
-                                        <span className="flex items-center gap-1">
-                                          <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                          <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
-                                        </span>
-                                      </div>
-                                    </div>
+                                {/* Brand Tag Badge (Top Right) */}
+                                {item.brandTag && (
+                                  <div className="absolute top-2 right-2 z-10 max-w-[55%] truncate">
+                                    <span className="block truncate bg-black/75 backdrop-blur-md text-white text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/20">
+                                      {item.brandTag.startsWith("@") ? item.brandTag : `@${item.brandTag}`}
+                                    </span>
                                   </div>
-                                );
-                              })}
+                                )}
+
+                                {/* Delete Button (Visible on hover) */}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemovePortfolioImage(item._id || idx);
+                                  }}
+                                  className="absolute top-2 right-2 z-20 bg-destructive/90 hover:bg-destructive text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                                  title="Delete item"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+
+                                {/* Reel Play / Views pill (Bottom Left) */}
+                                {isReel && views > 0 && (
+                                  <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1 bg-black/75 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10">
+                                    <Play className="h-2.5 w-2.5 fill-white" /> {views.toLocaleString()}
+                                  </div>
+                                )}
+
+                                {/* Hover Overlay with Likes & Comments */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent backdrop-blur-[1.5px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 text-white">
+                                  {item.caption && (
+                                    <p className="text-[11px] font-medium text-white/95 line-clamp-2 mb-2 leading-snug">
+                                      {item.caption}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-3 text-xs font-bold">
+                                    <span className="flex items-center gap-1 text-rose-300">
+                                      <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /> {likes}
+                                    </span>
+                                    <span className="flex items-center gap-1 text-white/90">
+                                      <MessageCircle className="h-3.5 w-3.5 fill-white text-white" /> {comments}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          };
+
+                          if (portfolioLayout === "carousel") {
+                            return (
+                              <div className="relative group/scroll">
+                                {/* Scroll container */}
+                                <div
+                                  id="creator-portfolio-carousel"
+                                  className="flex items-center gap-3.5 overflow-x-auto pb-3 pt-1 scroll-smooth no-scrollbar snap-x snap-mandatory"
+                                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                                >
+                                  {filtered.map((item, idx) => (
+                                    <div key={item._id || idx} className="snap-start shrink-0">
+                                      {renderMediaCard(item, idx, "w-48 sm:w-52 md:w-56")}
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Left Scroll Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const container = document.getElementById("creator-portfolio-carousel");
+                                    if (container) container.scrollBy({ left: -320, behavior: "smooth" });
+                                  }}
+                                  className="absolute left-1 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-background/90 hover:bg-background border border-border/80 shadow-lg flex items-center justify-center text-foreground opacity-0 group-hover/scroll:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+                                  title="Scroll left"
+                                >
+                                  <ChevronLeft className="h-5 w-5" />
+                                </button>
+
+                                {/* Right Scroll Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const container = document.getElementById("creator-portfolio-carousel");
+                                    if (container) container.scrollBy({ left: 320, behavior: "smooth" });
+                                  }}
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 z-20 h-9 w-9 rounded-full bg-background/90 hover:bg-background border border-border/80 shadow-lg flex items-center justify-center text-foreground opacity-0 group-hover/scroll:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+                                  title="Scroll right"
+                                >
+                                  <ChevronRight className="h-5 w-5" />
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="max-h-[520px] overflow-y-auto pr-1">
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+                                {filtered.map((item, idx) => renderMediaCard(item, idx, "w-full"))}
+                              </div>
                             </div>
                           );
                         })()}

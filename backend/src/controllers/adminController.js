@@ -18,6 +18,8 @@ import Payout from "../models/Payout.js";
 import Wallet from "../models/Wallet.js";
 import WalletTransaction from "../models/WalletTransaction.js";
 import Withdrawal from "../models/Withdrawal.js";
+import AddonService from "../models/AddonService.js";
+import AddonBooking from "../models/AddonBooking.js";
 import { creditCreatorWallet } from "./walletController.js";
 import { sendPushToUser, sendPushToUsers } from "../utils/webPush.js";
 import { processReferralQualification, processProjectPayoutWithReferral, reversePayoutAndReferralCommission } from "../services/referralService.js";
@@ -168,13 +170,15 @@ export const listMessages = async (req, res) => {
 };
 
 // =====================================================
-// DELETE PROFILE (CASCADE)
+// DELETE PROFILE (CASCADE / PERMANENT PURGE)
 // DELETE /api/admin/profiles/:id
 // =====================================================
 export const deleteProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body; // Reason from admin
+    const { reason, permanent } = req.body || {}; // Reason and permanent flag from admin
+
+    const isPermanent = permanent === true || permanent === "true" || req.query?.permanent === "true";
 
     // Delete pricing tiers
     await PricingTier.deleteMany({ profileId: id });
@@ -187,14 +191,38 @@ export const deleteProfile = async (req, res) => {
 
     // Delete conversations & messages
     const convs = await Conversation.find({
-      $or: [{ creatorId: id }, { brandId: id }],
+      $or: [{ creatorId: id }, { brandId: id }, { adminId: id }],
     });
     const convIds = convs.map((c) => c._id);
 
     await Message.deleteMany({ conversationId: { $in: convIds } });
     await Conversation.deleteMany({ _id: { $in: convIds } });
 
-    // Soft Delete profile so they can see the message
+    // Delete creator/brand addons & bookings
+    await AddonService.deleteMany({ creatorId: id });
+    await AddonBooking.deleteMany({ $or: [{ profileId: id }] });
+
+    // Delete connections, bank details, subscriptions
+    await Connection.deleteMany({ $or: [{ requesterId: id }, { recipientId: id }] });
+    await CreatorBankDetails.deleteMany({ profileId: id });
+    await UserSubscription.deleteMany({ profileId: id });
+    await WalletTransaction.deleteMany({ profileId: id });
+    await Wallet.deleteMany({ profileId: id });
+    await Withdrawal.deleteMany({ creatorId: id });
+
+    if (isPermanent) {
+      // PERMANENT PURGE: Completely remove profile and notifications from database
+      await Notification.deleteMany({ $or: [{ recipientId: id }, { senderId: id }] });
+      await Profile.findByIdAndDelete(id);
+
+      return res.status(200).json({
+        success: true,
+        permanent: true,
+        message: "User and all associated data permanently deleted from database.",
+      });
+    }
+
+    // SOFT DELETE: Mark as isDeleted so it moves to Deleted Users tab
     const profile = await Profile.findByIdAndUpdate(
       id,
       {
@@ -213,7 +241,8 @@ export const deleteProfile = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Profile soft-deleted and all related records deleted successfully.",
+      permanent: false,
+      message: "Profile moved to deleted users.",
     });
   } catch (error) {
     console.error("Admin deleteProfile error:", error);

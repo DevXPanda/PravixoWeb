@@ -29,6 +29,25 @@ const addonServiceSchema = new mongoose.Schema(
       default: true,
     },
 
+    creatorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Profile",
+      default: null,
+      index: true,
+    },
+
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved", // Existing or admin-created services are approved by default
+      index: true,
+    },
+
+    rejectionReason: {
+      type: String,
+      default: "",
+    },
+
     createdAt: {
       type: Number,
       required: true,
